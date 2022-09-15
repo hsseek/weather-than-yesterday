@@ -10,34 +10,42 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hsseek.betterthanyesterday.ui.theme.BetterThanYesterdayTheme
+import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
+
+private const val TAG = "MainActivity"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             BetterThanYesterdayTheme {
-                // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    Greeting("Android")
+                    Text(text = "Hello, world!")
                 }
+                // A surface container using the 'background' color from the theme
+                SummaryScreen()
             }
         }
     }
 }
 
 @Composable
-fun Greeting(name: String) {
-    Text(text = "Hello $name!")
+fun SummaryScreen(
+    modifier: Modifier = Modifier,
+    weatherViewModel: WeatherViewModel = viewModel()
+) {
+    weatherViewModel.weatherData
 }
 
 @Preview(showBackground = true)
 @Composable
 fun DefaultPreview() {
     BetterThanYesterdayTheme {
-        Greeting("Android")
+        SummaryScreen()
     }
 }
