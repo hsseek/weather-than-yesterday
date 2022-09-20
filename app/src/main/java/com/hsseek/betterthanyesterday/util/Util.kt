@@ -22,8 +22,6 @@ fun getCurrentKoreanDateTime(): Calendar {
     return Calendar.getInstance(timeZoneKorea)
 }
 
-fun formatTemperature(temp: Float): String = "%.1f".format(temp)
-
 fun getKmaBaseTime(
     dayOffset: Int = 0,
     time: Calendar = getCurrentKoreanDateTime(),
