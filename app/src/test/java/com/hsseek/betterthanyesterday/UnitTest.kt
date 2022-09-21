@@ -1,10 +1,13 @@
 package com.hsseek.betterthanyesterday
 
-import android.util.Log
+import android.content.Context
+import androidx.test.platform.app.InstrumentationRegistry
 import com.hsseek.betterthanyesterday.dummy.DUMMY_LONG_TERM_FORECAST_RAINY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_LONG_TERM_FORECAST_SUNNY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_SHORT_TERM_FORECAST_RAINY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_SHORT_TERM_FORECAST_SNOWY
+import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
+import com.hsseek.betterthanyesterday.location.KoreanGeocoder
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.*
 import com.hsseek.betterthanyesterday.util.getKmaBaseTime
 import com.hsseek.betterthanyesterday.viewmodel.RainfallStatus
@@ -12,6 +15,7 @@ import com.hsseek.betterthanyesterday.viewmodel.RainfallType
 import org.junit.Test
 
 import org.junit.Assert.*
+import org.junit.Before
 import java.util.*
 
 /**

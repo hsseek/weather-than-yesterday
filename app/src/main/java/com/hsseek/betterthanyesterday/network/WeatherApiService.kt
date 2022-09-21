@@ -1,6 +1,5 @@
 package com.hsseek.betterthanyesterday.network
 
-import com.hsseek.betterthanyesterday.SERVICE_KEY
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory

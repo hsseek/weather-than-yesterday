@@ -11,6 +11,7 @@ import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.util.*
 import kotlin.math.roundToInt
 
 private const val TAG = "WeatherViewModel"
@@ -55,6 +56,7 @@ class WeatherViewModel: ViewModel() {
             }
         }
         updateTodayShortTermStatus()
+        updateYesterdayTemp()
     }
 
     private fun updateCharacteristicTemp(
@@ -243,7 +245,7 @@ class WeatherViewModel: ViewModel() {
             for (i in items) {
                 if (i.category == HOURLY_TEMPERATURE_TAG) {
                     _hourlyTempToday.value = i.fcstValue  // The first item with TH1 category
-                    Log.d(TAG, "T1H: ${i.fcstValue}")
+                    Log.d(TAG, "T1H(Today)\t: ${i.fcstValue}")
                     break
                 }
             }
@@ -306,6 +308,42 @@ class WeatherViewModel: ViewModel() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "$e: Cannot retrieve the short-term rainfall status(PTY).")
+        }
+    }
+
+    private fun updateYesterdayTemp() {
+        viewModelScope.launch {
+            try {
+                val cal = getCurrentKoreanDateTime()
+                cal.add(Calendar.HOUR_OF_DAY, 1)
+                val baseTime = getKmaBaseTime(
+                    dayOffset = -1,
+                    time = cal,
+                    roundOff = HOUR,
+                    isQuickPublish = true,  // A baseTime of yesterday, for which data are always available.
+                )
+
+                val fetchingStartTime = System.currentTimeMillis() // for test
+                val kmaResponse = WeatherApi.service.getObservedWeather(
+                    baseDate = baseTime.date,
+                    baseTime = baseTime.hour,  // Only the last 24 sets are available.
+                    numOfRows = 8,  // Always 8 rows for each baseTime
+                    pageNo = 1,
+                )
+
+                val items = kmaResponse.body()!!.response.body.items.item
+                logElapsedTime(TAG, "${items.size} items", fetchingStartTime)
+
+                for (i in items) {
+                    if (i.category == HOURLY_TEMPERATURE_TAG) {
+                        _hourlyTempYesterday.value = i.obsrValue.toInt().toString()
+                        Log.d(TAG, "T1H(Yesterday)\t: ${i.obsrValue}")
+                        break
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "$e: Cannot retrieve the yesterday's hourly temp(T1H).")
+            }
         }
     }
 }
