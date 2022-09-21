@@ -1,6 +1,7 @@
 package com.hsseek.betterthanyesterday.util
 
 import android.util.Log
+import com.hsseek.betterthanyesterday.viewmodel.DayOfInterest
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -22,15 +23,19 @@ fun getCurrentKoreanDateTime(): Calendar {
     return Calendar.getInstance(timeZoneKorea)
 }
 
+/**
+ * Returns the latest baseTime at [time] in accordance with the [roundOff] and [isQuickPublish] rules.
+ * Note that the returned value may be a future time, at which data are not available yet.
+ * */
 fun getKmaBaseTime(
-    dayOffset: Int = 0,
+    dayOffset: Int = DayOfInterest.TODAY.dayOffset,
     time: Calendar = getCurrentKoreanDateTime(),
     roundOff: KmaHourRoundOff,
     isQuickPublish: Boolean = true,
 ): KmaTime
 {
     if (dayOffset != 0) time.add(Calendar.DAY_OF_YEAR, dayOffset)
-    val isHourAvailable: Boolean = if (isQuickPublish) time.minute() > 10 else time.minute() > 40
+    val isHourAvailable: Boolean = if (isQuickPublish) time.minute() > 10 else time.minute() > 45
 
     if (!isHourAvailable) {
         // The data for the current hour are not available. Use the previous hour.

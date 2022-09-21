@@ -4,17 +4,21 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hsseek.betterthanyesterday.network.KmaResponse
+import com.hsseek.betterthanyesterday.network.ForecastResponse
 import com.hsseek.betterthanyesterday.network.WeatherApi
 import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private const val TAG = "WeatherViewModel"
-private const val CURRENT_TEMPERATURE_TAG = "TMP"
+private const val TEMPERATURE_TAG = "TMP"
 private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
+private const val HOURLY_TEMPERATURE_TAG = "T1H"
+private const val RAIN_TAG = "PTY"
 
 class WeatherViewModel: ViewModel() {
     // The lowest temperatures of yesterday through the day after tomorrow
@@ -27,15 +31,21 @@ class WeatherViewModel: ViewModel() {
     val highestTemps: IntArray
         get() = _highestTemps.value
 
-    // The current temperature
-    private val _currentTempToday = mutableStateOf("")
-    val currentTempToday: String
-        get() = _currentTempToday.value
+    // The hourly temperature
+    private val _hourlyTempToday = mutableStateOf("")
+    val hourlyTempToday: String
+        get() = _hourlyTempToday.value
 
     // The corresponding temperature of yesterday
-    private val _currentTempYesterday = mutableStateOf("")
-    val currentTempYesterday: String
-        get() = _currentTempYesterday.value
+    private val _hourlyTempYesterday = mutableStateOf("")
+    val hourlyTempYesterday: String
+        get() = _hourlyTempYesterday.value
+
+    private val _rainfallStatus: StateFlow<RainfallStatus> = MutableStateFlow(
+        RainfallStatus(RainfallType.None, null, null)
+    )
+    val rainfallStatus: StateFlow<RainfallStatus>
+        get() = _rainfallStatus
 
     init {
         // The lowest temperatures of yesterday through the day after tomorrow.
@@ -44,6 +54,7 @@ class WeatherViewModel: ViewModel() {
                 updateCharacteristicTemp(date, type)
             }
         }
+        updateTodayShortTermStatus()
     }
 
     private fun updateCharacteristicTemp(
@@ -53,7 +64,7 @@ class WeatherViewModel: ViewModel() {
         viewModelScope.launch {
             val baseTime = getBaseTime(date)
             val page = getPage(date, type, baseTime)
-            val items: List<KmaResponse.Item>
+            val items: List<ForecastResponse.Item>
             val characteristicTemp: Int?
 
             try {
@@ -91,7 +102,7 @@ class WeatherViewModel: ViewModel() {
                 }
                 Log.d(TAG, "${type.descriptor}\tof D${date.dayOffset}\t: $characteristicTemp")
             } catch (e: Exception) {
-                Log.e(TAG, "Error retrieving ${type.descriptor}: $e")
+                Log.e(TAG, "$e: Error retrieving ${type.descriptor}")
             }
         }
     }
@@ -144,7 +155,7 @@ class WeatherViewModel: ViewModel() {
         return page
     }
 
-    private fun getCharacteristicTemp(items: List<KmaResponse.Item>, type: CharacteristicTempType): Int? {
+    private fun getCharacteristicTemp(items: List<ForecastResponse.Item>, type: CharacteristicTempType): Int? {
         var characteristicTemp: Int? = null
         val tag = when (type) {
             CharacteristicTempType.LOWEST -> LOW_TEMPERATURE_TAG
@@ -153,7 +164,7 @@ class WeatherViewModel: ViewModel() {
         for (i in items) {
             // Log.d(TAG, "$i")
             // Often, values larger / smaller than the TMX / TMN are recorded.
-            if (i.category == CURRENT_TEMPERATURE_TAG || i.category == tag) {
+            if (i.category == TEMPERATURE_TAG || i.category == tag) {
                 val temp = i.fcstValue.toFloat().roundToInt()  // The temperature at the time
                 characteristicTemp?.let { lt ->
                     when (type) {
@@ -169,6 +180,134 @@ class WeatherViewModel: ViewModel() {
         }
         return characteristicTemp
     }
+
+    /**
+     * Update the short-term future temperature (< 1h) and
+     * rainfall status of today.
+     * */
+    private fun updateTodayShortTermStatus() {
+        viewModelScope.launch {
+            try {
+                val shortTermBaseTime = getKmaBaseTime(
+                    roundOff = HOUR,
+                    isQuickPublish = false,
+                )
+                // Retrieve the short-term data
+                val stFetchingStartTime = System.currentTimeMillis() // for test
+                val shortTermResponse = WeatherApi.service.getShortTermWeather(
+                    baseDate = shortTermBaseTime.date,
+                    baseTime = shortTermBaseTime.hour,
+                    numOfRows = 30,  // [LGT -> PTY -> RN1 -> SKY -> TH1] -> REH -> UUU -> VVV -> ...
+                    pageNo = 1,
+                )
+
+                val shortTermItems = shortTermResponse.body()!!.response.body.items.item
+                logElapsedTime(TAG, "${shortTermItems.size} items", stFetchingStartTime)
+
+                updateTodayTemp(shortTermItems)
+
+                /*
+                * As the short-term data span only 6 hours,
+                * additional data must be retrieve for the rest of the day (while less accurate).
+                */
+                val longTermBaseTime = getKmaBaseTime(
+                    roundOff = VILLAGE,
+                    isQuickPublish = true,
+                )
+                val numOfRows: Int = if (longTermBaseTime.hour == "2300") {
+                    12 * 24  // 23:00 of the previous day: whole day's data should be examined.
+                } else {
+                    // Otherwise, only the later hours should be examined.
+                    (23 - longTermBaseTime.hour.toInt() / 100) * 12
+                }
+                val ltFetchingStartTime = System.currentTimeMillis() // for test
+                val longTermResponse = WeatherApi.service.getVillageWeather(
+                    baseDate = longTermBaseTime.date,
+                    baseTime = longTermBaseTime.hour,
+                    numOfRows = numOfRows,
+                    pageNo = 1,
+                )
+
+                val longTermItems = longTermResponse.body()!!.response.body.items.item
+                logElapsedTime(TAG, "${longTermItems.size} items", ltFetchingStartTime)
+
+                updateRainfall(shortTermItems, longTermItems)
+            } catch (e: Exception) {
+                Log.e(TAG, "$e: Cannot short-term forecast.")
+            }
+        }
+    }
+
+    private fun updateTodayTemp(items: List<ForecastResponse.Item>) {
+        try {
+            for (i in items) {
+                if (i.category == HOURLY_TEMPERATURE_TAG) {
+                    _hourlyTempToday.value = i.fcstValue  // The first item with TH1 category
+                    Log.d(TAG, "T1H: ${i.fcstValue}")
+                    break
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "$e: Cannot retrieve the short-term hourly temp(T1H).")
+        }
+    }
+
+    private fun updateRainfall(
+        primaryItems: List<ForecastResponse.Item>,
+        secondaryItems: List<ForecastResponse.Item>
+    ) {
+        val rainingHours = arrayListOf<Int>()
+        val snowingHours = arrayListOf<Int>()
+        try {
+            val primaryRainfallData = primaryItems.filter { it.category == RAIN_TAG }
+            val primaryCoveredHours = IntArray(primaryRainfallData.size)
+            for (i in primaryRainfallData.indices) {
+                primaryCoveredHours[i] = primaryRainfallData[i].fcstTime
+            }
+            // Data from primary items are the source of truth
+            val secondaryRainfallData = secondaryItems.filter {
+                (it.category == RAIN_TAG) and (it.fcstTime !in primaryCoveredHours)
+            }
+
+            for (i in primaryRainfallData + secondaryRainfallData) {
+                val status = i.fcstValue.toInt()  // Must be integers of 0 through 7
+                if (
+                    status == RainfallType.Raining.code ||
+                    status == RainfallType.Mixed.code ||
+                    status == RainfallType.Shower.code
+                ) {
+                    rainingHours.add(i.fcstTime)
+                } else if (
+                    status == RainfallType.Snowing.code
+                ) {
+                    snowingHours.add(i.fcstTime)
+                }
+            }
+
+            // Finally, update the variable.
+            _rainfallStatus.value.let {
+                // Merge the hours as they need to be dealt with umbrellas anyway.
+                it.startHour = (rainingHours + snowingHours).minOrNull()
+                it.endHour = (rainingHours + snowingHours).maxOrNull()
+                // Classify the rainfall(snowfall) types
+                if (rainingHours.size > 0) {
+                    if (snowingHours.size > 0) {
+                        it.type = RainfallType.Mixed
+                    } else {
+                        it.type = RainfallType.Raining
+                    }
+                } else if (snowingHours.size > 0) {
+                    it.type = RainfallType.Snowing
+                } else {
+                    it.type = RainfallType.None
+                }
+
+                Log.d(TAG, "PTY: ${it.type}\t(${it.startHour} ~ ${it.endHour})")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "$e: Cannot retrieve the short-term rainfall status(PTY).")
+        }
+    }
 }
 
 enum class CharacteristicTempType(val descriptor: String) {
@@ -178,3 +317,14 @@ enum class CharacteristicTempType(val descriptor: String) {
 enum class DayOfInterest(val dayOffset: Int) {
     YESTERDAY(-1), TODAY(0), DAY2(1), DAY3(2)
 }
+
+enum class RainfallType(val code: Int) {
+    None(0), Raining(1), Mixed(2), Snowing(3), Shower(4),
+    // LightRain(5), LightRainAndSnow(6), LightSnow(7)
+}
+
+data class RainfallStatus(
+    var type: RainfallType,
+    var startHour: Int?,
+    var endHour: Int?,
+)

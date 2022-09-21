@@ -39,7 +39,6 @@ fun SummaryScreen(
     modifier: Modifier = Modifier,
     weatherViewModel: WeatherViewModel = viewModel()
 ) {
-    weatherViewModel.weatherData
 }
 
 @Preview(showBackground = true)
