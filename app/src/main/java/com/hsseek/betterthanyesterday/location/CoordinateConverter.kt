@@ -14,7 +14,7 @@ const val PROJ_LAT_2_RAD = 60.0 * COEFFICIENT_TO_RADIAN // 투영 위도2 (rad)
 
 
 data class CoordinatesXy(val nx: Double, val ny: Double)
-data class CoordinatesLonLat(val lat: Double, val lon: Double)
+data class CoordinatesLatLon(val lat: Double, val lon: Double)
 
 class CoordinateConverter {
     private val sn = ln(cos(PROJ_LAT_1_RAD) / cos(PROJ_LAT_2_RAD)) / ln(tan(Math.PI * 0.25 + PROJ_LAT_2_RAD * 0.5) / tan(Math.PI * 0.25 + PROJ_LAT_1_RAD * 0.5))
@@ -43,7 +43,7 @@ class CoordinateConverter {
     /**
      * Returns the corresponding Spherical coordinates of the point of [nx] and [ny].
      */
-    internal fun convertToLonLat(nx: Double, ny: Double): CoordinatesLonLat {
+    internal fun convertToLatLon(nx: Double, ny: Double): CoordinatesLatLon {
         val diffX: Double = nx - REF_X
         val diffY: Double = ro - ny + REF_Y
         val distance = sqrt(diffX * diffX + diffY * diffY)
@@ -60,7 +60,7 @@ class CoordinateConverter {
         }
         val lonRad = theta / sn + REF_LON_RAD
 
-        return CoordinatesLonLat(
+        return CoordinatesLatLon(
             lat = latSign * latRad / COEFFICIENT_TO_RADIAN,
             lon = lonRad / COEFFICIENT_TO_RADIAN
         )
