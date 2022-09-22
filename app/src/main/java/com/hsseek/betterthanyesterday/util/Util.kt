@@ -1,6 +1,10 @@
 package com.hsseek.betterthanyesterday.util
 
+import android.content.Context
+import android.location.Location
 import android.util.Log
+import androidx.core.content.edit
+import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.viewmodel.DayOfInterest
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
@@ -89,6 +93,35 @@ fun logElapsedTime(tag: String, task: String, startTime: Long) {
     val elapsedSec = (System.currentTimeMillis() - startTime) / 1000.0
     val formatter = DecimalFormat("#.00")
     Log.d(tag, "$task took ${formatter.format(elapsedSec)}\"")
+}
+
+fun Location?.toText(): String {
+    return if (this != null) "(${"%.4f".format(latitude)}, ${"%.4f".format(longitude)})" else { "(Unknown location)" }
+}
+
+internal object SharedPreferenceUtil {
+    const val KEY_FOREGROUND_ENABLED = "tracking_foreground_location"
+
+    /**
+     * Returns true if requesting location updates, otherwise returns false.
+     */
+    fun getLocationTrackingPref(context: Context): Boolean =
+        context.getSharedPreferences(
+            context.getString(R.string.preference_file_key), Context.MODE_PRIVATE
+        )
+            .getBoolean(KEY_FOREGROUND_ENABLED, false)
+
+    /**
+     * Stores the location updates state in SharedPreferences.
+     * @param requestingLocationUpdates The location updates state.
+     */
+    fun saveLocationTrackingPref(context: Context, requestingLocationUpdates: Boolean) =
+        context.getSharedPreferences(
+            context.getString(R.string.preference_file_key),
+            Context.MODE_PRIVATE
+        ).edit {
+            putBoolean(KEY_FOREGROUND_ENABLED, requestingLocationUpdates)
+        }
 }
 
 enum class KmaHourRoundOff {
