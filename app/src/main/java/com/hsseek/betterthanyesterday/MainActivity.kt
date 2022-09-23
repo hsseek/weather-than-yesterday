@@ -32,6 +32,7 @@ import com.google.android.gms.tasks.OnTokenCanceledListener
 import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
 import com.hsseek.betterthanyesterday.location.KoreanGeocoder
 import com.hsseek.betterthanyesterday.ui.theme.BetterThanYesterdayTheme
+import com.hsseek.betterthanyesterday.util.toText
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
 
 private const val TAG = "MainActivity"
@@ -142,14 +143,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun showLocationFailure() {
-        Toast.makeText(this, getString(R.string.na_location), Toast.LENGTH_SHORT).show()
-        Log.d(TAG, "Location NA")
-    }
-
     private fun setBaseCity(location: Location?, isDefinitive: Boolean = false) {
         if (location == null) {
-            if (isDefinitive) showLocationFailure()
+            if (isDefinitive) {
+                Log.e(TAG, "FusedLocationProviderClient.getCurrentLocation() returned null.")
+            }
         } else {
             val geocoder = KoreanGeocoder(this)
             val cityName = geocoder.getCityName(CoordinatesLatLon(location.latitude, location.longitude))
@@ -157,7 +155,9 @@ class MainActivity : ComponentActivity() {
             if (cityName != null) {
                 viewModel.updateLocation(location, cityName)
             } else {
-                if (isDefinitive) showLocationFailure()
+                if (isDefinitive) {
+                    Log.e(TAG, "Error retrieving a city name${location.toText()}.")
+                }
             }
         }
     }

@@ -19,10 +19,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.util.*
 import kotlin.math.roundToInt
 
 private const val TAG = "WeatherViewModel"
+private const val KMA_RAW_ITEM_TAG = "KmaItems"
 private const val TEMPERATURE_TAG = "TMP"
 private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
@@ -88,23 +88,23 @@ class WeatherViewModel: ViewModel() {
     private fun refreshAll() {
         enumValues<CharacteristicTempType>().forEach { type ->
             enumValues<DayOfInterest>().forEach { date ->
-                updateCharacteristicTemp(date, type)
+                requestCharacteristicTemp(date, type)
             }
         }
-        updateTodayShortTermStatus()
-        updateYesterdayTemp()
+        requestTodayShortTermStatus()
+        requestYesterdayTemp()
     }
 
-    private fun updateCharacteristicTemp(
+    private fun requestCharacteristicTemp(
         date: DayOfInterest = DayOfInterest.TODAY,
         type: CharacteristicTempType,
     ) {
         charTempJob = viewModelScope.launch {
-            val baseTime = getBaseTime(date)
-            val page = getPage(date, type, baseTime)
+            val baseTime = getBaseTime(date.dayOffset)
+            val page = getPage(date.dayOffset, type, baseTime)
             val items: List<ForecastResponse.Item>
             val characteristicTemp: Int?
-            Log.d(TAG, "Characteristic T baseTime:${baseTime.date}-${baseTime.hour}")
+            Log.d(TAG, "D${date.dayOffset}\t${type.descriptor} baseTime\t: ${baseTime.date}-${baseTime.hour}")
 
             try {
                 val fetchingStartTime = System.currentTimeMillis() // for test
@@ -119,7 +119,7 @@ class WeatherViewModel: ViewModel() {
 
                 items = kmaResponse.body()!!.response.body.items.item
                 logElapsedTime(TAG, "${items.size} items", fetchingStartTime)
-                characteristicTemp = getCharacteristicTemp(items, type)
+                characteristicTemp = extractCharacteristicTemp(items, type)
 
                 characteristicTemp?.let {
                     when (type) {
@@ -150,10 +150,11 @@ class WeatherViewModel: ViewModel() {
 
     /**
      * Returns the baseTime to query.
+     * Always called from a ViewModelScope.
      * */
-    private fun getBaseTime(date: DayOfInterest): KmaTime {
-        val baseTime: KmaTime = if (date.dayOffset <= 0) {
-            getKmaBaseTime(dayOffset = date.dayOffset, roundOff = DAY)
+    private suspend fun getBaseTime(dayOffset: Int): KmaTime {
+        val baseTime: KmaTime = if (dayOffset <= 0) {
+            getKmaBaseTime(dayOffset = dayOffset, roundOff = DAY)
         } else {  // Tomorrow or the day after tomorrow
             getKmaBaseTime(
                 dayOffset = 0,  // baseTime can't be future.
@@ -167,14 +168,15 @@ class WeatherViewModel: ViewModel() {
      * Returns the page to query.
      * To utilize minimal resources, the number of rows per page was limited
      * and the right page should be picked.
+     * Always called from a ViewModelScope.
      * */
-    private fun getPage(
-        date: DayOfInterest = DayOfInterest.TODAY,
+    private suspend fun getPage(
+        dayOffset: Int = DayOfInterest.TODAY.dayOffset,
         type: CharacteristicTempType,
         baseTime: KmaTime
     ): Int {
         val page: Int
-        if (date.dayOffset <= 0) {
+        if (dayOffset <= 0) {
             page = when (type) {
                 CharacteristicTempType.LOWEST -> 2  // Data of 04:00, 05:00, 06:00 and 07:00
                 CharacteristicTempType.HIGHEST -> 4  // Data of 12:00, 13:00, 14:00 and 15:00
@@ -183,27 +185,35 @@ class WeatherViewModel: ViewModel() {
             page = if (baseTime.hour.toInt() == 2300) {
                 // Note that today's 00:00 ~ 03:00 on the first page
                 when (type) {
-                    CharacteristicTempType.LOWEST -> 2 + date.dayOffset * 6
-                    CharacteristicTempType.HIGHEST -> 4 + date.dayOffset * 6
+                    CharacteristicTempType.LOWEST -> 2 + dayOffset * 6
+                    CharacteristicTempType.HIGHEST -> 4 + dayOffset * 6
                 }
             } else {  // Today's 12:00 ~ 15:00 on the first page
                 when (type) {
-                    CharacteristicTempType.LOWEST -> -1 + date.dayOffset * 6
-                    CharacteristicTempType.HIGHEST -> 1 + date.dayOffset * 6
+                    CharacteristicTempType.LOWEST -> -1 + dayOffset * 6
+                    CharacteristicTempType.HIGHEST -> 1 + dayOffset * 6
                 }
             }
         }
         return page
     }
 
-    private fun getCharacteristicTemp(items: List<ForecastResponse.Item>, type: CharacteristicTempType): Int? {
+    /**
+     * Returns the highest and the lowest temperature from items of a KmaResponse.
+     * Always called from a ViewModelScope.
+     */
+    private suspend fun extractCharacteristicTemp(
+        items: List<ForecastResponse.Item>,
+        type: CharacteristicTempType
+    ): Int?
+    {
         var characteristicTemp: Int? = null
         val tag = when (type) {
             CharacteristicTempType.LOWEST -> LOW_TEMPERATURE_TAG
             CharacteristicTempType.HIGHEST -> HIGH_TEMPERATURE_TAG
         }
         for (i in items) {
-            Log.d(TAG, "$i")
+            Log.d(KMA_RAW_ITEM_TAG, "$i")
             // Often, values larger / smaller than the TMX / TMN are recorded.
             if (i.category == TEMPERATURE_TAG || i.category == tag) {
                 val temp = i.fcstValue.toFloat().roundToInt()  // The temperature at the time
@@ -226,29 +236,11 @@ class WeatherViewModel: ViewModel() {
      * Update the short-term future temperature (< 1h) and
      * rainfall status of today.
      * */
-    private fun updateTodayShortTermStatus() {
+    private fun requestTodayShortTermStatus() {
         todayShortTermJob = viewModelScope.launch {
             try {
-                val shortTermBaseTime = getKmaBaseTime(
-                    roundOff = HOUR,
-                    isQuickPublish = false,
-                )
-                Log.d(TAG, "Today's short-term T baseTime:${shortTermBaseTime.date}-${shortTermBaseTime.hour}")
-                // Retrieve the short-term data
-                val stFetchingStartTime = System.currentTimeMillis() // for test
-                val shortTermResponse = WeatherApi.service.getShortTermWeather(
-                    baseDate = shortTermBaseTime.date,
-                    baseTime = shortTermBaseTime.hour,
-                    numOfRows = 30,  // [LGT -> PTY -> RN1 -> SKY -> TH1] -> REH -> UUU -> VVV -> ...
-                    pageNo = 1,
-                    nx = _baseCoordinatesXy.value.nx,
-                    ny = _baseCoordinatesXy.value.ny,
-                )
-
-                val shortTermItems = shortTermResponse.body()!!.response.body.items.item
-                logElapsedTime(TAG, "${shortTermItems.size} items", stFetchingStartTime)
-
-                updateTodayTemp(shortTermItems)
+                val shortTermItems = requestShortTermData(DayOfInterest.TODAY)
+                updateShortTermTemp(shortTermItems, DayOfInterest.TODAY)
 
                 /*
                 * As the short-term data span only 6 hours,
@@ -265,7 +257,7 @@ class WeatherViewModel: ViewModel() {
                     // Otherwise, only the later hours should be examined.
                     (23 - longTermBaseTime.hour.toInt() / 100) * 12
                 }
-                Log.d(TAG, "Today's long-term conditions baseTime:${longTermBaseTime.date}-${longTermBaseTime.hour}")
+                Log.d(TAG, "Today's long-term conditions baseTime\t:${longTermBaseTime.date}-${longTermBaseTime.hour}")
 
                 val ltFetchingStartTime = System.currentTimeMillis() // for test
                 val longTermResponse = WeatherApi.service.getVillageWeather(
@@ -282,26 +274,67 @@ class WeatherViewModel: ViewModel() {
 
                 updateRainfall(shortTermItems, longTermItems)
             } catch (e: Exception) {
-                Log.e(TAG, "$e: Cannot short-term forecast.")
+                Log.e(TAG, "$e: Error retrieving today's short-term forecast.")
             }
         }
     }
 
-    private fun updateTodayTemp(items: List<ForecastResponse.Item>) {
+    private suspend fun requestShortTermData(date: DayOfInterest): List<ForecastResponse.Item> {
+        val baseTime = getKmaBaseTime(
+            dayOffset = date.dayOffset,
+            roundOff = HOUR,
+            isQuickPublish = false,
+        )
+        Log.d(TAG, "D${date.dayOffset} short-term T baseTime\t:${baseTime.date}-${baseTime.hour}")
+        // Retrieve the short-term data
+        val fetchingStartTime = System.currentTimeMillis() // for test
+        val kmaResponse = WeatherApi.service.getShortTermWeather(
+            baseDate = baseTime.date,
+            baseTime = baseTime.hour,
+            numOfRows = 30,  // [LGT -> PTY -> RN1 -> SKY -> TH1] -> REH -> UUU -> VVV -> ...
+            pageNo = 1,
+            nx = _baseCoordinatesXy.value.nx,
+            ny = _baseCoordinatesXy.value.ny,
+        )
+
+        val items = kmaResponse.body()!!.response.body.items.item
+        logElapsedTime(TAG, "${items.size} items", fetchingStartTime)
+        for (i in items) {
+            Log.d(KMA_RAW_ITEM_TAG, "$i")
+        }
+        return items
+    }
+
+    /**
+     * Update the short-term temperatures of [date],
+     * based on data from [items].
+     * Always called from a ViewModelScope.
+     */
+    private suspend fun updateShortTermTemp(items: List<ForecastResponse.Item>, date: DayOfInterest) {
         try {
             for (i in items) {
                 if (i.category == HOURLY_TEMPERATURE_TAG) {
-                    _hourlyTempToday.value = i.fcstValue  // The first item with TH1 category
-                    Log.d(TAG, "T1H(Today)\t: ${i.fcstValue}")
+                    if (date == DayOfInterest.TODAY) {
+                        _hourlyTempToday.value = i.fcstValue  // The first item with TH1 category
+                    } else if (date == DayOfInterest.YESTERDAY) {
+                        _hourlyTempYesterday.value = i.fcstValue
+                    }
+                    Log.d(TAG, "T1H of D${date.dayOffset}\t: ${i.fcstValue}")
                     break
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "$e: Cannot retrieve the short-term hourly temp(T1H).")
+            Log.e(TAG, "$e: Error retrieving the short-term hourly temp(T1H).")
         }
     }
 
-    private fun updateRainfall(
+    /**
+     * Update the rainfall status of today,
+     * based on [primaryItems] and [secondaryItems].
+     * if there are data from the same base time, [primaryItems] take the priority.
+     * Always called from a ViewModelScope.
+     * */
+    private suspend fun updateRainfall(
         primaryItems: List<ForecastResponse.Item>,
         secondaryItems: List<ForecastResponse.Item>
     ) {
@@ -356,39 +389,11 @@ class WeatherViewModel: ViewModel() {
         }
     }
 
-    private fun updateYesterdayTemp() {
+    private fun requestYesterdayTemp() {
         yesterdayJob = viewModelScope.launch {
             try {
-                val cal = getCurrentKoreanDateTime()
-                cal.add(Calendar.HOUR_OF_DAY, 1)
-                val baseTime = getKmaBaseTime(
-                    dayOffset = -1,
-                    time = cal,
-                    roundOff = HOUR,
-                    isQuickPublish = false,
-                )
-                Log.d(TAG, "Yesterday's T baseTime:${baseTime.date}-${baseTime.hour}")
-
-                val fetchingStartTime = System.currentTimeMillis() // for test
-                val kmaResponse = WeatherApi.service.getObservedWeather(
-                    baseDate = baseTime.date,
-                    baseTime = baseTime.hour,  // Only the last 24 sets are available.
-                    numOfRows = 8,  // Always 8 rows for each baseTime
-                    pageNo = 1,
-                    nx = _baseCoordinatesXy.value.nx,
-                    ny = _baseCoordinatesXy.value.ny,
-                )
-
-                val items = kmaResponse.body()!!.response.body.items.item
-                logElapsedTime(TAG, "${items.size} items", fetchingStartTime)
-
-                for (i in items) {
-                    if (i.category == HOURLY_TEMPERATURE_TAG) {
-                        _hourlyTempYesterday.value = i.obsrValue.toInt().toString()
-                        Log.d(TAG, "T1H(Yesterday)\t: ${i.obsrValue}")
-                        break
-                    }
-                }
+                val items = requestShortTermData(DayOfInterest.YESTERDAY)
+                updateShortTermTemp(items, DayOfInterest.YESTERDAY)
             } catch (e: Exception) {
                 Log.e(TAG, "$e: Cannot retrieve the yesterday's hourly temp(T1H).")
             }
