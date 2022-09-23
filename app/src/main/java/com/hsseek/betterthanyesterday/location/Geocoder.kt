@@ -1,6 +1,5 @@
 package com.hsseek.betterthanyesterday.location
 
-import android.Manifest
 import android.content.Context
 import android.location.Geocoder
 import android.util.Log
@@ -26,14 +25,28 @@ class KoreanGeocoder(context: Context) {
         }
     }
 
-    fun getAddress(position: CoordinatesLatLon): String? {
-        return try {
+    fun getCityName(position: CoordinatesLatLon): String? {
+        val address = try {
             geoCoder.getFromLocation(position.lat, position.lon, 1)
                 .first().getAddressLine(0)
         } catch (e: Exception) {
             Log.e(TAG, "$e: Cannot retrieve the corresponding address.")
             e.printStackTrace()
             null
+        }
+        return if (address == null) null else {
+            val regex = Regex("\\s(.+?[시군])\\s")
+            val cityFullName = regex.find(address)?.groupValues?.get(1)
+            if (cityFullName == null) {
+                null
+            } else {
+                for (special in listOf("특별시", "광역시", "특별자치")) {
+                    if (cityFullName.contains(special)) {
+                        return cityFullName.replace(special, "")  // e.g. "서울특별시" -> "서울"
+                    }
+                }
+                return cityFullName
+            }
         }
     }
 }

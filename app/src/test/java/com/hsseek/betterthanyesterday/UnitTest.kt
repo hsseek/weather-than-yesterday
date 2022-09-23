@@ -1,13 +1,11 @@
 package com.hsseek.betterthanyesterday
 
 import android.content.Context
-import androidx.test.platform.app.InstrumentationRegistry
 import com.hsseek.betterthanyesterday.dummy.DUMMY_LONG_TERM_FORECAST_RAINY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_LONG_TERM_FORECAST_SUNNY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_SHORT_TERM_FORECAST_RAINY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_SHORT_TERM_FORECAST_SNOWY
-import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
-import com.hsseek.betterthanyesterday.location.KoreanGeocoder
+import com.hsseek.betterthanyesterday.location.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.*
 import com.hsseek.betterthanyesterday.util.getKmaBaseTime
 import com.hsseek.betterthanyesterday.viewmodel.RainfallStatus
@@ -28,6 +26,12 @@ class UnitTest {
     @Test
     fun addition_isCorrect() {
         assertEquals(4, 2 + 2)
+    }
+
+    @Test
+    fun coordinateTest() {
+        val coordinates = convertToXy(CoordinatesLatLon(37.567936111111116, 127.02396666666667))
+        println("${coordinates.nx} / ${coordinates.ny}")
     }
 
     @Test
@@ -70,8 +74,8 @@ class UnitTest {
 
     @Test
     fun is_raining() {
-        val primaryItems = DUMMY_SHORT_TERM_FORECAST_RAINY
-        val secondaryItems = DUMMY_LONG_TERM_FORECAST_SUNNY
+        val primaryItems = DUMMY_SHORT_TERM_FORECAST_SNOWY
+        val secondaryItems = DUMMY_LONG_TERM_FORECAST_RAINY
 
         val rainingHours = arrayListOf<Int>()
         val snowingHours = arrayListOf<Int>()
@@ -79,13 +83,9 @@ class UnitTest {
 
         try {
             val primaryRainfallData = primaryItems.filter { it.category == RAIN_TAG }
-            val primaryCoveredHours = IntArray(primaryRainfallData.size)
-            for (i in primaryRainfallData.indices) {
-                primaryCoveredHours[i] = primaryRainfallData[i].fcstTime
-            }
-            // Data from primary items are the source of truth
+            val primaryCoveredHourMax = primaryRainfallData.maxOf { it.fcstTime }
             val secondaryRainfallData = secondaryItems.filter {
-                (it.category == RAIN_TAG) and (it.fcstTime !in primaryCoveredHours)
+                (it.category == RAIN_TAG) and (it.fcstTime > primaryCoveredHourMax)
             }
 
             for (i in primaryRainfallData + secondaryRainfallData) {
@@ -123,6 +123,21 @@ class UnitTest {
         } catch (e: Exception) {
             println("$e: Cannot retrieve the short-term rainfall status(PTY).")
         }
+    }
+
+    @Test
+    fun cityName() {
+        val regex = Regex("\\s(.+?[시군])\\s")
+        val address = "대한민국 세종특별자치시 중구 서석동 465-2"
+        val cityFullName = regex.find(address)?.groupValues?.get(1)
+        var cityName: String? = ""
+        for (special in listOf("특별시", "광역시", "특별자치")) {
+            if (cityFullName!!.contains(special)) {
+                cityName = cityFullName.replace(special, "")
+                break
+            }
+        }
+        assertEquals("서울", cityName)
     }
 
     @Test

@@ -1,13 +1,21 @@
 package com.hsseek.betterthanyesterday.viewmodel
 
+import android.location.Location
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
+import com.hsseek.betterthanyesterday.location.CoordinatesXy
+import com.hsseek.betterthanyesterday.location.convertToXy
 import com.hsseek.betterthanyesterday.network.ForecastResponse
 import com.hsseek.betterthanyesterday.network.WeatherApi
 import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.*
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -22,6 +30,12 @@ private const val HOURLY_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
 
 class WeatherViewModel: ViewModel() {
+    private var _baseCoordinatesXy = MutableStateFlow(CoordinatesXy(60, 127))
+
+    private val _baseCityName = mutableStateOf("")
+    val cityName: String
+        get() = _baseCityName.value
+
     // The lowest temperatures of yesterday through the day after tomorrow
     private val _lowestTemps = mutableStateOf(IntArray(4))
     val lowestTemps: IntArray
@@ -48,8 +62,30 @@ class WeatherViewModel: ViewModel() {
     val rainfallStatus: StateFlow<RainfallStatus>
         get() = _rainfallStatus
 
-    init {
-        // The lowest temperatures of yesterday through the day after tomorrow.
+    private var charTempJob: Job? = null
+    private var todayShortTermJob: Job? = null
+    private var yesterdayJob: Job? = null
+
+    fun updateLocation(location: Location, cityName: String) {
+        if (cityName != _baseCityName.value) {
+            val xy = convertToXy(CoordinatesLatLon(location.latitude, location.longitude))
+            _baseCoordinatesXy.value = xy
+            _baseCityName.value = cityName
+            Log.d(TAG, "A new location\t: $cityName(${xy.nx}, ${xy.ny})")
+            cancelAllWeatherRequest()
+            refreshAll()
+        } else {
+            Log.d(TAG, "The same location, no need to renew.")
+        }
+    }
+
+    private fun cancelAllWeatherRequest() {
+        charTempJob?.cancel()
+        todayShortTermJob?.cancel()
+        yesterdayJob?.cancel()
+    }
+
+    private fun refreshAll() {
         enumValues<CharacteristicTempType>().forEach { type ->
             enumValues<DayOfInterest>().forEach { date ->
                 updateCharacteristicTemp(date, type)
@@ -63,11 +99,12 @@ class WeatherViewModel: ViewModel() {
         date: DayOfInterest = DayOfInterest.TODAY,
         type: CharacteristicTempType,
     ) {
-        viewModelScope.launch {
+        charTempJob = viewModelScope.launch {
             val baseTime = getBaseTime(date)
             val page = getPage(date, type, baseTime)
             val items: List<ForecastResponse.Item>
             val characteristicTemp: Int?
+            Log.d(TAG, "Characteristic T baseTime:${baseTime.date}-${baseTime.hour}")
 
             try {
                 val fetchingStartTime = System.currentTimeMillis() // for test
@@ -76,6 +113,8 @@ class WeatherViewModel: ViewModel() {
                     baseTime = baseTime.hour,
                     numOfRows = 48,  // = (4 h) * (12 rows / h)
                     pageNo = page,
+                    nx = _baseCoordinatesXy.value.nx,
+                    ny = _baseCoordinatesXy.value.ny,
                 )
 
                 items = kmaResponse.body()!!.response.body.items.item
@@ -164,7 +203,7 @@ class WeatherViewModel: ViewModel() {
             CharacteristicTempType.HIGHEST -> HIGH_TEMPERATURE_TAG
         }
         for (i in items) {
-            // Log.d(TAG, "$i")
+            Log.d(TAG, "$i")
             // Often, values larger / smaller than the TMX / TMN are recorded.
             if (i.category == TEMPERATURE_TAG || i.category == tag) {
                 val temp = i.fcstValue.toFloat().roundToInt()  // The temperature at the time
@@ -188,12 +227,13 @@ class WeatherViewModel: ViewModel() {
      * rainfall status of today.
      * */
     private fun updateTodayShortTermStatus() {
-        viewModelScope.launch {
+        todayShortTermJob = viewModelScope.launch {
             try {
                 val shortTermBaseTime = getKmaBaseTime(
                     roundOff = HOUR,
                     isQuickPublish = false,
                 )
+                Log.d(TAG, "Today's short-term T baseTime:${shortTermBaseTime.date}-${shortTermBaseTime.hour}")
                 // Retrieve the short-term data
                 val stFetchingStartTime = System.currentTimeMillis() // for test
                 val shortTermResponse = WeatherApi.service.getShortTermWeather(
@@ -201,6 +241,8 @@ class WeatherViewModel: ViewModel() {
                     baseTime = shortTermBaseTime.hour,
                     numOfRows = 30,  // [LGT -> PTY -> RN1 -> SKY -> TH1] -> REH -> UUU -> VVV -> ...
                     pageNo = 1,
+                    nx = _baseCoordinatesXy.value.nx,
+                    ny = _baseCoordinatesXy.value.ny,
                 )
 
                 val shortTermItems = shortTermResponse.body()!!.response.body.items.item
@@ -216,18 +258,23 @@ class WeatherViewModel: ViewModel() {
                     roundOff = VILLAGE,
                     isQuickPublish = true,
                 )
+
                 val numOfRows: Int = if (longTermBaseTime.hour == "2300") {
                     12 * 24  // 23:00 of the previous day: whole day's data should be examined.
                 } else {
                     // Otherwise, only the later hours should be examined.
                     (23 - longTermBaseTime.hour.toInt() / 100) * 12
                 }
+                Log.d(TAG, "Today's long-term conditions baseTime:${longTermBaseTime.date}-${longTermBaseTime.hour}")
+
                 val ltFetchingStartTime = System.currentTimeMillis() // for test
                 val longTermResponse = WeatherApi.service.getVillageWeather(
                     baseDate = longTermBaseTime.date,
                     baseTime = longTermBaseTime.hour,
                     numOfRows = numOfRows,
                     pageNo = 1,
+                    nx = _baseCoordinatesXy.value.nx,
+                    ny = _baseCoordinatesXy.value.ny,
                 )
 
                 val longTermItems = longTermResponse.body()!!.response.body.items.item
@@ -262,13 +309,11 @@ class WeatherViewModel: ViewModel() {
         val snowingHours = arrayListOf<Int>()
         try {
             val primaryRainfallData = primaryItems.filter { it.category == RAIN_TAG }
-            val primaryCoveredHours = IntArray(primaryRainfallData.size)
-            for (i in primaryRainfallData.indices) {
-                primaryCoveredHours[i] = primaryRainfallData[i].fcstTime
-            }
-            // Data from primary items are the source of truth
+
+            // Data from primary items are the source of truth. Discard data of secondary items for hours before.
+            val primaryCoveredHourMax = primaryRainfallData.maxOf { it.fcstTime }
             val secondaryRainfallData = secondaryItems.filter {
-                (it.category == RAIN_TAG) and (it.fcstTime !in primaryCoveredHours)
+                (it.category == RAIN_TAG) and (it.fcstTime > primaryCoveredHourMax)
             }
 
             for (i in primaryRainfallData + secondaryRainfallData) {
@@ -312,7 +357,7 @@ class WeatherViewModel: ViewModel() {
     }
 
     private fun updateYesterdayTemp() {
-        viewModelScope.launch {
+        yesterdayJob = viewModelScope.launch {
             try {
                 val cal = getCurrentKoreanDateTime()
                 cal.add(Calendar.HOUR_OF_DAY, 1)
@@ -320,8 +365,9 @@ class WeatherViewModel: ViewModel() {
                     dayOffset = -1,
                     time = cal,
                     roundOff = HOUR,
-                    isQuickPublish = true,  // A baseTime of yesterday, for which data are always available.
+                    isQuickPublish = false,
                 )
+                Log.d(TAG, "Yesterday's T baseTime:${baseTime.date}-${baseTime.hour}")
 
                 val fetchingStartTime = System.currentTimeMillis() // for test
                 val kmaResponse = WeatherApi.service.getObservedWeather(
@@ -329,6 +375,8 @@ class WeatherViewModel: ViewModel() {
                     baseTime = baseTime.hour,  // Only the last 24 sets are available.
                     numOfRows = 8,  // Always 8 rows for each baseTime
                     pageNo = 1,
+                    nx = _baseCoordinatesXy.value.nx,
+                    ny = _baseCoordinatesXy.value.ny,
                 )
 
                 val items = kmaResponse.body()!!.response.body.items.item
@@ -346,6 +394,22 @@ class WeatherViewModel: ViewModel() {
             }
         }
     }
+
+    companion object {
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                // TODO: Connect to Repository
+//                val savedStateHandle = createSavedStateHandle()
+//                val myRepository = (this[APPLICATION_KEY] as MyApplication).myRepository
+//                MyViewModel(
+//                    myRepository = myRepository,
+//                    savedStateHandle = savedStateHandle
+//                )
+                WeatherViewModel()
+            }
+        }
+    }
+
 }
 
 enum class CharacteristicTempType(val descriptor: String) {

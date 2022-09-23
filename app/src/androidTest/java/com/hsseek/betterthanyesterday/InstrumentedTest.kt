@@ -27,14 +27,18 @@ class InstrumentedTest {
     }
 
     @Test
-    fun geocoderTest() {
-        val tag = "Geocoder"
+    fun geocoderCityNameTest() {
         val geo = KoreanGeocoder(appContext)
-        val addr = geo.getAddress(CoordinatesLatLon(37.55, 126.97))
-        Log.d(tag, "Address: $addr")
-        val coor = geo.getLatLng("합정동")
-        coor?.let {
-            Log.d(tag, "Lat: ${it.lat} / Lon: ${it.lon}")
-        }
+        assertEquals("충청남도 연기군", geo.getCityName(CoordinatesLatLon(36.4800121, 127.2890691)))
+        assertEquals("경상북도 울릉군", geo.getCityName(CoordinatesLatLon(37.24293628036336, 131.8668420793528)))
+    }
+
+    @Test
+    fun geocoderLatLonTest() {
+        val geo = KoreanGeocoder(appContext)
+        val coordinates = geo.getLatLng("서울")
+        Log.d("geocoder", "(lat, lon): (${coordinates?.lat}, ${coordinates?.lon})")
+        assertEquals(37.24293628036336, coordinates!!.lat, 1e-5)
+        assertEquals(131.8668420793528, coordinates.lon, 1e-5)
     }
 }

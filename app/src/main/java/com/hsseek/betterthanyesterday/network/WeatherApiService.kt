@@ -35,8 +35,8 @@ interface WeatherApiService {
         @Query("pageNo") pageNo: Int = 1,
         @Query("base_date") baseDate: String,
         @Query("base_time") baseTime: String,
-        @Query("nx") nx: Int = 60,
-        @Query("ny") ny: Int = 127,
+        @Query("nx") nx: Int,
+        @Query("ny") ny: Int,
     ): Response<ForecastResponse>
 
     /**
@@ -58,8 +58,8 @@ interface WeatherApiService {
         @Query("pageNo") pageNo: Int = 1,
         @Query("base_date") baseDate: String,
         @Query("base_time") baseTime: String,
-        @Query("nx") nx: Int = 60,
-        @Query("ny") ny: Int = 127,
+        @Query("nx") nx: Int,
+        @Query("ny") ny: Int,
     ): Response<ObservationResponse>
 
     /**
@@ -77,12 +77,12 @@ interface WeatherApiService {
     @GET("getUltraSrtFcst?serviceKey=$SERVICE_KEY")
     suspend fun getShortTermWeather(
         @Query("dataType") dataType: String = DATA_TYPE,
-        @Query("numOfRows") numOfRows: Int = 8,
+        @Query("numOfRows") numOfRows: Int,
         @Query("pageNo") pageNo: Int = 1,
         @Query("base_date") baseDate: String,
         @Query("base_time") baseTime: String,
-        @Query("nx") nx: Int = 60,
-        @Query("ny") ny: Int = 127,
+        @Query("nx") nx: Int,
+        @Query("ny") ny: Int,
     ): Response<ForecastResponse>
 }
 

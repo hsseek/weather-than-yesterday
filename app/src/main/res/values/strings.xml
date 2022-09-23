@@ -4,5 +4,5 @@
     <string name="dialog_title_location_permission">Location Permission Needed</string>
     <string name="dialog_message_location_permission">The location is required to get the weather conditions of the current location.\n(Otherwise, you can deny the request and set a location manually).</string>
     <string name="ok">OK</string>
-    <string name="na_location">Cannot get the location.</string>
+    <string name="na_location">Cannot get the current location.</string>
 </resources>
