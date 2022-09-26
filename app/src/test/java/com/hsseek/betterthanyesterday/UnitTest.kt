@@ -77,7 +77,7 @@ class UnitTest {
     fun is_raining() {
         val primaryItems = DUMMY_SHORT_TERM_FORECAST_SNOWY
         val secondaryItems = DUMMY_LONG_TERM_FORECAST_SUNNY
-        val _rainfallStatus: MutableStateFlow<Sky> = MutableStateFlow(Good())
+        val _rainfallStatus: MutableStateFlow<Sky> = MutableStateFlow(Sky.Good())
 
         val RAIN_TAG = "PTY"
 
@@ -113,16 +113,16 @@ class UnitTest {
                 if (rainingHours.size == 0) {
                     if (snowingHours.size == 0) {
                         // No raining, no snowing
-                        it.value = Good()
+                        it.value = Sky.Good()
                     } else {
                         // No raining, but snowing
-                        it.value = Snowy(snowingHours.min(), snowingHours.max())
+                        it.value = Sky.Bad.Snowy(snowingHours.min(), snowingHours.max())
                     }
                 } else {  // Raining
                     if (snowingHours.size == 0) {
-                        it.value = Rainy(rainingHours.min(), rainingHours.max())
+                        it.value = Sky.Bad.Rainy(rainingHours.min(), rainingHours.max())
                     } else {  // Raining + Snowing
-                        it.value = Mixed(hours.min(), hours.max())
+                        it.value = Sky.Bad.Mixed(hours.min(), hours.max())
                     }
                 }
                 println("PTY: ${it.value::class.simpleName}\t(${hours.min()} ~ ${hours.max()})")

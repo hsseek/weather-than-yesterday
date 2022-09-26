@@ -58,7 +58,7 @@ class WeatherViewModel: ViewModel() {
     val hourlyTempYesterday: String
         get() = _hourlyTempYesterday.value
 
-    private val _rainfallStatus: MutableStateFlow<Sky> = MutableStateFlow(Good())
+    private val _rainfallStatus: MutableStateFlow<Sky> = MutableStateFlow(Sky.Good())
     val rainfallStatus = _rainfallStatus.asStateFlow()
 
     private var charTempJob: Job? = null
@@ -130,22 +130,8 @@ class WeatherViewModel: ViewModel() {
 
                 characteristicTemp?.let {
                     when (type) {
-                        CharacteristicTempType.LOWEST -> {
-                            when (date) {
-                                DayOfInterest.YESTERDAY -> _lowestTemps.value[0] = it
-                                DayOfInterest.TODAY -> _lowestTemps.value[1] = it
-                                DayOfInterest.DAY2 -> _lowestTemps.value[2] = it
-                                DayOfInterest.DAY3 -> _lowestTemps.value[3] = it
-                            }
-                        }
-                        CharacteristicTempType.HIGHEST -> {
-                            when (date) {
-                                DayOfInterest.YESTERDAY -> _highestTemps.value[0] = it
-                                DayOfInterest.TODAY -> _highestTemps.value[1] = it
-                                DayOfInterest.DAY2 -> _highestTemps.value[2] = it
-                                DayOfInterest.DAY3 -> _highestTemps.value[3] = it
-                            }
-                        }
+                        CharacteristicTempType.LOWEST -> _lowestTemps.value[date.dayOffset + 1] = it
+                        CharacteristicTempType.HIGHEST -> _highestTemps.value[date.dayOffset + 1] = it
                     }
                 }
                 Log.d(TAG, "${type.descriptor}\tof D${date.dayOffset}\t: $characteristicTemp")
@@ -321,17 +307,37 @@ class WeatherViewModel: ViewModel() {
         try {
             for (i in items) {
                 if (i.category == HOURLY_TEMPERATURE_TAG) {
+                    val tem = i.fcstValue
+                    Log.d(TAG, "T1H of D${date.dayOffset}\t: $tem")
+
                     if (date == DayOfInterest.TODAY) {
-                        _hourlyTempToday.value = i.fcstValue  // The first item with TH1 category
+                        _hourlyTempToday.value = tem  // The first item with TH1 category
                     } else if (date == DayOfInterest.YESTERDAY) {
-                        _hourlyTempYesterday.value = i.fcstValue
+                        _hourlyTempYesterday.value = tem
                     }
-                    Log.d(TAG, "T1H of D${date.dayOffset}\t: ${i.fcstValue}")
+
+                    if (charTempJob?.isCompleted == true && charTempJob?.isCancelled == false) {
+                        adjustCharTemp(tem.toInt(), date)
+                    }
                     break
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "$e: Error retrieving the short-term hourly temp(T1H).")
+        }
+    }
+
+    /**
+     * Often, TMX / TMN values are lower / higher than hourly value.
+     * If the shown hourly value is higher than TMX than the user might doubt the reliability: adjust.
+     */
+    private suspend fun adjustCharTemp(hourlyTemp: Int, date: DayOfInterest) {
+        val index = date.dayOffset + 1  // Yesterday's data on [0]
+        if (hourlyTemp > _highestTemps.value[index]) {
+            _highestTemps.value[index] = hourlyTemp
+        }
+        if (hourlyTemp < _lowestTemps.value[index]) {
+            _lowestTemps.value[index] = hourlyTemp
         }
     }
 
@@ -376,16 +382,16 @@ class WeatherViewModel: ViewModel() {
         if (rainingHours.size == 0) {
             if (snowingHours.size == 0) {
                 // No raining, no snowing
-                _rainfallStatus.value = Good()
+                _rainfallStatus.value = Sky.Good()
             } else {
                 // No raining, but snowing
-                _rainfallStatus.value = Snowy(snowingHours.min(), snowingHours.max())
+                _rainfallStatus.value = Sky.Bad.Snowy(snowingHours.min(), snowingHours.max())
             }
         } else {  // Raining
             if (snowingHours.size == 0) {
-                _rainfallStatus.value = Rainy(rainingHours.min(), rainingHours.max())
+                _rainfallStatus.value = Sky.Bad.Rainy(rainingHours.min(), rainingHours.max())
             } else {  // Raining + Snowing
-                _rainfallStatus.value = Mixed(hours.min(), hours.max())
+                _rainfallStatus.value = Sky.Bad.Mixed(hours.min(), hours.max())
             }
         }
         Log.d(TAG, "PTY: ${_rainfallStatus.value::class.simpleName}\t(${hours.minOrNull()} ~ ${hours.maxOrNull()})")
@@ -435,9 +441,11 @@ enum class RainfallType(val code: Int) {
     // LightRain(5), LightRainAndSnow(6), LightSnow(7)
 }
 
-sealed class Sky(type: RainfallType)
-class Good: Sky(RainfallType.None)
-sealed class Bad(type: RainfallType, startingHour: Int, endingHour: Int): Sky(type)
-class Mixed(startingHour: Int, endingHour: Int): Bad(RainfallType.Mixed, startingHour, endingHour)
-class Rainy(startingHour: Int, endingHour: Int): Bad(RainfallType.Raining, startingHour, endingHour)
-class Snowy(startingHour: Int, endingHour: Int): Bad(RainfallType.Snowing, startingHour, endingHour)
+sealed class Sky(type: RainfallType) {
+    class Good: Sky(RainfallType.None)
+    sealed class Bad(type: RainfallType, startingHour: Int, endingHour: Int): Sky(type) {
+        class Mixed(startingHour: Int, endingHour: Int): Bad(RainfallType.Mixed, startingHour, endingHour)
+        class Rainy(startingHour: Int, endingHour: Int): Bad(RainfallType.Raining, startingHour, endingHour)
+        class Snowy(startingHour: Int, endingHour: Int): Bad(RainfallType.Snowing, startingHour, endingHour)
+    }
+}
