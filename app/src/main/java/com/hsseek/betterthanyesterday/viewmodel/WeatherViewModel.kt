@@ -8,16 +8,18 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
 import com.hsseek.betterthanyesterday.location.convertToXy
 import com.hsseek.betterthanyesterday.network.ForecastResponse
+import com.hsseek.betterthanyesterday.network.OneShotEvent
 import com.hsseek.betterthanyesterday.network.WeatherApi
 import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -30,7 +32,7 @@ private const val HOURLY_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
 
 class WeatherViewModel: ViewModel() {
-    private var _baseCoordinatesXy = MutableStateFlow(CoordinatesXy(60, 127))
+    private val _baseCoordinatesXy = MutableStateFlow(CoordinatesXy(60, 127))
 
     private val _baseCityName = mutableStateOf("")
     val cityName: String
@@ -56,26 +58,31 @@ class WeatherViewModel: ViewModel() {
     val hourlyTempYesterday: String
         get() = _hourlyTempYesterday.value
 
-    private val _rainfallStatus: StateFlow<RainfallStatus> = MutableStateFlow(
-        RainfallStatus(RainfallType.None, null, null)
-    )
-    val rainfallStatus: StateFlow<RainfallStatus>
-        get() = _rainfallStatus
+    private val _rainfallStatus: MutableStateFlow<Sky> = MutableStateFlow(Good())
+    val rainfallStatus = _rainfallStatus.asStateFlow()
 
     private var charTempJob: Job? = null
     private var todayShortTermJob: Job? = null
     private var yesterdayJob: Job? = null
 
-    fun updateLocation(location: Location, cityName: String) {
-        if (cityName != _baseCityName.value) {
+    private val _toastMessage = MutableStateFlow(OneShotEvent(0))
+    val toastMessage = _toastMessage.asStateFlow()
+
+    fun updateLocation(location: Location, cityName: String, isCurrentLocation: Boolean) {
+        if (cityName != _baseCityName.value) {  // i.e. A new base location
             val xy = convertToXy(CoordinatesLatLon(location.latitude, location.longitude))
+            Log.d(TAG, "A new location\t: $cityName(${xy.nx}, ${xy.ny})")
+
             _baseCoordinatesXy.value = xy
             _baseCityName.value = cityName
-            Log.d(TAG, "A new location\t: $cityName(${xy.nx}, ${xy.ny})")
             cancelAllWeatherRequest()
             refreshAll()
+
+            if (isCurrentLocation) {// Let the user know by a Toast.
+                _toastMessage.value = OneShotEvent(R.string.toast_location_found)
+            }
         } else {
-            Log.d(TAG, "The same location, no need to renew.")
+            Log.                                                                                                                                                                                                    d(TAG, "The same location, no need to renew.")
         }
     }
 
@@ -364,26 +371,24 @@ class WeatherViewModel: ViewModel() {
                 }
             }
 
-            // Finally, update the variable.
-            _rainfallStatus.value.let {
-                // Merge the hours as they need to be dealt with umbrellas anyway.
-                it.startHour = (rainingHours + snowingHours).minOrNull()
-                it.endHour = (rainingHours + snowingHours).maxOrNull()
-                // Classify the rainfall(snowfall) types
-                if (rainingHours.size > 0) {
-                    if (snowingHours.size > 0) {
-                        it.type = RainfallType.Mixed
-                    } else {
-                        it.type = RainfallType.Raining
-                    }
-                } else if (snowingHours.size > 0) {
-                    it.type = RainfallType.Snowing
-                } else {
-                    it.type = RainfallType.None
-                }
-
-                Log.d(TAG, "PTY: ${it.type}\t(${it.startHour} ~ ${it.endHour})")
+        // Finally, update the variable.
+        val hours = rainingHours + snowingHours
+        if (rainingHours.size == 0) {
+            if (snowingHours.size == 0) {
+                // No raining, no snowing
+                _rainfallStatus.value = Good()
+            } else {
+                // No raining, but snowing
+                _rainfallStatus.value = Snowy(snowingHours.min(), snowingHours.max())
             }
+        } else {  // Raining
+            if (snowingHours.size == 0) {
+                _rainfallStatus.value = Rainy(rainingHours.min(), rainingHours.max())
+            } else {  // Raining + Snowing
+                _rainfallStatus.value = Mixed(hours.min(), hours.max())
+            }
+        }
+        Log.d(TAG, "PTY: ${_rainfallStatus.value::class.simpleName}\t(${hours.minOrNull()} ~ ${hours.maxOrNull()})")
         } catch (e: Exception) {
             Log.e(TAG, "$e: Cannot retrieve the short-term rainfall status(PTY).")
         }
@@ -430,8 +435,9 @@ enum class RainfallType(val code: Int) {
     // LightRain(5), LightRainAndSnow(6), LightSnow(7)
 }
 
-data class RainfallStatus(
-    var type: RainfallType,
-    var startHour: Int?,
-    var endHour: Int?,
-)
+sealed class Sky(type: RainfallType)
+class Good: Sky(RainfallType.None)
+sealed class Bad(type: RainfallType, startingHour: Int, endingHour: Int): Sky(type)
+class Mixed(startingHour: Int, endingHour: Int): Bad(RainfallType.Mixed, startingHour, endingHour)
+class Rainy(startingHour: Int, endingHour: Int): Bad(RainfallType.Raining, startingHour, endingHour)
+class Snowy(startingHour: Int, endingHour: Int): Bad(RainfallType.Snowing, startingHour, endingHour)

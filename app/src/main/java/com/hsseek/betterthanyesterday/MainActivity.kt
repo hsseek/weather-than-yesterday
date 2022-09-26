@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Resources
 import android.location.Location
 import android.net.Uri
 import android.os.Bundle
@@ -24,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.CancellationToken
@@ -34,6 +38,7 @@ import com.hsseek.betterthanyesterday.location.KoreanGeocoder
 import com.hsseek.betterthanyesterday.ui.theme.BetterThanYesterdayTheme
 import com.hsseek.betterthanyesterday.util.toText
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
+import kotlinx.coroutines.launch
 
 private const val TAG = "MainActivity"
 
@@ -44,6 +49,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        lifecycleScope.launch {
+            // repeatOnLifecycle launches the block in a new coroutine every time the lifecycle is in the STARTED state
+            // and cancels it when it's STOPPED.
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.toastMessage.collect{ event ->
+                    event.getContentIfNotHandled()?.let { id ->
+                        showToast(id)
+                    }
+                }
+            }
+        }
+        // Initialize a launcher to check and request location permission if needed.
         requestPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) { isGranted ->
@@ -68,9 +85,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        // Check the location permission and get the location.
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         checkLocationPermission()
         getLocation()
+
+        // Set the Views.
         setContent {
             BetterThanYesterdayTheme {
                 Surface(
@@ -81,6 +102,17 @@ class MainActivity : ComponentActivity() {
                 }
                 // A surface container using the 'background' color from the theme
                 SummaryScreen()
+            }
+        }
+    }
+
+    private fun showToast(id: Int) {
+        if (id > 0) {
+            Log.d(TAG, "Toast res id: $id")
+            try {
+                Toast.makeText(this, getString(id), Toast.LENGTH_SHORT).show()
+            } catch (e: Resources.NotFoundException) {
+                Log.e(TAG, "Toast res id invalid.")
             }
         }
     }
@@ -128,17 +160,20 @@ class MainActivity : ComponentActivity() {
                     setBaseCity(location)
                 }
 
-            fusedLocationClient.getCurrentLocation(
-                Priority.PRIORITY_HIGH_ACCURACY,
-                object : CancellationToken() {
-                    override fun onCanceledRequested(p0: OnTokenCanceledListener) =
-                        CancellationTokenSource().token
+            // Takes more than 10 sec often. Launch in a CoroutineScope.
+            lifecycleScope.launch {
+                fusedLocationClient.getCurrentLocation(
+                    Priority.PRIORITY_HIGH_ACCURACY,
+                    object : CancellationToken() {
+                        override fun onCanceledRequested(p0: OnTokenCanceledListener) =
+                            CancellationTokenSource().token
 
-                    override fun isCancellationRequested() = false
-                }).addOnSuccessListener { location ->
+                        override fun isCancellationRequested() = false
+                    }).addOnSuccessListener { location ->
                     setBaseCity(location, true)
                 }.addOnFailureListener {
-                Log.e(TAG, "$it: Cannot retrieve the current location.")
+                    Log.e(TAG, "$it: Cannot retrieve the current location.")
+                }
             }
         }
     }
@@ -153,11 +188,9 @@ class MainActivity : ComponentActivity() {
             val cityName = geocoder.getCityName(CoordinatesLatLon(location.latitude, location.longitude))
 
             if (cityName != null) {
-                viewModel.updateLocation(location, cityName)
+                viewModel.updateLocation(location, cityName, isDefinitive)
             } else {
-                if (isDefinitive) {
-                    Log.e(TAG, "Error retrieving a city name${location.toText()}.")
-                }
+                Log.e(TAG, "Error retrieving a city name${location.toText()}. (current: $isDefinitive)")
             }
         }
     }

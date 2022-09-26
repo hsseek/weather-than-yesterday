@@ -1,6 +1,7 @@
 package com.hsseek.betterthanyesterday
 
 import android.content.Context
+import android.util.Log
 import com.hsseek.betterthanyesterday.dummy.DUMMY_LONG_TERM_FORECAST_RAINY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_LONG_TERM_FORECAST_SUNNY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_SHORT_TERM_FORECAST_RAINY
@@ -8,8 +9,8 @@ import com.hsseek.betterthanyesterday.dummy.DUMMY_SHORT_TERM_FORECAST_SNOWY
 import com.hsseek.betterthanyesterday.location.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.*
 import com.hsseek.betterthanyesterday.util.getKmaBaseTime
-import com.hsseek.betterthanyesterday.viewmodel.RainfallStatus
-import com.hsseek.betterthanyesterday.viewmodel.RainfallType
+import com.hsseek.betterthanyesterday.viewmodel.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Test
 
 import org.junit.Assert.*
@@ -75,14 +76,17 @@ class UnitTest {
     @Test
     fun is_raining() {
         val primaryItems = DUMMY_SHORT_TERM_FORECAST_SNOWY
-        val secondaryItems = DUMMY_LONG_TERM_FORECAST_RAINY
+        val secondaryItems = DUMMY_LONG_TERM_FORECAST_SUNNY
+        val _rainfallStatus: MutableStateFlow<Sky> = MutableStateFlow(Good())
+
+        val RAIN_TAG = "PTY"
 
         val rainingHours = arrayListOf<Int>()
         val snowingHours = arrayListOf<Int>()
-        val RAIN_TAG = "PTY"
-
         try {
             val primaryRainfallData = primaryItems.filter { it.category == RAIN_TAG }
+
+            // Data from primary items are the source of truth. Discard data of secondary items for hours before.
             val primaryCoveredHourMax = primaryRainfallData.maxOf { it.fcstTime }
             val secondaryRainfallData = secondaryItems.filter {
                 (it.category == RAIN_TAG) and (it.fcstTime > primaryCoveredHourMax)
@@ -103,22 +107,25 @@ class UnitTest {
                 }
             }
 
-            val rainfallStatus = RainfallStatus(RainfallType.None, null, null)
-            rainfallStatus.let {
-                it.startHour = (rainingHours + snowingHours).minOrNull()  // Needs an umbrella anyway
-                it.endHour = (rainingHours + snowingHours).maxOrNull()
-                if (rainingHours.size > 0) {
-                    if (snowingHours.size > 0) {
-                        it.type = RainfallType.Mixed
+            // Finally, update the variable.
+            _rainfallStatus.let {
+                val hours = rainingHours + snowingHours
+                if (rainingHours.size == 0) {
+                    if (snowingHours.size == 0) {
+                        // No raining, no snowing
+                        it.value = Good()
                     } else {
-                        it.type = RainfallType.Raining
+                        // No raining, but snowing
+                        it.value = Snowy(snowingHours.min(), snowingHours.max())
                     }
-                } else if (snowingHours.size > 0) {
-                    it.type = RainfallType.Snowing
-                } else {
-                    it.type = RainfallType.None
+                } else {  // Raining
+                    if (snowingHours.size == 0) {
+                        it.value = Rainy(rainingHours.min(), rainingHours.max())
+                    } else {  // Raining + Snowing
+                        it.value = Mixed(hours.min(), hours.max())
+                    }
                 }
-                println("PTY: ${it.type}\t(${it.startHour} ~ ${it.endHour})")
+                println("PTY: ${it.value::class.simpleName}\t(${hours.min()} ~ ${hours.max()})")
             }
         } catch (e: Exception) {
             println("$e: Cannot retrieve the short-term rainfall status(PTY).")
