@@ -9,6 +9,7 @@ import com.hsseek.betterthanyesterday.viewmodel.DayOfInterest
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.coroutines.coroutineContext
 
 
 private const val TIME_ZONE = "GMT+09:00"
@@ -32,7 +33,7 @@ fun getCurrentKoreanDateTime(): Calendar {
  * Note that the returned value may be a future time, at which data are not available yet.
  * */
 fun getKmaBaseTime(
-    dayOffset: Int = DayOfInterest.TODAY.dayOffset,
+    dayOffset: Int = DayOfInterest.Today.dayOffset,
     time: Calendar = getCurrentKoreanDateTime(),
     roundOff: KmaHourRoundOff,
     isQuickPublish: Boolean = true,
@@ -97,6 +98,11 @@ fun logElapsedTime(tag: String, task: String, startTime: Long) {
 
 fun Location?.toText(): String {
     return if (this != null) "(${"%.4f".format(latitude)}, ${"%.4f".format(longitude)})" else { "(Unknown location)" }
+}
+
+suspend fun logCoroutineContext(msg: String = "") {
+    val tag = "Coroutine"
+    Log.d(tag, msg + "\nThread: ${Thread.currentThread().name}" + "\nScope: $coroutineContext")
 }
 
 internal object SharedPreferenceUtil {

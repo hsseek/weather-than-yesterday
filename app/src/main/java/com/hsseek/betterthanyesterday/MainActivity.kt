@@ -16,18 +16,21 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.CancellationToken
@@ -36,6 +39,7 @@ import com.google.android.gms.tasks.OnTokenCanceledListener
 import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
 import com.hsseek.betterthanyesterday.location.KoreanGeocoder
 import com.hsseek.betterthanyesterday.ui.theme.BetterThanYesterdayTheme
+import com.hsseek.betterthanyesterday.util.logCoroutineContext
 import com.hsseek.betterthanyesterday.util.toText
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
 import kotlinx.coroutines.launch
@@ -49,17 +53,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        lifecycleScope.launch {
-            // repeatOnLifecycle launches the block in a new coroutine every time the lifecycle is in the STARTED state
-            // and cancels it when it's STOPPED.
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.toastMessage.collect{ event ->
-                    event.getContentIfNotHandled()?.let { id ->
-                        showToast(id)
-                    }
-                }
-            }
-        }
+
         // Initialize a launcher to check and request location permission if needed.
         requestPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
@@ -88,8 +82,7 @@ class MainActivity : ComponentActivity() {
 
         // Check the location permission and get the location.
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        checkLocationPermission()
-        getLocation()
+        checkPermissionAndGetLocation()
 
         // Set the Views.
         setContent {
@@ -98,29 +91,51 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    Text(text = "Hello, world!")
+                    val showLandingScreen = rememberSaveable { mutableStateOf(true) }
+                    if (showLandingScreen.value) {
+                        LandingScreen(
+                            viewModel = viewModel,
+                            onFinish = { showLandingScreen.value = false },
+                        )
+                    } else {
+                        SummaryScreen()
+                    }
                 }
-                // A surface container using the 'background' color from the theme
-                SummaryScreen()
             }
         }
     }
 
-    private fun showToast(id: Int) {
+    override fun onStart() {
+        super.onStart()
+        viewModel.viewModelScope.launch {
+            logCoroutineContext("onCreate")
+            viewModel.toastMessage.collect{ event ->
+                event.getContentIfNotHandled()?.let { id ->
+                    toastOnUiThread(id)
+                }
+            }
+        }
+    }
+
+    private fun toastOnUiThread(id: Int) {
         if (id > 0) {
             Log.d(TAG, "Toast res id: $id")
             try {
-                Toast.makeText(this, getString(id), Toast.LENGTH_SHORT).show()
+                runOnUiThread {
+                    Toast.makeText(this, getString(id), Toast.LENGTH_SHORT).show()
+                }
             } catch (e: Resources.NotFoundException) {
                 Log.e(TAG, "Toast res id invalid.")
             }
         }
     }
 
-    private fun checkLocationPermission() {
+    private fun checkPermissionAndGetLocation() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
+            == PackageManager.PERMISSION_GRANTED
         ) {
+            getLocation()
+        } else {
             if (ActivityCompat.shouldShowRequestPermissionRationale(
                     this,
                     Manifest.permission.ACCESS_COARSE_LOCATION
@@ -156,24 +171,19 @@ class MainActivity : ComponentActivity() {
             == PackageManager.PERMISSION_GRANTED
         ) {
             fusedLocationClient.lastLocation
-                .addOnSuccessListener { location ->
-                    setBaseCity(location)
-                }
+                .addOnSuccessListener { location -> setBaseCity(location) }
 
-            // Takes more than 10 sec often. Launch in a CoroutineScope.
-            lifecycleScope.launch {
-                fusedLocationClient.getCurrentLocation(
-                    Priority.PRIORITY_HIGH_ACCURACY,
-                    object : CancellationToken() {
-                        override fun onCanceledRequested(p0: OnTokenCanceledListener) =
-                            CancellationTokenSource().token
+            fusedLocationClient.getCurrentLocation(
+                Priority.PRIORITY_HIGH_ACCURACY,
+                object : CancellationToken() {
+                    override fun onCanceledRequested(p0: OnTokenCanceledListener) =
+                        CancellationTokenSource().token
 
-                        override fun isCancellationRequested() = false
-                    }).addOnSuccessListener { location ->
-                    setBaseCity(location, true)
-                }.addOnFailureListener {
-                    Log.e(TAG, "$it: Cannot retrieve the current location.")
-                }
+                    override fun isCancellationRequested() = false
+                }).addOnSuccessListener { location ->
+                setBaseCity(location, true)
+            }.addOnFailureListener {
+                Log.e(TAG, "$it: Cannot retrieve the current location.")
             }
         }
     }
@@ -201,10 +211,69 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun SummaryScreen(
+private fun MainScreen() {
+
+}
+
+@Composable
+private fun SummaryScreen(
     modifier: Modifier = Modifier,
-    weatherViewModel: WeatherViewModel = viewModel()
 ) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(text = stringResource(id = R.string.app_name)) },
+                backgroundColor = MaterialTheme.colors.primary,
+            )
+                 },
+        content = { padding ->
+            Column (
+                modifier = modifier.padding(padding)
+                    ) {
+                CurrentTemp()
+                RainfallStatus()
+                DailyTemp()
+            }
+        },
+    )
+}
+
+@Composable
+private fun LandingScreen(
+    modifier: Modifier = Modifier,
+    viewModel: WeatherViewModel,
+    onFinish: () -> Unit,
+) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        LaunchedEffect(true) {
+            logCoroutineContext("Launched effect")
+            viewModel.refreshAll()
+            onFinish.invoke()
+        }
+        Image(
+            painterResource(
+                id = R.drawable.logo
+            ),
+            contentDescription = stringResource(R.string.splash_screen)
+        )
+    }
+}
+
+@Composable
+fun CurrentTemp() {
+    Column {
+        Text(text = "Temperature is higher than yesterday.")
+    }
+}
+
+@Composable
+fun RainfallStatus() {
+    // TODO
+}
+
+@Composable
+fun DailyTemp() {
+    // TODO
 }
 
 @Preview(showBackground = true)
