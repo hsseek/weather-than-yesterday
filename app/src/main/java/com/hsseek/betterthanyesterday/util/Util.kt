@@ -15,9 +15,26 @@ import kotlin.coroutines.coroutineContext
 private const val TIME_ZONE = "GMT+09:00"
 private const val DATE_FORMAT = "yyyyMMdd"
 private const val HOUR_FORMAT = "HH00"
+private const val TAG = "Util"
 
 
-data class KmaTime (val date: String, val hour: String)
+data class KmaTime(val date: String, val hour: String){
+    fun isLaterThan(time: KmaTime): Boolean {
+        try {
+            if (this.date.toInt() < time.date.toInt()) { // It's a later date.
+                return true
+            } else if (this.date.toInt() == time.date.toInt()) { // It's the same date.
+                if (this.hour.toInt() < time.hour.toInt()) {
+                    return true
+                }
+            }
+            return false
+        } catch (e: Exception) {
+            Log.e(TAG, "KmaTime.isLaterThan()", e)
+            return false
+        }
+    }
+}
 
 
 private fun Calendar.hour(): Int = this.get(Calendar.HOUR_OF_DAY)

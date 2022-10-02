@@ -20,6 +20,7 @@ import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.*
 import kotlin.math.roundToInt
 
 private const val TAG = "WeatherViewModel"
@@ -35,8 +36,13 @@ class WeatherViewModel : ViewModel() {
     private val defaultDispatcher = Dispatchers.Default
     private var kmaJob: Job? = null
 
-    var isDataLoaded: Boolean = true
-        private set
+    private val _isDataLoaded = mutableStateOf(false)
+    val isDataLoaded: Boolean
+        get() = _isDataLoaded.value
+
+    private var lastHourBaseTime: KmaTime = getKmaBaseTime(roundOff = HOUR)
+    private var lastVillageBaseTime: KmaTime = getKmaBaseTime(roundOff = VILLAGE)
+    private var lastNoonBaseTime: KmaTime = getKmaBaseTime(roundOff = NOON)
 
     private val _baseCoordinatesXy = MutableStateFlow(CoordinatesXy(60, 127))
 
@@ -55,8 +61,8 @@ class WeatherViewModel : ViewModel() {
         get() = _highestTemps.value
 
     // The hourly temperature
-    private val _hourlyTempDiff = mutableStateOf("")
-    val hourlyTempDiff: String
+    private val _hourlyTempDiff = mutableStateOf(0)
+    val hourlyTempDiff: Int
         get() = _hourlyTempDiff.value
 
     private var hourlyTempToday: Float? = null
@@ -77,11 +83,7 @@ class WeatherViewModel : ViewModel() {
             _baseCityName.value = cityName
 
             // The former data (requests) are not valid any more. Request new data for the location.
-            viewModelScope.launch(defaultDispatcher) {
-                kmaJob?.cancel("Invalid data requests for old location.")
-                kmaJob?.join()
-                refreshAll()
-            }
+            requestWeatherData()
 
             if (isCurrentLocation) { // Let the user know by a Toast.
                 _toastMessage.value = OneShotEvent(R.string.toast_location_found)
@@ -91,16 +93,56 @@ class WeatherViewModel : ViewModel() {
         }
     }
 
-    suspend fun refreshAll() {
-        kmaJob = viewModelScope.launch(defaultDispatcher) {
-            logCoroutineContext("refreshAll{ launch(default) }")
-            requestCharacteristicTemp()
-            requestWeatherToday()
-            requestTempYesterday()
+    fun requestIfNewAvailable(time: Calendar = getCurrentKoreanDateTime()) {
+        val currentHourBaseTime = getKmaBaseTime(time = time, roundOff = HOUR)
+        val currentVillageBaseTime = getKmaBaseTime(time = time, roundOff = VILLAGE)
+        val currentNoonBaseTime = getKmaBaseTime(time = time, roundOff = NOON)
+
+        if (currentNoonBaseTime.isLaterThan(lastNoonBaseTime)) {
+            Log.d(TAG, "New data available:\nT_H,L\t\t[V]\nD0 PTY\t\t[V]\nD-1 T1H\t[V]")
+            lastHourBaseTime = currentHourBaseTime
+            lastVillageBaseTime = currentVillageBaseTime
+            lastNoonBaseTime = currentNoonBaseTime
+            requestWeatherData()
+        } else if (currentVillageBaseTime.isLaterThan(lastVillageBaseTime)) {
+            Log.d(TAG, "New data available:\nT_H,L\t\t[-]\nD0 PTY\t\t[V]\nD-1 T1H\t[V]")
+            lastHourBaseTime = currentHourBaseTime
+            lastVillageBaseTime = currentVillageBaseTime
+            requestWeatherData(isHourly = true)
+            // requestVillageData() not needed as the function would be included in requestHourlyData()
+        } else if (currentHourBaseTime.isLaterThan(lastHourBaseTime)) {
+            Log.d(TAG, "New data available:\nT_H,L\t\t[-]\nD0 PTY\t\t[-]\nD-1 T1H\t[V]")
+            lastHourBaseTime = currentHourBaseTime
+            requestWeatherData(isHourly = true)
+        } else {
+            Log.d(TAG, "No new data available:\nT_H,L\t\t[-]\nD0 PTY\t\t[-]\nD-1 T1H\t[-]")
         }
-        kmaJob?.join()
-        updateHourlyTempDiff()
-        adjustCharTemp()
+    }
+
+    private fun requestWeatherData(isHourly: Boolean = false) {
+        viewModelScope.launch {
+            logCoroutineContext(
+                "viewModelScope.launch(default) { ... }"
+            )
+            kmaJob?.cancel()
+            kmaJob?.join()
+
+            kmaJob = launch(defaultDispatcher) {
+                logCoroutineContext(
+                    "viewModelScope.launch(default) {\n" +
+                            "\tlaunch{...}}"
+                )
+                if (!isHourly) launch { requestCharacteristicTemp() }
+                launch { requestWeatherToday() }
+                launch { requestTempYesterday() }
+            }
+            kmaJob?.join()
+
+            _isDataLoaded.value = true
+            // Job done. Update variables dependent to another requests.
+            updateHourlyTempDiff()
+            adjustCharTemp()
+        }
     }
 
     /**
@@ -108,9 +150,9 @@ class WeatherViewModel : ViewModel() {
      * All the jobs are parallel.
      * */
     private suspend fun requestCharacteristicTemp() {
-        enumValues<CharacteristicTempType>().forEach { type ->
-            enumValues<DayOfInterest>().forEach { date ->
-                coroutineScope {
+        coroutineScope {
+            enumValues<CharacteristicTempType>().forEach { type ->
+                enumValues<DayOfInterest>().forEach { date ->
                     launch {
                         requestDailyCharacteristicTemp(date, type)
                     }
@@ -123,21 +165,21 @@ class WeatherViewModel : ViewModel() {
         date: DayOfInterest = DayOfInterest.Today,
         type: CharacteristicTempType,
     ) {
-        supervisorScope {
-            val baseTime = getBaseTime(date.dayOffset)
-            val page = getPage(date.dayOffset, type, baseTime)
-            val items: List<ForecastResponse.Item>
-            val characteristicTemp: Int?
-            Log.d(TAG, "D${date.dayOffset}\t\t${type.descriptor} baseTime\t: ${baseTime.date}-${baseTime.hour}")
+        val baseTime = getBaseTime(date.dayOffset)
+        val page = getPage(date.dayOffset, type, baseTime)
+        val items: List<ForecastResponse.Item>
+        val characteristicTemp: Int?
+        Log.d(TAG, "D${date.dayOffset}\t\t${type.descriptor} baseTime\t: ${baseTime.date}-${baseTime.hour}")
 
-            try {
+        try {
+            coroutineScope {
                 val fetchingStartTime = System.currentTimeMillis() // for test
                 val kmaResponse = async(retrofitDispatcher) {
                     logCoroutineContext(
                         "${type.descriptor} of D${date.dayOffset}\n" +
-                                "refreshAll{ launch(default){\n" +
+                                "viewModelScope.launch(default){\n" +
                                 "\trequestCharTemp{ launch{\n" +
-                                "\t\trequestDailyTemp{ supervisorScope { async(IO){\n" +
+                                "\t\trequestDailyTemp{ { async(IO){\n" +
                                 "\t\t\t... }}}}}"
                     )
                     return@async WeatherApi.service.getVillageWeather(
@@ -162,12 +204,12 @@ class WeatherViewModel : ViewModel() {
                     }
                     Log.d(TAG, "${type.descriptor}\tof D${date.dayOffset}\t: $characteristicTemp")
                 } ?: kotlin.run { Log.e(TAG, "Null response") }
-
-            } catch (e: CancellationException) {
-                Log.i(TAG, "Retrieving ${type.descriptor} of D${date.dayOffset} job cancelled.")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error retrieving ${type.descriptor} of D${date.dayOffset}", e)
             }
+
+        } catch (e: CancellationException) {
+            Log.i(TAG, "Retrieving ${type.descriptor} of D${date.dayOffset} job cancelled.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error retrieving ${type.descriptor} of D${date.dayOffset}", e)
         }
     }
 
@@ -256,59 +298,56 @@ class WeatherViewModel : ViewModel() {
      * rainfall status of today.
      * */
     private suspend fun requestWeatherToday() {
-        coroutineScope {
-            launch {
-                logCoroutineContext("refreshAll{ launch(default){\n\trequestWeatherToday{ launch{\n\t\t... }}}")
-                try {
-                    /*
-                    * As the short-term data span only 6 hours,
-                    * additional data must be retrieve for the rest of the day (while less accurate).
-                    */
-                    val longTermBaseTime = getKmaBaseTime(
-                        roundOff = VILLAGE,
-                        isQuickPublish = true,
-                    )
+        try {
+            /*
+            * As the short-term data span only 6 hours,
+            * additional data must be retrieve for the rest of the day (while less accurate).
+            */
+            val longTermBaseTime = getKmaBaseTime(
+                roundOff = VILLAGE,
+                isQuickPublish = true,
+            )
 
-                    val numOfRows: Int = if (longTermBaseTime.hour == "2300") {
-                        12 * 24  // 23:00 of the previous day: whole day's data should be examined.
-                    } else {
-                        // Otherwise, only the later hours should be examined.
-                        (23 - longTermBaseTime.hour.toInt() / 100) * 12
-                    }
-                    Log.d(
-                        TAG,
-                        "D0 long-term baseTime\t:${longTermBaseTime.date}-${longTermBaseTime.hour}"
-                    )
+            val numOfRows: Int = if (longTermBaseTime.hour == "2300") {
+                12 * 24  // 23:00 of the previous day: whole day's data should be examined.
+            } else {
+                // Otherwise, only the later hours should be examined.
+                (23 - longTermBaseTime.hour.toInt() / 100) * 12
+            }
+            Log.d(
+                TAG,
+                "D0 long-term baseTime\t:${longTermBaseTime.date}-${longTermBaseTime.hour}"
+            )
 
-                    val ltFetchingStartTime = System.currentTimeMillis() // for test
-                    val longTermResponse = async(retrofitDispatcher) {
-                        return@async WeatherApi.service.getVillageWeather(
-                            baseDate = longTermBaseTime.date,
-                            baseTime = longTermBaseTime.hour,
-                            numOfRows = numOfRows,
-                            pageNo = 1,
-                            nx = _baseCoordinatesXy.value.nx,
-                            ny = _baseCoordinatesXy.value.ny,
-                        )
-                    }.await()
+            val ltFetchingStartTime = System.currentTimeMillis() // for test
+            coroutineScope {
+                val longTermResponse = async(retrofitDispatcher) {
+                return@async WeatherApi.service.getVillageWeather(
+                    baseDate = longTermBaseTime.date,
+                    baseTime = longTermBaseTime.hour,
+                    numOfRows = numOfRows,
+                    pageNo = 1,
+                    nx = _baseCoordinatesXy.value.nx,
+                    ny = _baseCoordinatesXy.value.ny,
+                )
+                }
 
-                    val shortTermItems = requestShortTermData(DayOfInterest.Today)
-                    if (shortTermItems != null) {
-                        updateShortTermTemp(shortTermItems, DayOfInterest.Today)
-                    }
+                val shortTermItems = requestShortTermData(DayOfInterest.Today)
+                if (shortTermItems != null) {
+                    updateShortTermTemp(shortTermItems, DayOfInterest.Today)
+                }
 
-                    longTermResponse.body()?.let {
-                        val longTermItems = it.response.body.items.item
-                        logElapsedTime(TAG, "${longTermItems.size} items", ltFetchingStartTime)
+                longTermResponse.await().body()?.let {
+                    val longTermItems = it.response.body.items.item
+                    logElapsedTime(TAG, "${longTermItems.size} items", ltFetchingStartTime)
 
-                        updateRainfall(shortTermItems, longTermItems)
-                    }
-                } catch (e: CancellationException) {
-                    Log.i(TAG, "Retrieving D0 forecast job cancelled.")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error retrieving D0 forecast.", e)
+                    updateRainfall(shortTermItems, longTermItems)
                 }
             }
+        } catch (e: CancellationException) {
+            Log.i(TAG, "Retrieving D0 forecast job cancelled.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error retrieving D0 forecast.", e)
         }
     }
 
@@ -386,7 +425,7 @@ class WeatherViewModel : ViewModel() {
     private fun updateHourlyTempDiff() {
         hourlyTempYesterday?.let { y ->
             hourlyTempToday?.let { t ->
-                _hourlyTempDiff.value = (t - y).toInt().toString()
+                _hourlyTempDiff.value = (t - y).toInt()
             }
         }
     }
@@ -488,22 +527,17 @@ class WeatherViewModel : ViewModel() {
     }
 
     private suspend fun requestTempYesterday() {
-        coroutineScope {
-            launch {
-                logCoroutineContext("refreshAll{ launch(default) {\n\trequestTempYesterday() { launch{\n\t\t ... }}}}")
-                try {
-                    val shortTermItems = requestShortTermData(DayOfInterest.Yesterday)
-                    if (shortTermItems != null) {
-                        updateShortTermTemp(shortTermItems, DayOfInterest.Yesterday)
-                    } else {
-                        Log.e(TAG, "The short-term data for D-1 null")
-                    }
-                } catch (e: CancellationException) {
-                    Log.i(TAG, "Retrieving the yesterday's T1H.")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error retrieving the yesterday's T1H.", e)
-                }
+        try {
+            val shortTermItems = requestShortTermData(DayOfInterest.Yesterday)
+            if (shortTermItems != null) {
+                updateShortTermTemp(shortTermItems, DayOfInterest.Yesterday)
+            } else {
+                Log.e(TAG, "The short-term data for D-1 null")
             }
+        } catch (e: CancellationException) {
+            Log.i(TAG, "Retrieving the yesterday's T1H.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error retrieving the yesterday's T1H.", e)
         }
     }
 

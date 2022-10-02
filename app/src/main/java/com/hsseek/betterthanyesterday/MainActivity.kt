@@ -91,12 +91,8 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    val showLandingScreen = rememberSaveable { mutableStateOf(true) }
-                    if (showLandingScreen.value) {
-                        LandingScreen(
-                            viewModel = viewModel,
-                            onFinish = { showLandingScreen.value = false },
-                        )
+                    if (!viewModel.isDataLoaded) {
+                        LandingScreen()
                     } else {
                         SummaryScreen()
                     }
@@ -218,6 +214,7 @@ private fun MainScreen() {
 @Composable
 private fun SummaryScreen(
     modifier: Modifier = Modifier,
+    viewModel: WeatherViewModel = viewModel(),
 ) {
     Scaffold(
         topBar = {
@@ -230,7 +227,7 @@ private fun SummaryScreen(
             Column (
                 modifier = modifier.padding(padding)
                     ) {
-                CurrentTemp()
+                CurrentTempComparison(viewModel.hourlyTempDiff)
                 RainfallStatus()
                 DailyTemp()
             }
@@ -241,28 +238,34 @@ private fun SummaryScreen(
 @Composable
 private fun LandingScreen(
     modifier: Modifier = Modifier,
-    viewModel: WeatherViewModel,
-    onFinish: () -> Unit,
+    viewModel: WeatherViewModel = viewModel(),
 ) {
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        LaunchedEffect(true) {
-            logCoroutineContext("Launched effect")
-            viewModel.refreshAll()
-            onFinish.invoke()
-        }
         Image(
-            painterResource(
-                id = R.drawable.logo
-            ),
+            painterResource(id = R.drawable.logo),
             contentDescription = stringResource(R.string.splash_screen)
         )
+        LaunchedEffect(true) {
+            logCoroutineContext("Launched effect")
+            viewModel.requestIfNewAvailable()
+        }
     }
 }
 
 @Composable
-fun CurrentTemp() {
+fun CurrentTempComparison(hourlyTempDiff: Int) {
+    val m1 = stringResource(R.string.t_diff_1)
+    val m2 =
+        if (hourlyTempDiff > 0) {
+            stringResource(R.string.t_diff_2_higher)
+        } else if (hourlyTempDiff < 0) {
+            stringResource(R.string.t_diff_2_lower)
+        } else {
+            stringResource(R.string.t_diff_2_same)
+        }
     Column {
-        Text(text = "Temperature is higher than yesterday.")
+        Text(text = m1 + m2)
+        Text(text = hourlyTempDiff.toString())
     }
 }
 
@@ -280,6 +283,6 @@ fun DailyTemp() {
 @Composable
 fun DefaultPreview() {
     BetterThanYesterdayTheme {
-        SummaryScreen()
+        SummaryScreen(viewModel = viewModel())
     }
 }
