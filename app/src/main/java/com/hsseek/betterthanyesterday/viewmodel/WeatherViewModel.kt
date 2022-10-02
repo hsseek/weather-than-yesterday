@@ -51,14 +51,14 @@ class WeatherViewModel : ViewModel() {
         get() = _baseCityName.value
 
     // The lowest temperatures of yesterday through the day after tomorrow
-    private val _lowestTemps = mutableStateOf(IntArray(4))
-    val lowestTemps: IntArray
-        get() = _lowestTemps.value
+    private val _lowestTemps = mutableStateOf(arrayOfNulls<Int>(4))
+    val lowestTemps: List<Int?>
+        get() = _lowestTemps.value.toList()
 
     // The highest temperatures of yesterday through the day after tomorrow
-    private val _highestTemps = mutableStateOf(IntArray(4))
-    val highestTemps: IntArray
-        get() = _highestTemps.value
+    private val _highestTemps = mutableStateOf(arrayOfNulls<Int>(4))
+    val highestTemps: List<Int?>
+        get() = _highestTemps.value.toList()
 
     // The hourly temperature
     private val _hourlyTempDiff = mutableStateOf(0)
@@ -435,23 +435,24 @@ class WeatherViewModel : ViewModel() {
      * If the shown hourly value is higher than TMX than the user might doubt the reliability: adjust.
      */
     private fun adjustCharTemp() {
-        hourlyTempToday?.let {
-            val t = it.toInt()
-            if (t > _highestTemps.value[1]) {
-                _highestTemps.value[1] = t
+        hourlyTempToday?.let { tt ->
+            val t = tt.toInt()
+            _highestTemps.value[1]?.let {
+                if (t > it) _highestTemps.value[1] = t
             }
-            if (t < _lowestTemps.value[1]) {
-                _lowestTemps.value[1] = t
+
+            _lowestTemps.value[1]?.let {
+                if (t < it) _lowestTemps.value[1] = t
             }
         }
 
-        hourlyTempYesterday?.let {
-            val t = it.toInt()
-            if (t > _highestTemps.value[0]) {
-                _highestTemps.value[0] = t
+        hourlyTempYesterday?.let { ty ->
+            val t = ty.toInt()
+            _highestTemps.value[0]?.let {
+                if (t > it) _highestTemps.value[0] = t
             }
-            if (t < _lowestTemps.value[0]) {
-                _lowestTemps.value[0] = t
+            _lowestTemps.value[0]?.let {
+                if (t < it) _lowestTemps.value[0] = t
             }
         }
     }
@@ -471,12 +472,15 @@ class WeatherViewModel : ViewModel() {
         val rainfallData: List<ForecastResponse.Item>
         try {
             rainfallData = if (primaryItems != null) {
-                val primaryRainfallData = primaryItems.filter { it.category == RAIN_TAG }
+                val today = primaryItems[0].fcstDate
+                val primaryRainfallData = primaryItems.filter {
+                    (it.category == RAIN_TAG) and (it.fcstDate == today)
+                }
 
                 // Data from primary items are the source of truth. Discard data of secondary items for hours before.
                 val primaryCoveredHourMax = primaryRainfallData.maxOf { it.fcstTime }
                 val secondaryRainfallData = secondaryItems.filter {
-                    (it.category == RAIN_TAG) and (it.fcstTime > primaryCoveredHourMax)
+                    (it.category == RAIN_TAG) and (it.fcstDate == today) and (it.fcstTime > primaryCoveredHourMax)
                 }
                 primaryRainfallData + secondaryRainfallData
             } else {
@@ -484,6 +488,7 @@ class WeatherViewModel : ViewModel() {
             }
 
             for (i in rainfallData) {
+                Log.d("PTY", "$i")
                 val status = i.fcstValue.toInt()  // Must be integers of 0 through 7
                 if (
                     status == RainfallType.Raining.code ||
@@ -515,10 +520,7 @@ class WeatherViewModel : ViewModel() {
                     _rainfallStatus.value = Sky.Bad.Mixed(hours.min(), hours.max())
                 }
             }
-            Log.d(
-                TAG,
-                "PTY: ${_rainfallStatus.value::class.simpleName}\t(${hours.minOrNull()} ~ ${hours.maxOrNull()})"
-            )
+            Log.d(TAG, "PTY: ${_rainfallStatus.value::class.simpleName}\t(${hours.minOrNull()} ~ ${hours.maxOrNull()})")
         } catch (e: CancellationException) {
             Log.i(TAG, "Retrieving the short-term PTY job cancelled.")
         } catch (e: Exception) {
@@ -573,7 +575,7 @@ enum class RainfallType(val code: Int) {
 
 sealed class Sky(type: RainfallType) {
     class Good: Sky(RainfallType.None)
-    sealed class Bad(type: RainfallType, startingHour: Int, endingHour: Int): Sky(type) {
+    sealed class Bad(type: RainfallType, val startingHour: Int, val endingHour: Int): Sky(type) {
         class Mixed(startingHour: Int, endingHour: Int): Bad(RainfallType.Mixed, startingHour, endingHour)
         class Rainy(startingHour: Int, endingHour: Int): Bad(RainfallType.Raining, startingHour, endingHour)
         class Snowy(startingHour: Int, endingHour: Int): Bad(RainfallType.Snowing, startingHour, endingHour)

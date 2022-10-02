@@ -147,6 +147,8 @@ internal object SharedPreferenceUtil {
         }
 }
 
+fun Int.hour(): Int = this/100
+
 enum class KmaHourRoundOff {
     HOUR, VILLAGE, NOON, DAY
 }

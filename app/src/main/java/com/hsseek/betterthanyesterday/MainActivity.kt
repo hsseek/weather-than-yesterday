@@ -18,11 +18,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -32,6 +31,10 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.text.style.TextAlign
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.CancellationToken
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -39,10 +42,13 @@ import com.google.android.gms.tasks.OnTokenCanceledListener
 import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
 import com.hsseek.betterthanyesterday.location.KoreanGeocoder
 import com.hsseek.betterthanyesterday.ui.theme.BetterThanYesterdayTheme
-import com.hsseek.betterthanyesterday.util.logCoroutineContext
-import com.hsseek.betterthanyesterday.util.toText
+import com.hsseek.betterthanyesterday.util.*
+import com.hsseek.betterthanyesterday.viewmodel.Sky
+import com.hsseek.betterthanyesterday.viewmodel.Sky.*
+import com.hsseek.betterthanyesterday.viewmodel.Sky.Bad.*
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 private const val TAG = "MainActivity"
 
@@ -87,14 +93,15 @@ class MainActivity : ComponentActivity() {
         // Set the Views.
         setContent {
             BetterThanYesterdayTheme {
+                val modifier = Modifier.fillMaxWidth()
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = modifier,
                     color = MaterialTheme.colors.background
                 ) {
                     if (!viewModel.isDataLoaded) {
                         LandingScreen()
                     } else {
-                        SummaryScreen()
+                        SummaryScreen(modifier)
                     }
                 }
             }
@@ -207,15 +214,12 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun MainScreen() {
-
-}
-
-@Composable
 private fun SummaryScreen(
     modifier: Modifier = Modifier,
     viewModel: WeatherViewModel = viewModel(),
 ) {
+    val sky: Sky by viewModel.rainfallStatus.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -227,9 +231,9 @@ private fun SummaryScreen(
             Column (
                 modifier = modifier.padding(padding)
                     ) {
-                CurrentTempComparison(viewModel.hourlyTempDiff)
-                RainfallStatus()
-                DailyTemp()
+                CurrentTempComparison(modifier, viewModel.hourlyTempDiff)
+                DailyTemperatures(modifier, viewModel.highestTemps, viewModel.lowestTemps)
+                RainfallStatus(modifier, sky)
             }
         },
     )
@@ -245,6 +249,7 @@ private fun LandingScreen(
             painterResource(id = R.drawable.logo),
             contentDescription = stringResource(R.string.splash_screen)
         )
+        // TODO: Show the splash image about 2 sec at most. After that, dispose the landing screen anyway and compose the main screen with "refreshing"
         LaunchedEffect(true) {
             logCoroutineContext("Launched effect")
             viewModel.requestIfNewAvailable()
@@ -253,7 +258,7 @@ private fun LandingScreen(
 }
 
 @Composable
-fun CurrentTempComparison(hourlyTempDiff: Int) {
+fun CurrentTempComparison(modifier: Modifier, hourlyTempDiff: Int) {
     val m1 = stringResource(R.string.t_diff_1)
     val m2 =
         if (hourlyTempDiff > 0) {
@@ -263,26 +268,138 @@ fun CurrentTempComparison(hourlyTempDiff: Int) {
         } else {
             stringResource(R.string.t_diff_2_same)
         }
-    Column {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text = m1 + m2)
         Text(text = hourlyTempDiff.toString())
     }
 }
 
 @Composable
-fun RainfallStatus() {
-    // TODO
+fun DailyTemperatures(modifier: Modifier, highestTemps: List<Int?>, lowestTemps: List<Int?>) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        val days = listOf(
+            stringResource(R.string.char_t_yesterday),
+            stringResource(R.string.char_t_d0),
+            stringResource(R.string.char_t_D1),
+            stringResource(R.string.char_t_D2)
+        )
+        val fraction: Float = 1f/days.size
+
+        LazyRow {
+            items(days) {
+                Text(
+                    text = it,
+                    modifier = modifier.fillParentMaxWidth(fraction),
+                    textAlign = TextAlign.Center)
+            }
+        }
+        LazyRow(modifier = modifier, horizontalArrangement = Arrangement.SpaceAround) {
+            items(highestTemps) {
+                if (it != null) {
+                    Text(
+                        text = it.toString(),
+                        modifier = modifier.fillParentMaxWidth(fraction),
+                        textAlign = TextAlign.Center)
+                }
+                else {
+                    Text(
+                        text = stringResource(R.string.null_value),
+                        modifier = modifier.fillParentMaxWidth(fraction),
+                        textAlign = TextAlign.Center)
+                }
+            }
+        }
+        LazyRow(horizontalArrangement = Arrangement.SpaceEvenly) {
+            items(lowestTemps) {
+                if (it != null) {
+                    Text(
+                        text = it.toString(),
+                        modifier = modifier.fillParentMaxWidth(fraction),
+                        textAlign = TextAlign.Center
+                    )
+                }
+                else {
+                    Text(
+                        text = stringResource(R.string.null_value),
+                        modifier = modifier.fillParentMaxWidth(fraction),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
-fun DailyTemp() {
-    // TODO
+fun RainfallStatus(modifier: Modifier, sky: Sky) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // The id of the visual icon
+        val imageId: Int = when (sky) {
+            is Good -> R.drawable.ic_smile_24
+            is Rainy -> R.drawable.ic_rainy_24
+            is Snowy -> R.drawable.ic_snow_24
+            else -> R.drawable.ic_round_umbrella_24
+        }
+
+        // Text description
+        val qualitative: String
+        val quantitative: String
+        when (sky) {
+            is Good -> {
+                qualitative = stringResource(R.string.today_sunny)
+                quantitative = ""
+            }
+            is Bad -> {
+                val startingHour: String = getReadableHour(sky.startingHour.hour())
+                val endingHour: String = getReadableHour(sky.endingHour.hour())
+
+                quantitative = "$startingHour ~ $endingHour"
+                qualitative = when (sky) {
+                    is Rainy -> stringResource(R.string.today_rainy)
+                    is Snowy -> stringResource(R.string.today_snowy)
+                    else -> stringResource(R.string.today_mixed)
+                }
+            }
+        }
+
+        Image(
+            painter = painterResource(id = imageId),
+            contentDescription = stringResource(R.string.weather_status_desc)
+        )
+        Column {
+            Text(text = qualitative)
+            if (sky is Bad) {
+                Text(text = quantitative)
+            }
+        }
+    }
+}
+
+@Composable
+private fun getReadableHour(startingHour: Int): String {
+    val currentHour = getCurrentKoreanDateTime().get(Calendar.HOUR_OF_DAY)
+    return if (startingHour == currentHour) {
+        stringResource(R.string.hour_present)
+    } else if (startingHour == 12) {
+        stringResource(id = R.string.hour_noon) // 1200 -> Noon
+    } else if (startingHour < 12) {
+        stringResource(R.string.hour_am, startingHour) // 800 -> 8 AM
+    } else {
+        stringResource(R.string.hour_pm, startingHour - 12) // 1300 -> 1 PM
+    }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun DefaultPreview() {
     BetterThanYesterdayTheme {
-        SummaryScreen(viewModel = viewModel())
+        SummaryScreen(Modifier.fillMaxWidth())
     }
 }
