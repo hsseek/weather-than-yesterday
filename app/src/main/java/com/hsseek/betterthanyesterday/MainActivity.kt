@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.content.res.Resources
 import android.location.Location
 import android.net.Uri
@@ -17,6 +18,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.*
@@ -34,6 +36,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.CancellationToken
@@ -41,7 +45,7 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.gms.tasks.OnTokenCanceledListener
 import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
 import com.hsseek.betterthanyesterday.location.KoreanGeocoder
-import com.hsseek.betterthanyesterday.ui.theme.BetterThanYesterdayTheme
+import com.hsseek.betterthanyesterday.ui.theme.*
 import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.viewmodel.Sky
 import com.hsseek.betterthanyesterday.viewmodel.Sky.*
@@ -99,7 +103,8 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colors.background
                 ) {
                     if (!viewModel.isDataLoaded) {
-                        LandingScreen()
+//                        LandingScreen()
+                        SummaryScreen(modifier)  // test
                     } else {
                         SummaryScreen(modifier)
                     }
@@ -131,6 +136,11 @@ class MainActivity : ComponentActivity() {
                 Log.e(TAG, "Toast res id invalid.")
             }
         }
+    }
+
+    private fun refresh() {
+        // TODO: Toast "The new data will be released in 23 minutes."
+        // TODO: Swipe to refresh(https://stackoverflow.com/questions/67204979/there-is-something-similar-like-swiperefreshlayout-to-pull-to-refresh-in-the-laz)
     }
 
     private fun checkPermissionAndGetLocation() {
@@ -231,6 +241,7 @@ private fun SummaryScreen(
             Column (
                 modifier = modifier.padding(padding)
                     ) {
+                // TODO: Add UI for location.
                 CurrentTempComparison(modifier, viewModel.hourlyTempDiff)
                 DailyTemperatures(modifier, viewModel.highestTemps, viewModel.lowestTemps)
                 RainfallStatus(modifier, sky)
@@ -258,9 +269,12 @@ private fun LandingScreen(
 }
 
 @Composable
-fun CurrentTempComparison(modifier: Modifier, hourlyTempDiff: Int) {
-    val m1 = stringResource(R.string.t_diff_1)
-    val m2 =
+fun CurrentTempComparison(
+    modifier: Modifier = Modifier,
+    hourlyTempDiff: Int,
+) {
+    // A descriptive message
+    val msg =
         if (hourlyTempDiff > 0) {
             stringResource(R.string.t_diff_2_higher)
         } else if (hourlyTempDiff < 0) {
@@ -268,18 +282,50 @@ fun CurrentTempComparison(modifier: Modifier, hourlyTempDiff: Int) {
         } else {
             stringResource(R.string.t_diff_2_same)
         }
+
+    // The color of the temperature difference.
+    val color: Color = getTemperatureColor(hourlyTempDiff)
+    val diffString: String = if (hourlyTempDiff > 0) {
+        "\u25B4 $hourlyTempDiff"
+    } else if (hourlyTempDiff < 0) {
+        "\u25BE ${-hourlyTempDiff}"
+    } else {
+        "="
+    }
+
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = m1 + m2)
-        Text(text = hourlyTempDiff.toString())
+        Text(
+            text = stringResource(R.string.t_diff_1),
+            style = Typography.caption
+        )
+        Text(
+            text = msg
+        )
+        Text(
+            text = diffString,
+            style = Typography.h1,
+            color = color
+        )
     }
 }
 
 @Composable
-fun DailyTemperatures(modifier: Modifier, highestTemps: List<Int?>, lowestTemps: List<Int?>) {
+fun DailyTemperatures(
+    modifier: Modifier = Modifier,
+    highestTemps: List<Int?>,
+    lowestTemps: List<Int?>,
+) {
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // The title
+        Text(
+            text = stringResource(R.string.daily_temperature_title),
+            style = Typography.caption,
+        )
+        
+        // The header row of descriptors
         val days = listOf(
             stringResource(R.string.char_t_yesterday),
             stringResource(R.string.char_t_d0),
@@ -293,33 +339,92 @@ fun DailyTemperatures(modifier: Modifier, highestTemps: List<Int?>, lowestTemps:
                 Text(
                     text = it,
                     modifier = modifier.fillParentMaxWidth(fraction),
-                    textAlign = TextAlign.Center)
+                    textAlign = TextAlign.Center,
+                )
             }
         }
+
+        // Highest temperatures of the days
+        // Font color for highest temperatures
+        val warmColor: Color = if (isSystemInDarkTheme()) {
+            RedTint700
+        } else {
+            RedShade400
+        }
+
+        // Font color for the highest of highest temperatures
+        val hotColor: Color = if (isSystemInDarkTheme()) {
+            RedTint500
+        } else {
+            RedShade100
+        }
+        val highest = highestTemps.maxOf { it ?: -100 }
+
         LazyRow(modifier = modifier, horizontalArrangement = Arrangement.SpaceAround) {
             items(highestTemps) {
                 if (it != null) {
-                    Text(
-                        text = it.toString(),
-                        modifier = modifier.fillParentMaxWidth(fraction),
-                        textAlign = TextAlign.Center)
+                    if (it == highest) {
+                        Text(
+                            text = it.toString(),
+                            modifier = modifier.fillParentMaxWidth(fraction),
+                            textAlign = TextAlign.Center,
+                            color = hotColor,
+                            fontWeight = FontWeight.ExtraBold,
+                        )
+                    } else {
+                        Text(
+                            text = it.toString(),
+                            modifier = modifier.fillParentMaxWidth(fraction),
+                            textAlign = TextAlign.Center,
+                            color = warmColor,
+                        )
+                    }
                 }
                 else {
                     Text(
                         text = stringResource(R.string.null_value),
                         modifier = modifier.fillParentMaxWidth(fraction),
-                        textAlign = TextAlign.Center)
+                        textAlign = TextAlign.Center,
+                    )
                 }
             }
         }
+
+        // Lowest temperatures of the days
+        // Font color for lowest temperatures
+        val coolColor: Color = if (isSystemInDarkTheme()) {
+            CoolTint700
+        } else {
+            CoolShade400
+        }
+
+        // Font color for the lowest of lowest temperatures
+        val coldColor: Color = if (isSystemInDarkTheme()) {
+            CoolTint500
+        } else {
+            CoolShade100
+        }
+        val lowest = lowestTemps.minOf { it ?: 200 }
+
         LazyRow(horizontalArrangement = Arrangement.SpaceEvenly) {
             items(lowestTemps) {
                 if (it != null) {
-                    Text(
-                        text = it.toString(),
-                        modifier = modifier.fillParentMaxWidth(fraction),
-                        textAlign = TextAlign.Center
-                    )
+                    if (it == lowest) {
+                        Text(
+                            text = it.toString(),
+                            modifier = modifier.fillParentMaxWidth(fraction),
+                            textAlign = TextAlign.Center,
+                            color = coldColor,
+                            fontWeight = FontWeight.ExtraBold,
+                        )
+                    } else {
+                        Text(
+                            text = it.toString(),
+                            modifier = modifier.fillParentMaxWidth(fraction),
+                            textAlign = TextAlign.Center,
+                            color = coolColor,
+                        )
+                    }
                 }
                 else {
                     Text(
@@ -334,65 +439,236 @@ fun DailyTemperatures(modifier: Modifier, highestTemps: List<Int?>, lowestTemps:
 }
 
 @Composable
-fun RainfallStatus(modifier: Modifier, sky: Sky) {
-    Row(
+fun RainfallStatus(
+    modifier: Modifier = Modifier,
+    sky: Sky,
+) {
+    Column(
         modifier = modifier,
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // The id of the visual icon
-        val imageId: Int = when (sky) {
-            is Good -> R.drawable.ic_smile_24
-            is Rainy -> R.drawable.ic_rainy_24
-            is Snowy -> R.drawable.ic_snow_24
-            else -> R.drawable.ic_round_umbrella_24
-        }
-
-        // Text description
-        val qualitative: String
-        val quantitative: String
-        when (sky) {
-            is Good -> {
-                qualitative = stringResource(R.string.today_sunny)
-                quantitative = ""
-            }
-            is Bad -> {
-                val startingHour: String = getReadableHour(sky.startingHour.hour())
-                val endingHour: String = getReadableHour(sky.endingHour.hour())
-
-                quantitative = "$startingHour ~ $endingHour"
-                qualitative = when (sky) {
-                    is Rainy -> stringResource(R.string.today_rainy)
-                    is Snowy -> stringResource(R.string.today_snowy)
-                    else -> stringResource(R.string.today_mixed)
+        Text(
+            text = stringResource(R.string.rainfall_title),
+            style = Typography.caption,
+        )
+        Row(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // The id of the visual icon
+            val imageId: Int = if (isSystemInDarkTheme()) {
+                when (sky) {
+                    is Good -> R.drawable.ic_smile_dark
+                    is Rainy -> R.drawable.ic_rainy_dark
+                    is Snowy -> R.drawable.ic_snow_dark
+                    else -> R.drawable.ic_umbrella_dark
+                }
+            } else {
+                when (sky) {
+                    is Good -> R.drawable.ic_smile
+                    is Rainy -> R.drawable.ic_rainy
+                    is Snowy -> R.drawable.ic_snow
+                    else -> R.drawable.ic_umbrella
                 }
             }
-        }
 
-        Image(
-            painter = painterResource(id = imageId),
-            contentDescription = stringResource(R.string.weather_status_desc)
-        )
-        Column {
-            Text(text = qualitative)
-            if (sky is Bad) {
-                Text(text = quantitative)
+            // Text description
+            val qualitative: String
+            val quantitative: String
+            when (sky) {
+                is Good -> {
+                    qualitative = stringResource(R.string.today_sunny)
+                    quantitative = ""
+                }
+                is Bad -> {
+                    val startingHour: String = getReadableHour(sky.startingHour.hour())
+                    val endingHour: String = getReadableHour(sky.endingHour.hour())
+
+                    quantitative = if (startingHour == endingHour) {
+                        if (endingHour == stringResource(id = R.string.hour_present)) {
+                            stringResource(R.string.hour_soon)
+                        } else {
+                            "~ $endingHour"
+                        }
+                    } else {
+                        "$startingHour ~ $endingHour"
+                    }
+                    qualitative = when (sky) {
+                        is Rainy -> stringResource(R.string.today_rainy)
+                        is Snowy -> stringResource(R.string.today_snowy)
+                        else -> stringResource(R.string.today_mixed)
+                    }
+                }
+            }
+            Image(
+                painter = painterResource(id = imageId),
+                contentDescription = stringResource(R.string.weather_status_desc)
+            )
+            Column {
+                Text(text = qualitative)
+                if (sky is Bad) {
+                    Text(text = quantitative)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun getReadableHour(startingHour: Int): String {
+private fun getTemperatureColor(hourlyTempDiff: Int) = if (isSystemInDarkTheme()) {
+    when {
+        hourlyTempDiff > 8 -> Red000
+        hourlyTempDiff == 7 -> RedTint100
+        hourlyTempDiff == 6 -> RedTint200
+        hourlyTempDiff == 5 -> RedTint300
+        hourlyTempDiff == 4 -> RedTint400
+        hourlyTempDiff == 3 -> RedTint500
+        hourlyTempDiff == 2 -> RedTint600
+        hourlyTempDiff == 1 -> RedTint700
+        hourlyTempDiff == 0 -> White
+        hourlyTempDiff == -1 -> CoolTint700
+        hourlyTempDiff == -2 -> CoolTint600
+        hourlyTempDiff == -3 -> CoolTint500
+        hourlyTempDiff == -4 -> CoolTint400
+        hourlyTempDiff == -5 -> CoolTint300
+        hourlyTempDiff == -6 -> CoolTint200
+        hourlyTempDiff == -7 -> CoolTint100
+        else -> Cool000
+    }
+} else {
+    when {
+        hourlyTempDiff > 8 -> Red000
+        hourlyTempDiff == 7 -> Red000
+        hourlyTempDiff == 6 -> Red000
+        hourlyTempDiff == 5 -> Red000
+        hourlyTempDiff == 4 -> RedShade100
+        hourlyTempDiff == 3 -> RedShade200
+        hourlyTempDiff == 2 -> RedShade300
+        hourlyTempDiff == 1 -> RedShade400
+        hourlyTempDiff == 0 -> Black
+        hourlyTempDiff == -1 -> CoolShade400
+        hourlyTempDiff == -2 -> CoolShade300
+        hourlyTempDiff == -3 -> CoolShade200
+        hourlyTempDiff == -4 -> CoolShade100
+        hourlyTempDiff == -5 -> Cool000
+        hourlyTempDiff == -6 -> Cool000
+        hourlyTempDiff == -7 -> Cool000
+        else -> Cool000
+    }
+}
+
+@Composable
+private fun getReadableHour(hour: Int): String {
     val currentHour = getCurrentKoreanDateTime().get(Calendar.HOUR_OF_DAY)
-    return if (startingHour == currentHour) {
+    return if (hour == currentHour) {
         stringResource(R.string.hour_present)
-    } else if (startingHour == 12) {
+    } else if (hour == 12) {
         stringResource(id = R.string.hour_noon) // 1200 -> Noon
-    } else if (startingHour < 12) {
-        stringResource(R.string.hour_am, startingHour) // 800 -> 8 AM
+    } else if (hour < 12) {
+        stringResource(R.string.hour_am, hour) // 800 -> 8 AM
     } else {
-        stringResource(R.string.hour_pm, startingHour - 12) // 1300 -> 1 PM
+        stringResource(R.string.hour_pm, hour - 12) // 1300 -> 1 PM
+    }
+}
+
+@Composable
+private fun Menus() {
+    // TODO: Share this app / Help(FAQ)
+}
+
+@Preview(showBackground = true)
+@Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun ColdCurrentTemp() {
+    BetterThanYesterdayTheme {
+        Surface {
+            CurrentTempComparison(hourlyTempDiff = -9)
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun HotCurrentTemp() {
+    BetterThanYesterdayTheme {
+        Surface {
+            CurrentTempComparison(hourlyTempDiff = 9)
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun SameCurrentTemp() {
+    BetterThanYesterdayTheme {
+        Surface {
+            CurrentTempComparison(hourlyTempDiff = 0)
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun CharTemps() {
+    BetterThanYesterdayTheme {
+        Surface {
+            DailyTemperatures(
+                highestTemps = listOf(25, 22, null, 26),
+                lowestTemps = listOf(16, null, -3, 20),
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun Sunny() {
+    BetterThanYesterdayTheme {
+        Surface {
+            RainfallStatus(
+                sky = Good()
+            )
+        }
+    }
+}
+
+@Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun Rainy() {
+    BetterThanYesterdayTheme {
+        Surface {
+            RainfallStatus(
+                sky = Rainy(300, 1200)
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun Snow() {
+    BetterThanYesterdayTheme {
+        Surface {
+            RainfallStatus(
+                sky = Snowy(2000, 2300)
+            )
+        }
+    }
+}
+
+@Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun Mixed() {
+    BetterThanYesterdayTheme {
+        Surface {
+            RainfallStatus(
+                sky = Mixed(100, 800)
+            )
+        }
     }
 }
 
