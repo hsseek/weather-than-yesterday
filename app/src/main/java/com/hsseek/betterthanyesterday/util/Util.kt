@@ -5,6 +5,7 @@ import android.location.Location
 import android.util.Log
 import androidx.core.content.edit
 import com.hsseek.betterthanyesterday.R
+import com.hsseek.betterthanyesterday.location.CoordinatesXy
 import com.hsseek.betterthanyesterday.viewmodel.DayOfInterest
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
@@ -151,4 +152,18 @@ fun Int.hour(): Int = this/100
 
 enum class KmaHourRoundOff {
     HOUR, VILLAGE, NOON, DAY
+}
+
+enum class LocatingMethod(val code: Int, val regionId: Int, val citiesId: Int, val coordinates: CoordinatesXy?) {
+    Auto(0, R.string.region_auto, R.string.cities_auto, null),
+    Capital(1, R.string.region_captial, R.string.cities_captial, CoordinatesXy(60, 127)),
+    Gangwon(2, R.string.region_gangwon, R.string.cities_gangwon, CoordinatesXy(73, 134)),
+    SouthGs(3, R.string.region_south_gs, R.string.cities_south_gs, CoordinatesXy(98, 76)),
+    NorthGs(4, R.string.region_north_gs, R.string.cities_north_gs, CoordinatesXy(89, 90)),
+    SouthJl(5, R.string.region_south_jl, R.string.cities_south_jl, CoordinatesXy(58, 74)),
+    NorthJl(6, R.string.region_north_jl, R.string.cities_north_jl, CoordinatesXy(63, 89)),
+    Jeju(7, R.string.region_jeju, R.string.cities_jeju, CoordinatesXy(52, 38)),
+    SouthCh(8, R.string.region_south_ch, R.string.cities_south_ch, CoordinatesXy(67, 100)),
+    NorthCh(9, R.string.region_north_ch, R.string.cities_north_ch, CoordinatesXy(69, 107)),
+    Dokdo(10, R.string.region_dokdo, R.string.cities_dokdo, CoordinatesXy(144, 123))
 }

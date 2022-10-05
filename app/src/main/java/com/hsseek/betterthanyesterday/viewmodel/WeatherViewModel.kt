@@ -1,19 +1,18 @@
 package com.hsseek.betterthanyesterday.viewmodel
 
-import android.location.Location
+import android.Manifest
+import com.google.android.gms.location.*
+import android.app.Application
+import android.content.pm.PackageManager
+import android.os.Looper
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import androidx.core.app.ActivityCompat
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import com.hsseek.betterthanyesterday.R
-import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
-import com.hsseek.betterthanyesterday.location.CoordinatesXy
-import com.hsseek.betterthanyesterday.location.convertToXy
+import com.hsseek.betterthanyesterday.location.*
 import com.hsseek.betterthanyesterday.network.ForecastResponse
-import com.hsseek.betterthanyesterday.network.OneShotEvent
+import com.hsseek.betterthanyesterday.util.OneShotEvent
 import com.hsseek.betterthanyesterday.network.WeatherApi
 import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.*
@@ -24,29 +23,40 @@ import java.util.*
 import kotlin.math.roundToInt
 
 private const val TAG = "WeatherViewModel"
+private const val LOCATION_TAG = "Location"
 private const val KMA_RAW_ITEM_TAG = "KmaItems"
 private const val TEMPERATURE_TAG = "TMP"
 private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
 private const val HOURLY_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
+private const val PLACEHOLDER = "-"
 
-class WeatherViewModel : ViewModel() {
+class WeatherViewModel(application: Application) : AndroidViewModel(application) {
+    private val context = application
+
     private val retrofitDispatcher = Dispatchers.IO
     private val defaultDispatcher = Dispatchers.Default
     private var kmaJob: Job? = null
 
-    private val _isDataLoaded = mutableStateOf(false)
-    val isDataLoaded: Boolean
-        get() = _isDataLoaded.value
+    private val _isDataUpToDate = mutableStateOf(false)
+    val isDataUpToDate: Boolean
+        get() = _isDataUpToDate.value
 
     private var lastHourBaseTime: KmaTime = getKmaBaseTime(roundOff = HOUR)
     private var lastVillageBaseTime: KmaTime = getKmaBaseTime(roundOff = VILLAGE)
     private var lastNoonBaseTime: KmaTime = getKmaBaseTime(roundOff = NOON)
 
-    private val _baseCoordinatesXy = MutableStateFlow(CoordinatesXy(60, 127))
+    private var baseCoordinatesXy = CoordinatesXy(60, 127)
 
-    private val _baseCityName = mutableStateOf("")
+    // Variables regarding location.
+    private val locationClient = LocationServices.getFusedLocationProviderClient(context)
+    var toShowLocatingDialog = mutableStateOf(false)
+        private set
+    // LocatingMethod is an input from UI.
+    var locatingMethod = LocatingMethod.Auto
+        private set
+    private val _baseCityName = mutableStateOf(PLACEHOLDER)
     val cityName: String
         get() = _baseCityName.value
 
@@ -68,29 +78,61 @@ class WeatherViewModel : ViewModel() {
     private var hourlyTempToday: Float? = null
     private var hourlyTempYesterday: Float? = null
 
-    private val _rainfallStatus: MutableStateFlow<Sky> = MutableStateFlow(Sky.Good())
+    private val _rainfallStatus: MutableStateFlow<Sky?> = MutableStateFlow(null)
     val rainfallStatus = _rainfallStatus.asStateFlow()
 
     private val _toastMessage = MutableStateFlow(OneShotEvent(0))
     val toastMessage = _toastMessage.asStateFlow()
 
-    fun updateLocation(location: Location, cityName: String, isCurrentLocation: Boolean) {
-        if (cityName != _baseCityName.value) {  // i.e. A new base location
-            val xy = convertToXy(CoordinatesLatLon(location.latitude, location.longitude))
-            Log.d(TAG, "A new location\t: $cityName(${xy.nx}, ${xy.ny})")
+    /**
+     * Process the selection of locating method from the dialog.
+     *
+     * auto?	permitted?	changed?
+    V			V			V			update
+    V			-			V			request permission (Dealt with Activity)
+    V			-			-			request permission (Dealt with Activity)
+    V			V			-			none
+    -			-			-			none
+    -			V			-			none
+    -			V			V			update
+    -			-			V			update
+    * */
+    fun updateLocatingMethod(selectedLocatingMethod: LocatingMethod, isSelectionValid: Boolean = true) {
+        if (selectedLocatingMethod != locatingMethod) {  // Changed
+            /* auto?	permitted?	CHANGED?
+            V			V			V			update
+            V			-			V			request permission (INVALID SELECTION)
+            -			V			V			update
+            -			-			V			update
+            * */
+            Log.d(LOCATION_TAG, "Locating method changed to ${selectedLocatingMethod.name}")
+            locatingMethod = selectedLocatingMethod
 
-            _baseCoordinatesXy.value = xy
-            _baseCityName.value = cityName
-
-            // The former data (requests) are not valid any more. Request new data for the location.
-            requestWeatherData()
-
-            if (isCurrentLocation) { // Let the user know by a Toast.
-                _toastMessage.value = OneShotEvent(R.string.toast_location_found)
+            if (isSelectionValid) {
+                if (selectedLocatingMethod == LocatingMethod.Auto) {
+                    startLocationUpdate()
+                } else {  // Locating methods for fixed locations
+                    updateFixedLocation(selectedLocatingMethod)
+                }
             }
-        } else {
-            Log.d(TAG, "The same location, no need to renew.")
+        } else {  // Not changed
+            /* Nothing To do.
+             auto?	    permitted?	CHANGED?
+             V			-			-			request permission (INVALID SELECTION)
+             V			V			-			none
+             -			-			-			none
+             -			V			-			none
+            * */
         }
+    }
+
+    /**
+     * Update location information determined by fixed locating methods,
+     * and triggers retrieving weather data eventually.
+     * */
+    fun updateFixedLocation(lm: LocatingMethod) {
+        val cityName = context.getString(lm.regionId)
+        updateLocationAndWeather(lm.coordinates!!, cityName)
     }
 
     fun requestIfNewAvailable(time: Calendar = getCurrentKoreanDateTime()) {
@@ -103,23 +145,23 @@ class WeatherViewModel : ViewModel() {
             lastHourBaseTime = currentHourBaseTime
             lastVillageBaseTime = currentVillageBaseTime
             lastNoonBaseTime = currentNoonBaseTime
-            requestWeatherData()
+            requestAllWeatherData()
         } else if (currentVillageBaseTime.isLaterThan(lastVillageBaseTime)) {
             Log.d(TAG, "New data available:\nT_H,L\t\t[-]\nD0 PTY\t\t[V]\nD-1 T1H\t[V]")
             lastHourBaseTime = currentHourBaseTime
             lastVillageBaseTime = currentVillageBaseTime
-            requestWeatherData(isHourly = true)
+            requestAllWeatherData(isHourly = true)
             // requestVillageData() not needed as the function would be included in requestHourlyData()
         } else if (currentHourBaseTime.isLaterThan(lastHourBaseTime)) {
             Log.d(TAG, "New data available:\nT_H,L\t\t[-]\nD0 PTY\t\t[-]\nD-1 T1H\t[V]")
             lastHourBaseTime = currentHourBaseTime
-            requestWeatherData(isHourly = true)
+            requestAllWeatherData(isHourly = true)
         } else {
             Log.d(TAG, "No new data available:\nT_H,L\t\t[-]\nD0 PTY\t\t[-]\nD-1 T1H\t[-]")
         }
     }
 
-    private fun requestWeatherData(isHourly: Boolean = false) {
+    private fun requestAllWeatherData(isHourly: Boolean = false) {
         viewModelScope.launch {
             logCoroutineContext(
                 "viewModelScope.launch(default) { ... }"
@@ -138,7 +180,7 @@ class WeatherViewModel : ViewModel() {
             }
             kmaJob?.join()
 
-            _isDataLoaded.value = true
+            _isDataUpToDate.value = true
             // Job done. Update variables dependent to another requests.
             updateHourlyTempDiff()
             adjustCharTemp()
@@ -187,8 +229,8 @@ class WeatherViewModel : ViewModel() {
                         baseTime = baseTime.hour,
                         numOfRows = 48,  // = (4 h) * (12 rows / h)
                         pageNo = page,
-                        nx = _baseCoordinatesXy.value.nx,
-                        ny = _baseCoordinatesXy.value.ny,
+                        nx = baseCoordinatesXy.nx,
+                        ny = baseCoordinatesXy.ny,
                     )
                 }.await()
                 kmaResponse.body()?.let {
@@ -314,10 +356,7 @@ class WeatherViewModel : ViewModel() {
                 // Otherwise, only the later hours should be examined.
                 (23 - longTermBaseTime.hour.toInt() / 100) * 12
             }
-            Log.d(
-                TAG,
-                "D0 long-term baseTime\t:${longTermBaseTime.date}-${longTermBaseTime.hour}"
-            )
+            Log.d(TAG, "D0 long-term baseTime\t:${longTermBaseTime.date}-${longTermBaseTime.hour}")
 
             val ltFetchingStartTime = System.currentTimeMillis() // for test
             coroutineScope {
@@ -327,8 +366,8 @@ class WeatherViewModel : ViewModel() {
                     baseTime = longTermBaseTime.hour,
                     numOfRows = numOfRows,
                     pageNo = 1,
-                    nx = _baseCoordinatesXy.value.nx,
-                    ny = _baseCoordinatesXy.value.ny,
+                    nx = baseCoordinatesXy.nx,
+                    ny = baseCoordinatesXy.ny,
                 )
                 }
 
@@ -370,8 +409,8 @@ class WeatherViewModel : ViewModel() {
                             baseTime = baseTime.hour,
                             numOfRows = 30,  // [LGT -> PTY -> RN1 -> SKY -> TH1] -> REH -> UUU -> VVV -> ...
                             pageNo = 1,
-                            nx = _baseCoordinatesXy.value.nx,
-                            ny = _baseCoordinatesXy.value.ny,
+                            nx = baseCoordinatesXy.nx,
+                            ny = baseCoordinatesXy.ny,
                         )
                     }
                     kmaResponse.body()?.let {
@@ -508,7 +547,7 @@ class WeatherViewModel : ViewModel() {
             if (rainingHours.size == 0) {
                 if (snowingHours.size == 0) {
                     // No raining, no snowing
-                    _rainfallStatus.value = Sky.Good()
+                    _rainfallStatus.value = Sky.Good
                 } else {
                     // No raining, but snowing
                     _rainfallStatus.value = Sky.Bad.Snowy(snowingHours.min(), snowingHours.max())
@@ -520,7 +559,8 @@ class WeatherViewModel : ViewModel() {
                     _rainfallStatus.value = Sky.Bad.Mixed(hours.min(), hours.max())
                 }
             }
-            Log.d(TAG, "PTY: ${_rainfallStatus.value::class.simpleName}\t(${hours.minOrNull()} ~ ${hours.maxOrNull()})")
+
+            Log.d(TAG, "PTY: ${_rainfallStatus.value!!::class.simpleName}\t(${hours.minOrNull()} ~ ${hours.maxOrNull()})")
         } catch (e: CancellationException) {
             Log.i(TAG, "Retrieving the short-term PTY job cancelled.")
         } catch (e: Exception) {
@@ -543,21 +583,71 @@ class WeatherViewModel : ViewModel() {
         }
     }
 
-    companion object {
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                // TODO: Connect to Repository
-//                val savedStateHandle = createSavedStateHandle()
-//                val myRepository = (this[APPLICATION_KEY] as MyApplication).myRepository
-//                MyViewModel(
-//                    myRepository = myRepository,
-//                    savedStateHandle = savedStateHandle
-//                )
-                WeatherViewModel()
+    /**
+     * Start location update and eventually retrieve new weather data based on the location.
+     * */
+    fun startLocationUpdate() {
+        if (ActivityCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            locationClient.lastLocation.addOnSuccessListener {
+                updateLocationAndWeather(CoordinatesLatLon(lat = it.latitude, lon = it.longitude))
+            }
+
+            // A costly process to update the current location. Might take about 10 seconds.
+            locationClient.requestLocationUpdates(currentLocationRequest, currentLocationCallback, Looper.getMainLooper())
+        }
+    }
+
+    /**
+     * Update [_baseCityName] and [baseCoordinatesXy], then request new weather data based on [baseCoordinatesXy].
+     * */
+    private fun updateLocationAndWeather(coordinates: CoordinatesXy, locatedCityName: String) {
+        if (locatedCityName != _baseCityName.value) {  // i.e. A new base location
+            Log.d(LOCATION_TAG, "A new city\t: $locatedCityName")
+            _baseCityName.value = locatedCityName
+
+            // Request new data for the location.
+            baseCoordinatesXy = coordinates
+            requestAllWeatherData()
+        } else {
+            Log.d(LOCATION_TAG, "The same city, no need to renew.")
+        }
+    }
+
+    fun updateLocationAndWeather(coordinates: CoordinatesLatLon) {
+        baseCoordinatesXy = convertToXy(coordinates)
+
+        val geocoder = KoreanGeocoder(context)
+        val locatedCityName = geocoder.getCityName(coordinates)
+
+        if (locatedCityName == null) {
+            Log.e(LOCATION_TAG, "Error retrieving a city name(${coordinates.lat}, ${coordinates.lon}).")
+        } else {
+            val xy = convertToXy(coordinates)
+            Log.d(LOCATION_TAG, "A new location: (${xy.nx}, ${xy.ny})")
+            updateLocationAndWeather(xy, locatedCityName)
+        }
+    }
+
+    private val currentLocationCallback = object : LocationCallback() {
+        override fun onLocationResult(locationResult: LocationResult) {
+            super.onLocationResult(locationResult)
+            locationResult.lastLocation?.let {
+                updateLocationAndWeather(CoordinatesLatLon(it.latitude, it.longitude))
             }
         }
     }
 
+    companion object {
+        private const val ONE_MINUTE: Long = 60000
+        val currentLocationRequest: LocationRequest = LocationRequest.create().apply {
+            interval = ONE_MINUTE
+            fastestInterval = ONE_MINUTE/4
+            priority = Priority.PRIORITY_HIGH_ACCURACY
+        }
+    }
 }
 
 enum class CharacteristicTempType(val descriptor: String) {
@@ -569,15 +659,15 @@ enum class DayOfInterest(val dayOffset: Int) {
 }
 
 enum class RainfallType(val code: Int) {
-    None(0), Raining(1), Mixed(2), Snowing(3), Shower(4),
-    // LightRain(5), LightRainAndSnow(6), LightSnow(7)
+    Raining(1), Mixed(2), Snowing(3), Shower(4),
+    // None(0), LightRain(5), LightRainAndSnow(6), LightSnow(7)
 }
 
-sealed class Sky(type: RainfallType) {
-    class Good: Sky(RainfallType.None)
-    sealed class Bad(type: RainfallType, val startingHour: Int, val endingHour: Int): Sky(type) {
-        class Mixed(startingHour: Int, endingHour: Int): Bad(RainfallType.Mixed, startingHour, endingHour)
-        class Rainy(startingHour: Int, endingHour: Int): Bad(RainfallType.Raining, startingHour, endingHour)
-        class Snowy(startingHour: Int, endingHour: Int): Bad(RainfallType.Snowing, startingHour, endingHour)
+sealed class Sky {
+    object Good : Sky()
+    sealed class Bad(val startingHour: Int, val endingHour: Int): Sky() {
+        class Mixed(startingHour: Int, endingHour: Int): Bad(startingHour, endingHour)
+        class Rainy(startingHour: Int, endingHour: Int): Bad(startingHour, endingHour)
+        class Snowy(startingHour: Int, endingHour: Int): Bad(startingHour, endingHour)
     }
 }

@@ -1,4 +1,4 @@
-package com.hsseek.betterthanyesterday.network
+package com.hsseek.betterthanyesterday.util
 
 open class OneShotEvent<out T>(private val content: T) {
     private var isHandled: Boolean = false

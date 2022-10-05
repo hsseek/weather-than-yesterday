@@ -1,10 +1,6 @@
 package com.hsseek.betterthanyesterday
 
-import android.content.Context
-import android.util.Log
-import com.hsseek.betterthanyesterday.dummy.DUMMY_LONG_TERM_FORECAST_RAINY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_LONG_TERM_FORECAST_SUNNY
-import com.hsseek.betterthanyesterday.dummy.DUMMY_SHORT_TERM_FORECAST_RAINY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_SHORT_TERM_FORECAST_SNOWY
 import com.hsseek.betterthanyesterday.location.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.*
@@ -14,7 +10,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Test
 
 import org.junit.Assert.*
-import org.junit.Before
 import java.util.*
 
 /**
@@ -77,7 +72,7 @@ class UnitTest {
     fun is_raining() {
         val primaryItems = DUMMY_SHORT_TERM_FORECAST_SNOWY
         val secondaryItems = DUMMY_LONG_TERM_FORECAST_SUNNY
-        val _rainfallStatus: MutableStateFlow<Sky> = MutableStateFlow(Sky.Good())
+        val _rainfallStatus: MutableStateFlow<Sky> = MutableStateFlow(Sky.Good)
 
         val RAIN_TAG = "PTY"
 
@@ -113,7 +108,7 @@ class UnitTest {
                 if (rainingHours.size == 0) {
                     if (snowingHours.size == 0) {
                         // No raining, no snowing
-                        it.value = Sky.Good()
+                        it.value = Sky.Good
                     } else {
                         // No raining, but snowing
                         it.value = Sky.Bad.Snowy(snowingHours.min(), snowingHours.max())
