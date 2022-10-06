@@ -30,7 +30,7 @@
     <string name="edit_location">Edit location</string>
     <string name="location_title_current">Current location</string>
     <string name="location_manually">(Manually set)</string>
-    <string name="dialog_location_title">Set Location</string>
+    <string name="dialog_location_title">Forecast location</string>
     <string name="hour_overnight">Overnight</string>
     <string name="desc_edit_location">Edit location</string>
     <string name="dialog_cancel">Cancel</string>

@@ -4,7 +4,9 @@ import androidx.compose.ui.graphics.Color
 
 val White = Color(0xFFFFFFFF)
 val Black = Color(0xFF000000)
-val DarkGray = Color(0xFF232323)
+val Gray500 = Color(0xFF232323)
+val Gray400 = Color(0xFF282828)
+val Grey000 = Color(0xFF808080)
 
 val Purple200 = Color(0xFFBB86FC)
 val Purple500 = Color(0xFF6200EE)
@@ -42,5 +44,3 @@ val CoolTint400 = Color(0xFF74c2e4)
 val CoolTint500 = Color(0xFF8bcce9)
 val CoolTint600 = Color(0xFFa2d6ed)
 val CoolTint700 = Color(0xFFb9e0f1)
-
-val Grey000 = Color(0xFF808080)

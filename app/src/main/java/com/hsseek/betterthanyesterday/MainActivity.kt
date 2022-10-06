@@ -13,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -32,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
@@ -260,12 +262,6 @@ class MainActivity : ComponentActivity() {
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                val tint = if (isSystemInDarkTheme()) {
-                    Color.White
-                } else {
-                    Color.Black
-                }
-
                 // Edit location button
                 IconButton(
                     onClick = { onClickChangeLocation() },
@@ -273,7 +269,7 @@ class MainActivity : ComponentActivity() {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_edit_location),
                         contentDescription = stringResource(R.string.desc_edit_location),
-                        tint = tint,
+                        tint = MaterialTheme.colors.onSurface,
                         modifier = Modifier.size(iconSize),
                     )
                 }
@@ -285,7 +281,7 @@ class MainActivity : ComponentActivity() {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = stringResource(R.string.desc_refresh),
-                        tint = tint,
+                        tint = MaterialTheme.colors.onSurface,
                         modifier = Modifier.size(iconSize),
                     )
                 }
@@ -746,14 +742,27 @@ class MainActivity : ComponentActivity() {
         onClickNegative: () -> Unit,
         onClickPositive: (LocatingMethod) -> Unit,
     ) {
+        val bodyPadding = 15.dp
+        val titlePadding = 0.dp
+        val color = if (isSystemInDarkTheme()) {
+            Gray400
+        } else {
+            MaterialTheme.colors.surface
+        }
 
         AlertDialog(
             onDismissRequest = onClickNegative,
-            title = { Text(text = stringResource(R.string.dialog_location_title)) },
+            title = {
+                Text(
+                    text = stringResource(R.string.dialog_location_title),
+                    modifier = Modifier.padding(titlePadding),
+                ) },
+            backgroundColor = color,
             buttons = {
                 val selected = rememberSaveable { mutableStateOf(selectedLocatingMethod) }
 
                 RegionsRadioGroup(
+                    padding = bodyPadding,
                     selected = selected.value,
                     onSelect = { selected.value = it },
                 )
@@ -776,13 +785,23 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun RegionsRadioGroup(
+        padding: Dp,
         selected: LocatingMethod,
         onSelect: (LocatingMethod) -> Unit
     ) {
-        Column {
+        val radioTextStartPadding = 4.dp
+
+        Column(
+            modifier = Modifier.padding(padding)
+        ) {
             enumValues<LocatingMethod>().forEach { locating ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onSelect(locating) }
+                ) {
+                    Column(
+                        modifier = Modifier.padding(start = radioTextStartPadding)
+                    ) {
                         Text(text = stringResource(id = locating.regionId))
                         Text(text = stringResource(id = locating.citiesId), style = Typography.h6)
                     }
@@ -1019,13 +1038,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @Preview(showBackground = true)
+    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+    @Composable
+    fun LocatingMethodDialogPreview() {
+        BetterThanYesterdayTheme {
+            LocationSelectDialog(
+                selectedLocatingMethod = LocatingMethod.Capital,
+                onClickNegative = {},
+                onClickPositive = {}
+            )
+        }
+    }
+
 //    @Preview(showBackground = true)
-    @Preview(
-        "Dark Theme",
-        uiMode = Configuration.UI_MODE_NIGHT_YES,
-        widthDp = 320,
-        heightDp = 640,
-    )
+//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 320, heightDp = 640)
     @Composable
     fun StackedPreview() {
         BetterThanYesterdayTheme {
@@ -1045,8 +1072,9 @@ class MainActivity : ComponentActivity() {
 
                     CurrentTemperature(
                         modifier = modifier,
-                        hourlyTempDiff = (-10..10).random(),
-                        currentTemp = (-10..30).random().toFloat())
+                        hourlyTempDiff = 3,
+                        currentTemp = 23.6f
+                    )
 
                     DailyTemperatures(
                         modifier = modifier,
