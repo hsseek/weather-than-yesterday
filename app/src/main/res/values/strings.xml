@@ -6,10 +6,10 @@
     <string name="na_location">Cannot get the current location.</string>
     <string name="toast_location_found">Location found</string>
     <string name="splash_screen">Splash screen</string>
-    <string name="t_diff_1">"Current temperature(\u2103)"</string>
-    <string name="t_diff_2_higher">Higher than yesterday\'s.</string>
-    <string name="t_diff_2_lower">Lower than yesterday\'s.</string>
-    <string name="t_diff_2_same">The same as yesterday\'s.</string>
+    <string name="t_diff_1">"Current temperature"</string>
+    <string name="t_diff_2_higher">Higher than yesterday.</string>
+    <string name="t_diff_2_lower">Lower than yesterday.</string>
+    <string name="t_diff_2_same">The same as yesterday.</string>
     <string name="char_t_yesterday">Yesterday</string>
     <string name="char_t_d0">Today</string>
     <string name="char_t_D1">Tomorrow</string>
@@ -21,7 +21,7 @@
     <string name="hour_pm">%1$d PM</string>
     <string name="hour_present">(Ongoing)</string>
     <string name="hour_stops_soon">(Stops soon)</string>
-    <string name="today_sunny">No rain forecast.</string>
+    <string name="today_sunny">No rain forecast</string>
     <string name="today_rainy">It rains today.</string>
     <string name="today_snowy">It snows today.</string>
     <string name="today_mixed">It will rain and snow today.</string>
@@ -60,4 +60,8 @@
     <string name="cities_north_ch">Cheongju, Chungju, Jechoen, etc.</string>
     <string name="cities_dokdo">Ulleungdo, Dokdo</string>
     <string name="permission_required">Location permission is required.</string>
+    <string name="desc_refresh">Refresh weather information</string>
+    <string name="topbar_share_app">Share this app</string>
+    <string name="topbar_help">Help</string>
+    <string name="desc_overflow_menu">More menu</string>
 </resources>

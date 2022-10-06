@@ -4,6 +4,8 @@ import com.hsseek.betterthanyesterday.dummy.DUMMY_LONG_TERM_FORECAST_SUNNY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_SHORT_TERM_FORECAST_SNOWY
 import com.hsseek.betterthanyesterday.location.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.*
+import com.hsseek.betterthanyesterday.util.getCityName
+import com.hsseek.betterthanyesterday.util.getDistrictName
 import com.hsseek.betterthanyesterday.util.getKmaBaseTime
 import com.hsseek.betterthanyesterday.viewmodel.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -129,17 +131,16 @@ class UnitTest {
 
     @Test
     fun cityName() {
-        val regex = Regex("\\s(.+?[시군])\\s")
         val address = "대한민국 세종특별자치시 중구 서석동 465-2"
-        val cityFullName = regex.find(address)?.groupValues?.get(1)
-        var cityName: String? = ""
-        for (special in listOf("특별시", "광역시", "특별자치")) {
-            if (cityFullName!!.contains(special)) {
-                cityName = cityFullName.replace(special, "")
-                break
-            }
-        }
-        assertEquals("서울", cityName)
+        val name = getCityName(address)
+        assertEquals("세종", name)
+    }
+
+    @Test
+    fun districtName() {
+        val address = "대한민국 세종특별자치시 연기군 서석읍 465-2"
+        val name = getDistrictName(address)
+        assertEquals("서석읍", name)
     }
 
     @Test

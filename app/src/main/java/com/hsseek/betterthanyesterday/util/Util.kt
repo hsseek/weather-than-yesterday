@@ -12,7 +12,6 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.coroutines.coroutineContext
 
-
 private const val TIME_ZONE = "GMT+09:00"
 private const val DATE_FORMAT = "yyyyMMdd"
 private const val HOUR_FORMAT = "HH00"
@@ -114,10 +113,6 @@ fun logElapsedTime(tag: String, task: String, startTime: Long) {
     Log.d(tag, "$task took ${formatter.format(elapsedSec)}\"")
 }
 
-fun Location?.toText(): String {
-    return if (this != null) "(${"%.4f".format(latitude)}, ${"%.4f".format(longitude)})" else { "(Unknown location)" }
-}
-
 suspend fun logCoroutineContext(msg: String = "") {
     val tag = "Coroutine"
     Log.d(tag, msg + "\nThread: ${Thread.currentThread().name}" + "\nScope: $coroutineContext")
@@ -148,7 +143,35 @@ internal object SharedPreferenceUtil {
         }
 }
 
-fun Int.hour(): Int = this/100
+fun Int.hour(): Int = this / 100
+
+fun getCityName(address: String?): String? {
+    return if (address == null) {
+        null
+    } else {
+        val regex = Regex("\\s(.+?[시군])\\s")
+        val cityFullName = regex.find(address)?.groupValues?.get(1)
+        if (cityFullName == null) {
+            null
+        } else {
+            for (special in listOf("특별시", "광역시", "특별자치")) {
+                if (cityFullName.contains(special)) {
+                    return cityFullName.replace(special, "")  // e.g. "서울특별시" -> "서울"
+                }
+            }
+            cityFullName
+        }
+    }
+}
+
+fun getDistrictName(address: String?): String? {
+    return if (address == null) {
+        null
+    } else {
+        val regex = Regex("\\s(\\S+?[구읍면])\\s")
+        return regex.find(address)?.groupValues?.get(1)
+    }
+}
 
 enum class KmaHourRoundOff {
     HOUR, VILLAGE, NOON, DAY

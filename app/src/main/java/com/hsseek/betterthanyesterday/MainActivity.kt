@@ -12,11 +12,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -24,13 +28,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewModelScope
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.hsseek.betterthanyesterday.ui.theme.*
 import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.viewmodel.Sky
@@ -63,6 +69,12 @@ class MainActivity : ComponentActivity() {
         // Set the Views.
         setContent {
             BetterThanYesterdayTheme {
+                // Make the status bar transparent.
+                val systemUiController = rememberSystemUiController()
+                systemUiController.setSystemBarsColor(
+                    color = MaterialTheme.colors.background
+                )
+
                 val modifier = Modifier.fillMaxWidth()
 
                 Surface(
@@ -154,20 +166,26 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun MainScreen(
-        modifier: Modifier = Modifier,
-        viewModel: WeatherViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+        modifier: Modifier,
     ) {
         val locatingMethod = viewModel.locatingMethod
 
         Scaffold(
-            topBar = { TopAppBar(
+            topBar = { WeatherTopAppBar(
+                modifier = modifier,
                 onClickChangeLocation = { viewModel.toShowLocatingDialog.value = true }
             ) },
             content = { padding ->
-                InformationScreen(modifier, padding, viewModel, locatingMethod)
+                Column(
+                    modifier = modifier
+                ) {
+                    InformationScreen(modifier, padding, locatingMethod)
+                    CustomScreen()
+                }
             },
         )
 
+        // A dialog to select locating method.
         if (viewModel.toShowLocatingDialog.value) {
             LocationSelectDialog(
                 selectedLocatingMethod = locatingMethod,
@@ -191,58 +209,137 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
+    private fun CustomScreen() {
+        Box(
+            modifier = Modifier
+                .padding(20.dp)
+                .fillMaxSize()
+                .background(color = MaterialTheme.colors.secondary)
+        ) {
+            Text(
+                text = "광고",
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+    }
+
+    @Composable
     private fun InformationScreen(
         modifier: Modifier,
         padding: PaddingValues,
-        viewModel: WeatherViewModel,
         locatingMethod: LocatingMethod,
     ) {
         val sky: Sky? by viewModel.rainfallStatus.collectAsState()
 
         Column(
-            modifier = modifier.padding(padding)
+            modifier = modifier.padding(padding),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            val rainfallSpacerSize = 20.dp
-
-            LocationInformation(modifier, viewModel.cityName, locatingMethod)
-            CurrentTempComparison(modifier, viewModel.hourlyTempDiff)
+            LocationInformation(modifier, viewModel.cityName, viewModel.districtName, locatingMethod)
+            CurrentTemperature(modifier, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
             DailyTemperatures(modifier, viewModel.highestTemps, viewModel.lowestTemps)
-            Spacer(modifier = Modifier.size(rainfallSpacerSize))
             RainfallStatus(modifier, sky)
         }
     }
 
     @Composable
-    private fun TopAppBar(
+    private fun WeatherTopAppBar(
+        modifier: Modifier,
         onClickChangeLocation: () -> Unit,
     ) {
         val topBarElevation = 0.dp
+        val iconSize = 29.dp
 
         TopAppBar(
-            title = {  },
             backgroundColor = Color.Transparent,
             elevation = topBarElevation,
-            navigationIcon = {
+            modifier = modifier,
+        ) {
+            Row(
+                modifier = modifier,
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val tint = if (isSystemInDarkTheme()) {
+                    Color.White
+                } else {
+                    Color.Black
+                }
+
+                // Edit location button
                 IconButton(
-                    onClick = { onClickChangeLocation() }
+                    onClick = { onClickChangeLocation() },
                 ) {
-                    val iconId = if (isSystemInDarkTheme()) {
-                        R.drawable.ic_edit_location_dark
-                    } else {
-                        R.drawable.ic_edit_location
-                    }
                     Icon(
-                        painter = painterResource(id = iconId),
-                        contentDescription = stringResource(R.string.desc_edit_location)
+                        painter = painterResource(id = R.drawable.ic_edit_location),
+                        contentDescription = stringResource(R.string.desc_edit_location),
+                        tint = tint,
+                        modifier = Modifier.size(iconSize),
                     )
                 }
+
+                // Refresh button
+                IconButton(
+                    onClick = { refresh() },
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = stringResource(R.string.desc_refresh),
+                        tint = tint,
+                        modifier = Modifier.size(iconSize),
+                    )
+                }
+
+                // Overflow dropdown menu
+                Box(modifier = Modifier.wrapContentSize(Alignment.TopStart)) {
+                    val expanded = rememberSaveable { mutableStateOf(false) }
+
+                    IconButton(onClick = { expanded.value = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.desc_overflow_menu)
+                        )
+                    }
+
+                    OverflowMenu(
+                        expanded = expanded.value,
+                        onDismissRequest = { expanded.value = false }
+                    )
+                }
+
             }
-        )
+        }
     }
 
     @Composable
+    private fun OverflowMenu(
+        expanded: Boolean,
+        onDismissRequest: () -> Unit,
+    ) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { onDismissRequest() }
+        ) {
+            DropdownMenuItem(onClick = {
+                onDismissRequest()
+                // TODO: Use an Intent
+            }) {
+                Text(text = stringResource(R.string.topbar_share_app))
+            }
+
+            DropdownMenuItem(onClick = {
+                onDismissRequest()
+                // TODO: Launch HelpActivity
+            }) {
+                Text(text = stringResource(R.string.topbar_help))
+            }
+        }
+    }
+
+
+    @Composable
     private fun LandingScreen(
-        modifier: Modifier = Modifier,
+        modifier: Modifier,
         viewModel: WeatherViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     ) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -265,8 +362,9 @@ class MainActivity : ComponentActivity() {
      * */
     @Composable
     private fun LocationInformation(
-        modifier: Modifier = Modifier,
+        modifier: Modifier,
         cityName: String,
+        districtName: String,
         locatingMethod: LocatingMethod,
     ) {
         val titleBottomPadding = 2.dp
@@ -278,7 +376,7 @@ class MainActivity : ComponentActivity() {
             // A descriptive title
             Text(
                 text = stringResource(R.string.location_title_current),
-                style = Typography.caption,
+                style = Typography.h6,
                 modifier = Modifier.padding(bottom = titleBottomPadding)
             )
 
@@ -291,29 +389,36 @@ class MainActivity : ComponentActivity() {
             Text(
                 text = baseLocationName,
                 style = Typography.h3,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
 
             // "Warn" the user if the location has been manually set.
-            val manualDesc: String = if (locatingMethod == LocatingMethod.Auto) {
-                ""
+            val specificLocation: String = if (locatingMethod == LocatingMethod.Auto) {
+                districtName
             } else {
                 stringResource(R.string.location_manually)
             }
 
             Text(
-                text = manualDesc,
+                text = specificLocation,
                 style = Typography.caption,
-                fontStyle = FontStyle.Italic,
             )
         }
     }
 
     @Composable
-    fun CurrentTempComparison(
-        modifier: Modifier = Modifier,
+    fun CurrentTemperature(
+        modifier: Modifier,
         hourlyTempDiff: Int,
+        currentTemp: Float?,
     ) {
-        // A descriptive message
+        val tempDiffVerticalOffset = (-20).dp
+        val columnTopPadding = 16.dp
+        val degreeUnitTopPadding = 43.dp
+        val degreeUnitStartPadding = 8.dp
+
+        // A description
         val msg =
             if (hourlyTempDiff > 0) {
                 stringResource(R.string.t_diff_2_higher)
@@ -323,7 +428,7 @@ class MainActivity : ComponentActivity() {
                 stringResource(R.string.t_diff_2_same)
             }
 
-        // The color of the temperature difference.
+        // The temperature difference
         val color: Color = getTemperatureColor(hourlyTempDiff)
         val diffString: String = if (hourlyTempDiff > 0) {
             "\u25B4 $hourlyTempDiff"
@@ -333,42 +438,69 @@ class MainActivity : ComponentActivity() {
             "="
         }
 
-        Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            modifier = modifier.padding(top = columnTopPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            // The title
             Text(
                 text = stringResource(R.string.t_diff_1),
-                style = Typography.caption
+                style = Typography.h6
             )
+
+            // A description
             Text(
                 text = msg
             )
-            Text(
-                text = diffString,
-                style = Typography.h1,
-                color = color
-            )
+            currentTemp?.let {
+                Text(
+                    text = "(${it.toInt()} \u2103)",
+                    style = Typography.caption,
+                )
+            }
+
+            // The temperature difference(HUGE)
+            Row(
+                Modifier.offset(y = tempDiffVerticalOffset),
+            ) {
+                Text(
+                    text = diffString,
+                    style = Typography.h1,
+                    color = color,
+                )
+                Text(
+                    text = "\u2103",
+                    color = color,
+                    modifier = Modifier
+                        .padding(top = degreeUnitTopPadding, start = degreeUnitStartPadding)
+                        .align(Alignment.Top),
+                    fontSize = 23.sp
+                )
+            }
         }
     }
 
     @Composable
     fun DailyTemperatures(
-        modifier: Modifier = Modifier,
+        modifier: Modifier,
         highestTemps: List<Int?>,
         lowestTemps: List<Int?>,
     ) {
         val titleBottomPadding = 4.dp
+        val verticalOffset = (-24).dp
 
         Column(
-            modifier = modifier,
+            modifier = modifier.offset(y = verticalOffset),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // The title
+            // The descriptive title
             Text(
                 text = stringResource(R.string.daily_temperature_title),
-                style = Typography.caption,
+                style = Typography.h6,
                 modifier = Modifier.padding(bottom = titleBottomPadding)
             )
 
-            // The header row of descriptors
+            // Days for the header row
             val days = listOf(
                 stringResource(R.string.char_t_yesterday),
                 stringResource(R.string.char_t_d0),
@@ -377,18 +509,56 @@ class MainActivity : ComponentActivity() {
             )
             val fraction: Float = 1f/days.size
 
+            // Dates
+            val dates = arrayOfNulls<String>(days.size)
+            val cal = getCurrentKoreanDateTime().also {
+                it.add(Calendar.DAY_OF_YEAR, -2)
+            }
+            val locale = if (Locale.getDefault() == Locale.KOREA) {
+                Locale.KOREA
+            } else {
+                Locale.US
+            }
+            for (i in days.indices) {
+                cal.add(Calendar.DAY_OF_YEAR, 1)
+                dates[i] = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT_FORMAT, locale)
+            }
+
+            // Days
             LazyRow {
                 itemsIndexed(days) { index, item ->
                     if (index == 1) {
                         Text(
-                            text = item,
+                            text = "($item)",
+                            modifier = modifier.fillParentMaxWidth(fraction),
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.ExtraBold,
+                            style = Typography.caption
+                        )
+                    } else {
+                        Text(
+                            text = "",
+                            modifier = modifier.fillParentMaxWidth(fraction),
+                            textAlign = TextAlign.Center,
+                            style = Typography.caption
+                        )
+                    }
+                }
+            }
+
+            // Dates
+            LazyRow {
+                itemsIndexed(dates) { index, item ->
+                    if (index == 1) {
+                        Text(
+                            text = item ?: "",
                             modifier = modifier.fillParentMaxWidth(fraction),
                             textAlign = TextAlign.Center,
                             fontWeight = FontWeight.ExtraBold,
                         )
                     } else {
                         Text(
-                            text = item,
+                            text = item ?: "",
                             modifier = modifier.fillParentMaxWidth(fraction),
                             textAlign = TextAlign.Center,
                         )
@@ -400,13 +570,13 @@ class MainActivity : ComponentActivity() {
             val warmColor: Color = if (isSystemInDarkTheme()) {
                 RedTint700
             } else {
-                RedShade600
+                RedShade200
             }
 
             val hotColor: Color = if (isSystemInDarkTheme()) {
                 RedTint400
             } else {
-                RedShade200
+                Red000
             }
 
             LazyRow(modifier = modifier, horizontalArrangement = Arrangement.SpaceAround) {
@@ -443,13 +613,13 @@ class MainActivity : ComponentActivity() {
             val coolColor: Color = if (isSystemInDarkTheme()) {
                 CoolTint700
             } else {
-                CoolShade600
+                CoolShade200
             }
 
             val coldColor: Color = if (isSystemInDarkTheme()) {
                 CoolTint400
             } else {
-                CoolShade200
+                Cool000
             }
 
             LazyRow(horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -486,7 +656,7 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun RainfallStatus(
-        modifier: Modifier = Modifier,
+        modifier: Modifier,
         sky: Sky?,
     ) {
         val titleBottomPadding = 2.dp
@@ -498,7 +668,7 @@ class MainActivity : ComponentActivity() {
         ) {
             Text(
                 text = stringResource(R.string.rainfall_title),
-                style = Typography.caption,
+                style = Typography.h6,
                 modifier = Modifier.padding(bottom = titleBottomPadding)
             )
             Row(
@@ -614,7 +784,7 @@ class MainActivity : ComponentActivity() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column {
                         Text(text = stringResource(id = locating.regionId))
-                        Text(text = stringResource(id = locating.citiesId), style = Typography.caption)
+                        Text(text = stringResource(id = locating.citiesId), style = Typography.h6)
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     RadioButton(
@@ -694,53 +864,90 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
-    private fun Menus() {
-        // TODO: Share this app / Help(FAQ)
-    }
-
-
-
-    @Preview(showBackground = true)
-    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
-    @Composable
-    fun ColdCurrentTemp() {
+    fun LocationInformationPreview() {
         BetterThanYesterdayTheme {
             Surface {
-                CurrentTempComparison(hourlyTempDiff = -9)
+                LocationInformation(
+                    modifier = Modifier.fillMaxWidth(),
+                    cityName = "서울",
+                    districtName = "종로구",
+                    locatingMethod = LocatingMethod.Auto
+                )
             }
         }
     }
 
-    @Preview(showBackground = true)
-    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+//    @Preview(showBackground = true)
+//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
-    fun HotCurrentTemp() {
+    fun ManualLocationInformationPreview() {
         BetterThanYesterdayTheme {
             Surface {
-                CurrentTempComparison(hourlyTempDiff = 9)
+                LocationInformation(
+                    modifier = Modifier.fillMaxWidth(),
+                    cityName = stringResource(id = R.string.region_south_jl),
+                    districtName = "남구",
+                    locatingMethod = LocatingMethod.SouthJl
+                )
             }
         }
     }
 
-    @Preview(showBackground = true)
-    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+//    @Preview(showBackground = true)
+//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
-    fun SameCurrentTemp() {
+    fun ColdCurrentTempPreview() {
         BetterThanYesterdayTheme {
             Surface {
-                CurrentTempComparison(hourlyTempDiff = 0)
+                CurrentTemperature(
+                    modifier = Modifier.fillMaxWidth(),
+                    hourlyTempDiff = -9,
+                    currentTemp = 23.3f
+                )
             }
         }
     }
 
-    @Preview(showBackground = true)
-    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+//    @Preview(showBackground = true)
+//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
-    fun CharTemps() {
+    fun HotCurrentTempPreview() {
+        BetterThanYesterdayTheme {
+            Surface {
+                CurrentTemperature(
+                    modifier = Modifier.fillMaxWidth(),
+                    hourlyTempDiff = 9,
+                    currentTemp = 32.6f,
+                )
+            }
+        }
+    }
+
+//    @Preview(showBackground = true)
+//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+    @Composable
+    fun SameCurrentTempPreview() {
+        BetterThanYesterdayTheme {
+            Surface {
+                CurrentTemperature(
+                    modifier = Modifier.fillMaxWidth(),
+                    hourlyTempDiff = 0,
+                    currentTemp = -9.1f,
+                )
+            }
+        }
+    }
+
+//    @Preview(showBackground = true)
+//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+    @Composable
+    fun CharTempsPreview() {
         BetterThanYesterdayTheme {
             Surface {
                 DailyTemperatures(
+                    modifier = Modifier.fillMaxWidth(),
                     highestTemps = listOf(25, 22, null, 26),
                     lowestTemps = listOf(16, null, -3, 20),
                 )
@@ -748,75 +955,111 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @Preview(showBackground = true)
+//    @Preview(showBackground = true)
     @Composable
-    fun Sunny() {
+    fun SunnyPreview() {
         BetterThanYesterdayTheme {
             Surface {
                 RainfallStatus(
+                    modifier = Modifier.fillMaxWidth(),
                     sky = Good
                 )
             }
         }
     }
 
-    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
-    fun Rainy() {
+    fun RainyPreview() {
         BetterThanYesterdayTheme {
             Surface {
                 RainfallStatus(
+                    modifier = Modifier.fillMaxWidth(),
                     sky = Rainy(300, 1200)
                 )
             }
         }
     }
 
-    @Preview(showBackground = true)
+//    @Preview(showBackground = true)
     @Composable
-    fun Snow() {
+    fun SnowPreview() {
         BetterThanYesterdayTheme {
             Surface {
                 RainfallStatus(
+                    modifier = Modifier.fillMaxWidth(),
                     sky = Snowy(2000, 2300)
                 )
             }
         }
     }
 
-    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
-    fun Mixed() {
+    fun MixedPreview() {
         BetterThanYesterdayTheme {
             Surface {
                 RainfallStatus(
+                    modifier = Modifier.fillMaxWidth(),
                     sky = Mixed(100, 800)
                 )
             }
         }
     }
 
-    @Preview(showBackground = true)
+//    @Preview(showBackground = true)
     @Composable
-    fun Location() {
+    fun appBarPreview() {
         BetterThanYesterdayTheme {
-            Surface {
-                LocationInformation(
-                    cityName = "서울",
-                    locatingMethod = LocatingMethod.SouthCh,
-                )
+            WeatherTopAppBar(
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+
             }
         }
     }
 
-    @Preview(showBackground = true)
-    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+//    @Preview(showBackground = true)
+    @Preview(
+        "Dark Theme",
+        uiMode = Configuration.UI_MODE_NIGHT_YES,
+        widthDp = 320,
+        heightDp = 640,
+    )
     @Composable
-    fun DefaultPreview() {
+    fun StackedPreview() {
         BetterThanYesterdayTheme {
-            MainScreen(
-                modifier = Modifier.fillMaxWidth(),
-            )
+            val modifier = Modifier.fillMaxWidth()
+            Surface {
+                Column(
+                    modifier = modifier,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    )
+                {
+                    LocationInformation(
+                        modifier = modifier,
+                        cityName = "서울",
+                        districtName = "종로구",
+                        locatingMethod = LocatingMethod.SouthJl,
+                    )
+
+                    CurrentTemperature(
+                        modifier = modifier,
+                        hourlyTempDiff = (-10..10).random(),
+                        currentTemp = (-10..30).random().toFloat())
+
+                    DailyTemperatures(
+                        modifier = modifier,
+                        highestTemps = listOf(32, 7, null, 23),
+                        lowestTemps = listOf(null, -12, 39, -10)
+                    )
+                    RainfallStatus(
+                        modifier = modifier,
+                        sky = Rainy(300, 1200)
+                    )
+                    CustomScreen()
+                }
+            }
         }
     }
 }

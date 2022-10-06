@@ -6,6 +6,7 @@ import android.app.Application
 import android.content.pm.PackageManager
 import android.os.Looper
 import android.util.Log
+import com.hsseek.betterthanyesterday.R
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.AndroidViewModel
@@ -56,9 +57,14 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     // LocatingMethod is an input from UI.
     var locatingMethod = LocatingMethod.Auto
         private set
+
     private val _baseCityName = mutableStateOf(PLACEHOLDER)
     val cityName: String
         get() = _baseCityName.value
+
+    private val _districtName = mutableStateOf(PLACEHOLDER)
+    val districtName: String
+        get() = _districtName.value
 
     // The lowest temperatures of yesterday through the day after tomorrow
     private val _lowestTemps = mutableStateOf(arrayOfNulls<Int>(4))
@@ -75,7 +81,8 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     val hourlyTempDiff: Int
         get() = _hourlyTempDiff.value
 
-    private var hourlyTempToday: Float? = null
+    var hourlyTempToday: Float? = null
+        private set
     private var hourlyTempYesterday: Float? = null
 
     private val _rainfallStatus: MutableStateFlow<Sky?> = MutableStateFlow(null)
@@ -132,6 +139,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
      * */
     fun updateFixedLocation(lm: LocatingMethod) {
         val cityName = context.getString(lm.regionId)
+        _districtName.value = context.getString(R.string.location_manually)
         updateLocationAndWeather(lm.coordinates!!, cityName)
     }
 
@@ -620,7 +628,11 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         baseCoordinatesXy = convertToXy(coordinates)
 
         val geocoder = KoreanGeocoder(context)
-        val locatedCityName = geocoder.getCityName(coordinates)
+        val address = geocoder.getAddress(coordinates)
+        val locatedCityName = getCityName(address)
+        getDistrictName(address)?.let {
+            _districtName.value = it
+        }
 
         if (locatedCityName == null) {
             Log.e(LOCATION_TAG, "Error retrieving a city name(${coordinates.lat}, ${coordinates.lon}).")
@@ -644,8 +656,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         private const val ONE_MINUTE: Long = 60000
         val currentLocationRequest: LocationRequest = LocationRequest.create().apply {
             interval = ONE_MINUTE
-            fastestInterval = ONE_MINUTE/4
-            priority = Priority.PRIORITY_HIGH_ACCURACY
+            fastestInterval = ONE_MINUTE / 4
         }
     }
 }
