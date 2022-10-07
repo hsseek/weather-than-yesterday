@@ -49,6 +49,7 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import java.util.*
 import kotlin.collections.ArrayList
+import kotlin.math.roundToInt
 
 private const val TAG = "MainActivity"
 
@@ -342,7 +343,7 @@ class MainActivity : ComponentActivity() {
             // TODO: Loading screen which shows concatenating of emojis.
             Image(
                 painterResource(id = R.drawable.logo),
-                contentDescription = stringResource(R.string.splash_screen)
+                contentDescription = stringResource(R.string.desc_splash_screen)
             )
             // TODO: Show the splash image about 2 sec at most. After that, dispose the landing screen anyway and compose the main screen with "refreshing"
             LaunchedEffect(true) {
@@ -414,6 +415,7 @@ class MainActivity : ComponentActivity() {
         val columnTopPadding = 16.dp
         val degreeUnitTopPadding = 43.dp
         val degreeUnitStartPadding = 8.dp
+        val titleBottomPadding = 4.dp
 
         // A description
         val msg =
@@ -442,13 +444,14 @@ class MainActivity : ComponentActivity() {
             // The title
             Text(
                 text = stringResource(R.string.current_temp_title),
-                style = Typography.h6
+                style = Typography.h6,
+                modifier = modifier.padding(bottom = titleBottomPadding),
             )
 
             // A description
             if (currentTemp != null) {
                 Text(
-                    text = stringResource(R.string.current_temp_value, currentTemp.toInt()),
+                    text = stringResource(R.string.current_temp_value, currentTemp.roundToInt()),
                 )
             }
 
@@ -486,15 +489,11 @@ class MainActivity : ComponentActivity() {
         highestTemps: List<Int?>,
         lowestTemps: List<Int?>,
     ) {
-        val titleBottomPadding = 4.dp
         val verticalOffset = (-24).dp
-        val size = highestTemps.size
-        val fraction: Float = 1f/size + 1
 
         class DailyTemperature(val isToday: Boolean, val day: String, val highest: String, val lowest: String)
 
         // Dates
-        val dates = arrayOfNulls<String>(highestTemps.size)
         val cal = getCurrentKoreanDateTime().also {
             it.add(Calendar.DAY_OF_YEAR, -2)
         }
@@ -534,7 +533,7 @@ class MainActivity : ComponentActivity() {
         dailyTemps.add(DailyTemperature(false, "",
             stringResource(R.string.daily_highest), stringResource(R.string.daily_lowest)
         ))
-        for (i in 0 until size) {
+        for (i in highestTemps.indices) {
             val isToday = i == 1
 
             cal.add(Calendar.DAY_OF_YEAR, 1)
@@ -696,7 +695,7 @@ class MainActivity : ComponentActivity() {
                 }
                 Image(
                     painter = painterResource(id = imageId),
-                    contentDescription = stringResource(R.string.desc_weather_status)
+                    contentDescription = stringResource(R.string.desc_rainfall_status)
                 )
                 Spacer(modifier = Modifier.size(imageSpacerSize))
                 Column {

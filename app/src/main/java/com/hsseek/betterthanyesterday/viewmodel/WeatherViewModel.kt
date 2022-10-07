@@ -472,7 +472,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     private fun updateHourlyTempDiff() {
         hourlyTempYesterday?.let { y ->
             hourlyTempToday?.let { t ->
-                _hourlyTempDiff.value = (t - y).toInt()
+                _hourlyTempDiff.value = (t - y).roundToInt()
             }
         }
     }
@@ -483,7 +483,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
      */
     private fun adjustCharTemp() {
         hourlyTempToday?.let { tt ->
-            val t = tt.toInt()
+            val t = tt.roundToInt()
             _highestTemps.value[1]?.let {
                 if (t > it) _highestTemps.value[1] = t
             }
@@ -494,7 +494,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         }
 
         hourlyTempYesterday?.let { ty ->
-            val t = ty.toInt()
+            val t = ty.roundToInt()
             _highestTemps.value[0]?.let {
                 if (t > it) _highestTemps.value[0] = t
             }

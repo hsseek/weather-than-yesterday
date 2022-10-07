@@ -1,18 +1,15 @@
 <resources>
     <string name="app_name">Better Than Yesterday</string>
-    <string name="preference_file_key">com.hsseek.betterthanyesterday.PREFERENCE_FILE_KEY</string>
     <string name="dialog_title_location_permission">Location Permission Required</string>
     <string name="dialog_message_location_permission">The permission is required to get the weather conditions of the current location.\n(Otherwise, you can deny the request and set a location manually).</string>
-    <string name="na_location">Cannot get the current location.</string>
-    <string name="toast_location_found">Location found</string>
-    <string name="splash_screen">Splash screen</string>
+    <string name="desc_splash_screen">Splash screen</string>
     <string name="current_temp_title">Temperature status</string>
     <string name="current_temp_higher">Which is higher than yesterday by</string>
     <string name="current_temp_lower">Which is lower than yesterday by</string>
     <string name="current_temp_same">Which is the same as yesterday.</string>
     <string name="daily_today">(Today)</string>
-    <string name="null_value">\-</string>
-    <string name="desc_weather_status">Weather status icon</string>
+    <string name="null_value" translatable="false">\-</string>
+    <string name="desc_rainfall_status">Rainfall status icon</string>
     <string name="hour_noon">Noon</string>
     <string name="hour_am">%1$d AM</string>
     <string name="hour_pm">%1$d PM</string>
@@ -23,7 +20,6 @@
     <string name="today_snowy">It snows today.</string>
     <string name="today_mixed">It will rain and snow today.</string>
     <string name="rainfall_title">Rainfall forecast</string>
-    <string name="edit_location">Edit location</string>
     <string name="location_title_current">Current location</string>
     <string name="location_manually">(Manually set)</string>
     <string name="dialog_location_title">Forecast location</string>
@@ -55,7 +51,6 @@
     <string name="cities_south_ch">Daejeon, Cheonan, Sejong, etc.</string>
     <string name="cities_north_ch">Cheongju, Chungju, Jechoen, etc.</string>
     <string name="cities_dokdo">Ulleungdo, Dokdo</string>
-    <string name="permission_required">Location permission is required.</string>
     <string name="desc_refresh">Refresh weather information</string>
     <string name="topbar_share_app">Share this app</string>
     <string name="topbar_help">Help</string>
