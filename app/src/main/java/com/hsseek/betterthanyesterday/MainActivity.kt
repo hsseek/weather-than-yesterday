@@ -30,7 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -49,6 +48,7 @@ import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
 import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import java.util.*
+import kotlin.collections.ArrayList
 
 private const val TAG = "MainActivity"
 
@@ -364,9 +364,10 @@ class MainActivity : ComponentActivity() {
         locatingMethod: LocatingMethod,
     ) {
         val titleBottomPadding = 2.dp
+        val longNameHorizontalPadding = 12.dp
 
         Column(
-            modifier = modifier,
+            modifier = modifier.padding(horizontal = longNameHorizontalPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // A descriptive title
@@ -417,11 +418,11 @@ class MainActivity : ComponentActivity() {
         // A description
         val msg =
             if (hourlyTempDiff > 0) {
-                stringResource(R.string.t_diff_2_higher)
+                stringResource(R.string.current_temp_higher)
             } else if (hourlyTempDiff < 0) {
-                stringResource(R.string.t_diff_2_lower)
+                stringResource(R.string.current_temp_lower)
             } else {
-                stringResource(R.string.t_diff_2_same)
+                stringResource(R.string.current_temp_same)
             }
 
         // The temperature difference
@@ -440,20 +441,20 @@ class MainActivity : ComponentActivity() {
         ) {
             // The title
             Text(
-                text = stringResource(R.string.t_diff_1),
+                text = stringResource(R.string.current_temp_title),
                 style = Typography.h6
             )
 
             // A description
+            if (currentTemp != null) {
+                Text(
+                    text = stringResource(R.string.current_temp_value, currentTemp.toInt()),
+                )
+            }
+
             Text(
                 text = msg
             )
-            currentTemp?.let {
-                Text(
-                    text = "(${it.toInt()} \u2103)",
-                    style = Typography.caption,
-                )
-            }
 
             // The temperature difference(HUGE)
             Row(
@@ -464,14 +465,17 @@ class MainActivity : ComponentActivity() {
                     style = Typography.h1,
                     color = color,
                 )
-                Text(
-                    text = "\u2103",
-                    color = color,
-                    modifier = Modifier
-                        .padding(top = degreeUnitTopPadding, start = degreeUnitStartPadding)
-                        .align(Alignment.Top),
-                    fontSize = 23.sp
-                )
+                if (hourlyTempDiff != 0) {
+                    Text(
+                        text = "\u2103",
+                        color = color,
+                        modifier = Modifier
+                            .padding(top = degreeUnitTopPadding, start = degreeUnitStartPadding)
+                            .align(Alignment.Top),
+                        fontSize = 23.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
             }
         }
     }
@@ -484,167 +488,136 @@ class MainActivity : ComponentActivity() {
     ) {
         val titleBottomPadding = 4.dp
         val verticalOffset = (-24).dp
+        val size = highestTemps.size
+        val fraction: Float = 1f/size + 1
 
-        Column(
+        class DailyTemperature(val isToday: Boolean, val day: String, val highest: String, val lowest: String)
+
+        // Dates
+        val dates = arrayOfNulls<String>(highestTemps.size)
+        val cal = getCurrentKoreanDateTime().also {
+            it.add(Calendar.DAY_OF_YEAR, -2)
+        }
+        val locale = if (Locale.getDefault() == Locale.KOREA) {
+            Locale.KOREA
+        } else {
+            Locale.US
+        }
+
+        // Font colors for highest temperatures
+        val warmColor: Color = if (isSystemInDarkTheme()) {
+            RedTint700
+        } else {
+            RedShade200
+        }
+
+        val hotColor: Color = if (isSystemInDarkTheme()) {
+            RedTint400
+        } else {
+            Red000
+        }
+
+        // Font colors for lowest temperatures
+        val coolColor: Color = if (isSystemInDarkTheme()) {
+            CoolTint700
+        } else {
+            CoolShade200
+        }
+
+        val coldColor: Color = if (isSystemInDarkTheme()) {
+            CoolTint400
+        } else {
+            Cool000
+        }
+
+        val dailyTemps: ArrayList<DailyTemperature> = arrayListOf()
+        dailyTemps.add(DailyTemperature(false, "",
+            stringResource(R.string.daily_highest), stringResource(R.string.daily_lowest)
+        ))
+        for (i in 0 until size) {
+            val isToday = i == 1
+
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+            val day = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT_FORMAT, locale)
+            val highest = if (highestTemps[i] != null) {
+                "${highestTemps[i].toString()}\u00B0"
+            } else {
+                stringResource(id = R.string.null_value)
+            }
+            val lowest = if (lowestTemps[i] != null) {
+                "${lowestTemps[i].toString()}\u00B0"
+            } else {
+                stringResource(id = R.string.null_value)
+            }
+
+            dailyTemps.add(DailyTemperature(isToday, day ?: "", highest, lowest))
+        }
+
+        LazyRow(
             modifier = modifier.offset(y = verticalOffset),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalArrangement = Arrangement.SpaceAround
         ) {
-            // The descriptive title
-            Text(
-                text = stringResource(R.string.daily_temperature_title),
-                style = Typography.h6,
-                modifier = Modifier.padding(bottom = titleBottomPadding)
-            )
+            itemsIndexed(dailyTemps) {index, dailyTemp ->
+                // Values for today
+                val todayMark: String
+                val fontWeight: FontWeight
+                val highTempColor: Color
+                val lowTempColor: Color
 
-            // Days for the header row
-            val days = listOf(
-                stringResource(R.string.char_t_yesterday),
-                stringResource(R.string.char_t_d0),
-                stringResource(R.string.char_t_D1),
-                stringResource(R.string.char_t_D2)
-            )
-            val fraction: Float = 1f/days.size
-
-            // Dates
-            val dates = arrayOfNulls<String>(days.size)
-            val cal = getCurrentKoreanDateTime().also {
-                it.add(Calendar.DAY_OF_YEAR, -2)
-            }
-            val locale = if (Locale.getDefault() == Locale.KOREA) {
-                Locale.KOREA
-            } else {
-                Locale.US
-            }
-            for (i in days.indices) {
-                cal.add(Calendar.DAY_OF_YEAR, 1)
-                dates[i] = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT_FORMAT, locale)
-            }
-
-            // Days
-            LazyRow {
-                itemsIndexed(days) { index, item ->
-                    if (index == 1) {
-                        Text(
-                            text = "($item)",
-                            modifier = modifier.fillParentMaxWidth(fraction),
-                            textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.ExtraBold,
-                            style = Typography.caption
-                        )
+                if (index == 0) {
+                    highTempColor = MaterialTheme.colors.onBackground
+                    lowTempColor = MaterialTheme.colors.onBackground
+                } else {
+                    if (dailyTemp.isToday) {
+                        highTempColor = hotColor
+                        lowTempColor = coldColor
                     } else {
-                        Text(
-                            text = "",
-                            modifier = modifier.fillParentMaxWidth(fraction),
-                            textAlign = TextAlign.Center,
-                            style = Typography.caption
-                        )
+                        highTempColor = warmColor
+                        lowTempColor = coolColor
                     }
                 }
-            }
 
-            // Dates
-            LazyRow {
-                itemsIndexed(dates) { index, item ->
-                    if (index == 1) {
-                        Text(
-                            text = item ?: "",
-                            modifier = modifier.fillParentMaxWidth(fraction),
-                            textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.ExtraBold,
-                        )
-                    } else {
-                        Text(
-                            text = item ?: "",
-                            modifier = modifier.fillParentMaxWidth(fraction),
-                            textAlign = TextAlign.Center,
-                        )
-                    }
+                if (dailyTemp.isToday) {
+                    todayMark = stringResource(id = R.string.daily_today)
+                    fontWeight = FontWeight.ExtraBold
+                } else {
+                    todayMark = ""
+                    fontWeight = FontWeight.Normal
                 }
-            }
 
-            // Font color for highest temperatures
-            val warmColor: Color = if (isSystemInDarkTheme()) {
-                RedTint700
-            } else {
-                RedShade200
-            }
+                Column {
+                    val columnMod = Modifier.align(Alignment.CenterHorizontally)
 
-            val hotColor: Color = if (isSystemInDarkTheme()) {
-                RedTint400
-            } else {
-                Red000
-            }
+                    // Today mark
+                    Text(
+                        text = todayMark,
+                        fontWeight = fontWeight,
+                        style = Typography.caption,
+                        modifier = columnMod,
+                    )
 
-            LazyRow(modifier = modifier, horizontalArrangement = Arrangement.SpaceAround) {
-                itemsIndexed(highestTemps) { index, item ->
-                    if (item != null) {
-                        if (index == 1) {  // Today's
-                            Text(
-                                text = item.toString(),
-                                modifier = modifier.fillParentMaxWidth(fraction),
-                                textAlign = TextAlign.Center,
-                                color = hotColor,
-                                fontWeight = FontWeight.ExtraBold,
-                            )
-                        } else {
-                            Text(
-                                text = item.toString(),
-                                modifier = modifier.fillParentMaxWidth(fraction),
-                                textAlign = TextAlign.Center,
-                                color = warmColor,
-                            )
-                        }
-                    }
-                    else {
-                        Text(
-                            text = stringResource(R.string.null_value),
-                            modifier = modifier.fillParentMaxWidth(fraction),
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                }
-            }
+                    // Mon, Tue, ...
+                    Text(
+                        text = dailyTemp.day,
+                        fontWeight = fontWeight,
+                        modifier = columnMod,
+                    )
 
-            // Font color for lowest temperatures
-            val coolColor: Color = if (isSystemInDarkTheme()) {
-                CoolTint700
-            } else {
-                CoolShade200
-            }
+                    // Highest temperatures
+                    Text(
+                        text = dailyTemp.highest,
+                        fontWeight = fontWeight,
+                        color = highTempColor,
+                        modifier = columnMod,
+                    )
 
-            val coldColor: Color = if (isSystemInDarkTheme()) {
-                CoolTint400
-            } else {
-                Cool000
-            }
-
-            LazyRow(horizontalArrangement = Arrangement.SpaceEvenly) {
-                itemsIndexed(lowestTemps) { index, item ->
-                    if (item != null) {
-                        if (index == 1) {  // Today's
-                            Text(
-                                text = item.toString(),
-                                modifier = modifier.fillParentMaxWidth(fraction),
-                                textAlign = TextAlign.Center,
-                                color = coldColor,
-                                fontWeight = FontWeight.ExtraBold,
-                            )
-                        } else {
-                            Text(
-                                text = item.toString(),
-                                modifier = modifier.fillParentMaxWidth(fraction),
-                                textAlign = TextAlign.Center,
-                                color = coolColor,
-                            )
-                        }
-                    }
-                    else {
-                        Text(
-                            text = stringResource(R.string.null_value),
-                            modifier = modifier.fillParentMaxWidth(fraction),
-                            textAlign = TextAlign.Center
-                        )
-                    }
+                    // Lowest temperatures
+                    Text(
+                        text = dailyTemp.lowest,
+                        fontWeight = fontWeight,
+                        color = lowTempColor,
+                        modifier = columnMod,
+                    )
                 }
             }
         }
@@ -1038,8 +1011,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @Preview(showBackground = true)
-    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+//    @Preview(showBackground = true)
+//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
     fun LocatingMethodDialogPreview() {
         BetterThanYesterdayTheme {
@@ -1052,7 +1025,7 @@ class MainActivity : ComponentActivity() {
     }
 
 //    @Preview(showBackground = true)
-//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 320, heightDp = 640)
+    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 320, heightDp = 640)
     @Composable
     fun StackedPreview() {
         BetterThanYesterdayTheme {
@@ -1079,7 +1052,7 @@ class MainActivity : ComponentActivity() {
                     DailyTemperatures(
                         modifier = modifier,
                         highestTemps = listOf(32, 7, null, 23),
-                        lowestTemps = listOf(null, -12, 39, -10)
+                        lowestTemps = listOf(null, -12, 8, -10)
                     )
                     RainfallStatus(
                         modifier = modifier,
