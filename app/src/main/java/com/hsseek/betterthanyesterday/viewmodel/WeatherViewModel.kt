@@ -6,6 +6,7 @@ import android.app.Application
 import android.content.pm.PackageManager
 import android.os.Looper
 import android.util.Log
+import androidx.compose.runtime.MutableState
 import com.hsseek.betterthanyesterday.R
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.ActivityCompat
@@ -34,7 +35,6 @@ private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
 private const val HOURLY_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
-private const val PLACEHOLDER = "-"
 
 class WeatherViewModel(
     application: Application,
@@ -61,15 +61,15 @@ class WeatherViewModel(
     var toShowLocatingDialog = mutableStateOf(false)
         private set
     // The forecast location is an input from UI.
-    var forecastLocation = ForecastLocation.Auto
+    var forecastLocation: ForecastLocation? = null
         private set
 
-    private val _baseCityName = mutableStateOf(PLACEHOLDER)
-    val cityName: String
+    private val _baseCityName: MutableState<String?> = mutableStateOf(null)
+    val cityName: String?
         get() = _baseCityName.value
 
-    private val _districtName = mutableStateOf(PLACEHOLDER)
-    val districtName: String
+    private val _districtName: MutableState<String?> = mutableStateOf(null)
+    val districtName: String?
         get() = _districtName.value
 
     // The lowest temperatures of yesterday through the day after tomorrow
@@ -83,8 +83,8 @@ class WeatherViewModel(
         get() = _highestTemps.value.toList()
 
     // The hourly temperature
-    private val _hourlyTempDiff = mutableStateOf(0)
-    val hourlyTempDiff: Int
+    private val _hourlyTempDiff: MutableState<Int?> = mutableStateOf(null)
+    val hourlyTempDiff: Int?
         get() = _hourlyTempDiff.value
 
     var hourlyTempToday: Float? = null
@@ -114,7 +114,6 @@ class WeatherViewModel(
         selectedForecastLocation: ForecastLocation,
         isSelectionValid: Boolean = true
     ) {
-        Log.d(TAG, "CALLED.")
         if (selectedForecastLocation != forecastLocation) {  // Changed
             /* auto?	permitted?	CHANGED?
             V			V			V			update

@@ -240,7 +240,7 @@ class MainActivity : ComponentActivity() {
     private fun InformationScreen(
         modifier: Modifier,
         padding: PaddingValues,
-        forecastLocation: ForecastLocation,
+        forecastLocation: ForecastLocation?,
     ) {
         val sky: Sky? by viewModel.rainfallStatus.collectAsState()
 
@@ -364,15 +364,15 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * If [forecastLocation] is automatic, request data depending on the [cityName].
-     * If [forecastLocation] is not automatic, [cityName] does not matter.
+     * If [forecastLocation] is automatic, request data depending on the [locatedCityName].
+     * If [forecastLocation] is not automatic, [locatedCityName] does not matter.
      * */
     @Composable
     private fun LocationInformation(
         modifier: Modifier,
-        cityName: String,
-        districtName: String,
-        forecastLocation: ForecastLocation,
+        locatedCityName: String?,
+        districtName: String?,
+        forecastLocation: ForecastLocation?,
     ) {
         val titleBottomPadding = 2.dp
         val longNameHorizontalPadding = 12.dp
@@ -389,27 +389,27 @@ class MainActivity : ComponentActivity() {
             )
 
             // The name of the forecast location
-            val baseLocationName = if (forecastLocation == ForecastLocation.Auto) {
-                cityName
+            val cityName = if (forecastLocation == ForecastLocation.Auto || forecastLocation == null) {
+                locatedCityName
             } else {
                 stringResource(id = forecastLocation.regionId)
             }
             Text(
-                text = baseLocationName,
+                text = cityName ?: stringResource(id = R.string.null_value),
                 style = Typography.h3,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
 
             // "Warn" the user if the location has been manually set.
-            val specificLocation: String = if (forecastLocation == ForecastLocation.Auto) {
+            val specificLocation = if (forecastLocation == ForecastLocation.Auto) {
                 districtName
             } else {
                 stringResource(R.string.location_manually)
             }
 
             Text(
-                text = specificLocation,
+                text = specificLocation ?: stringResource(id = R.string.null_value),
                 style = Typography.caption,
             )
         }
@@ -418,7 +418,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun CurrentTemperature(
         modifier: Modifier,
-        hourlyTempDiff: Int,
+        hourlyTempDiff: Int?,
         currentTemp: Float?,
     ) {
         val tempDiffVerticalOffset = (-20).dp
@@ -426,25 +426,17 @@ class MainActivity : ComponentActivity() {
         val degreeUnitTopPadding = 43.dp
         val degreeUnitStartPadding = 8.dp
         val titleBottomPadding = 4.dp
+        val degreeUnitFontSize = 23.sp
 
         // A description
-        val msg =
-            if (hourlyTempDiff > 0) {
-                stringResource(R.string.current_temp_higher)
-            } else if (hourlyTempDiff < 0) {
-                stringResource(R.string.current_temp_lower)
-            } else {
-                stringResource(R.string.current_temp_same)
-            }
-
-        // The temperature difference
-        val color: Color = getTemperatureColor(hourlyTempDiff)
-        val diffString: String = if (hourlyTempDiff > 0) {
-            "\u25B4 $hourlyTempDiff"
+        val description = if (hourlyTempDiff == null) {
+            stringResource(id = R.string.null_value)
+        } else if (hourlyTempDiff > 0) {
+            stringResource(R.string.current_temp_higher)
         } else if (hourlyTempDiff < 0) {
-            "\u25BE ${-hourlyTempDiff}"
+            stringResource(R.string.current_temp_lower)
         } else {
-            "="
+            stringResource(R.string.current_temp_same)
         }
 
         Column(
@@ -466,28 +458,47 @@ class MainActivity : ComponentActivity() {
             }
 
             Text(
-                text = msg
+                text = description
             )
 
             // The temperature difference(HUGE)
             Row(
                 Modifier.offset(y = tempDiffVerticalOffset),
             ) {
-                Text(
-                    text = diffString,
-                    style = Typography.h1,
-                    color = color,
-                )
-                if (hourlyTempDiff != 0) {
+                if (hourlyTempDiff != null) {
+                    // The temperature difference
+                    val color: Color = getTemperatureColor(hourlyTempDiff)
+                    val diffString: String = if (hourlyTempDiff > 0) {
+                        "\u25B4 $hourlyTempDiff"
+                    } else if (hourlyTempDiff < 0) {
+                        "\u25BE ${-hourlyTempDiff}"
+                    } else {
+                        "="
+                    }
+
                     Text(
-                        text = "\u2103",
+                        text = diffString,
+                        style = Typography.h1,
                         color = color,
-                        modifier = Modifier
-                            .padding(top = degreeUnitTopPadding, start = degreeUnitStartPadding)
-                            .align(Alignment.Top),
-                        fontSize = 23.sp,
-                        fontWeight = FontWeight.Bold,
                     )
+                    if (hourlyTempDiff != 0) {
+                        Text(
+                            text = "\u2103",
+                            color = color,
+                            modifier = Modifier
+                                .padding(
+                                    top = degreeUnitTopPadding,
+                                    start = degreeUnitStartPadding
+                                )
+                                .align(Alignment.Top),
+                            fontSize = degreeUnitFontSize,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                } else {
+                    Text(
+                        text = stringResource(id = R.string.null_value),
+                        style = Typography.h1)
                 }
             }
         }
@@ -720,7 +731,7 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun LocationSelectDialog(
-        selectedForecastLocation: ForecastLocation,
+        selectedForecastLocation: ForecastLocation?,
         onClickNegative: () -> Unit,
         onClickPositive: (ForecastLocation) -> Unit,
     ) {
@@ -756,7 +767,12 @@ class MainActivity : ComponentActivity() {
                         Text(text = stringResource(R.string.dialog_cancel))
                     }
                     TextButton(onClick = {
-                        onClickPositive(selected.value)
+                        val selectedLocation: ForecastLocation? = selected.value
+                        if (selectedLocation != null) {
+                            onClickPositive(selectedLocation)
+                        } else {
+                            Log.e(TAG, "The selected ForecastLocation is null.")
+                        }
                     }) {
                         Text(text = stringResource(R.string.dialog_ok))
                     }
@@ -768,7 +784,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun RegionsRadioGroup(
         padding: Dp,
-        selected: ForecastLocation,
+        selected: ForecastLocation?,
         onSelect: (ForecastLocation) -> Unit
     ) {
         val radioTextStartPadding = 4.dp
@@ -872,7 +888,7 @@ class MainActivity : ComponentActivity() {
             Surface {
                 LocationInformation(
                     modifier = Modifier.fillMaxWidth(),
-                    cityName = "서울",
+                    locatedCityName = "서울",
                     districtName = "종로구",
                     forecastLocation = ForecastLocation.Auto
                 )
@@ -888,7 +904,7 @@ class MainActivity : ComponentActivity() {
             Surface {
                 LocationInformation(
                     modifier = Modifier.fillMaxWidth(),
-                    cityName = stringResource(id = R.string.region_south_jl),
+                    locatedCityName = stringResource(id = R.string.region_south_jl),
                     districtName = "남구",
                     forecastLocation = ForecastLocation.SouthJl
                 )
@@ -1047,7 +1063,7 @@ class MainActivity : ComponentActivity() {
                 {
                     LocationInformation(
                         modifier = modifier,
-                        cityName = "서울",
+                        locatedCityName = "서울",
                         districtName = "종로구",
                         forecastLocation = ForecastLocation.SouthJl,
                     )
