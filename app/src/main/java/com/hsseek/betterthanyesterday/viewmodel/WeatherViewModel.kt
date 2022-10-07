@@ -109,8 +109,12 @@ class WeatherViewModel(
     -			V			-			none
     -			V			V			update
     -			-			V			update
-    * */
-    fun updateForecastLocation(selectedForecastLocation: ForecastLocation, isSelectionValid: Boolean = true) {
+     * */
+    fun updateForecastLocation(
+        selectedForecastLocation: ForecastLocation,
+        isSelectionValid: Boolean = true
+    ) {
+        Log.d(TAG, "CALLED.")
         if (selectedForecastLocation != forecastLocation) {  // Changed
             /* auto?	permitted?	CHANGED?
             V			V			V			update
@@ -118,9 +122,7 @@ class WeatherViewModel(
             -			V			V			update
             -			-			V			update
             * */
-            Log.d(LOCATION_TAG, "ForecastLocation changed to ${selectedForecastLocation.name}")
             forecastLocation = selectedForecastLocation
-            storeForecastLocation(selectedForecastLocation)
 
             if (isSelectionValid) {
                 if (selectedForecastLocation == ForecastLocation.Auto) {
@@ -144,7 +146,7 @@ class WeatherViewModel(
      * Update location information determined by fixed ForecastLocations,
      * and triggers retrieving weather data eventually.
      * */
-    fun updateFixedLocation(lm: ForecastLocation) {
+    private fun updateFixedLocation(lm: ForecastLocation) {
         val cityName = context.getString(lm.regionId)
         _districtName.value = context.getString(R.string.location_manually)
         updateLocationAndWeather(lm.coordinates!!, cityName)

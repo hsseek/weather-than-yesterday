@@ -68,35 +68,25 @@ class MainActivity : ComponentActivity() {
         val prefsRepo = UserPreferencesRepository(dataStore)
         viewModel = ViewModelProvider(
             this,
-            WeatherViewModelFactory(
-                application,
-                prefsRepo,
-            )
+            WeatherViewModelFactory(application, prefsRepo)
         )[WeatherViewModel::class.java]
 
         lifecycleScope.launch {
             // repeatOnLifecycle launches the block in a new coroutine every time the
             // lifecycle is in the STARTED state (or above) and cancels it when it's STOPPED.
             repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // Observe Preferences changes.
                 prefsRepo.forecastLocationFlow.collect { storedCode ->
                     Log.d(TAG, "ForecastLocation from preferences: $storedCode")
                     enumValues<ForecastLocation>().forEach { forecastLocation ->
                         if (forecastLocation.code == storedCode) {
-                            if (forecastLocation == ForecastLocation.Auto) {
-                                // As the forecast location is the current location, we need to update the location,
-                                // which requires context-dependent jobs such as checking permission and show dialogs.
-                                updateAutomaticLocation()
-                            } else {
-                                // No context-dependent jobs: update ViewModel directly.
-                                viewModel.updateFixedLocation(forecastLocation)
-                            }
+                            onStoreForecastLocation(forecastLocation)
                         }
                     }
                 }
             }
         }
 
-        // Set the Views.
         setContent {
             BetterThanYesterdayTheme {
                 // Make the status bar transparent.
@@ -121,6 +111,39 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Called after a new [ForecastLocation] has been stored in [UserPreferencesRepository].
+     * */
+    private fun onStoreForecastLocation(selectedLocation: ForecastLocation) {
+        Log.d(TAG, "${selectedLocation.name} selected")
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED && selectedLocation == ForecastLocation.Auto) {
+            Log.w(TAG, "Permission required.")
+            if (ActivityCompat.shouldShowRequestPermissionRationale(
+                    this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            ) {
+                // An explanation is required.
+                AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.dialog_title_location_permission))
+                    .setMessage(getString(R.string.dialog_message_location_permission))
+                    .setPositiveButton(getString(R.string.dialog_ok)) { _, _ ->
+                        // Request the permission the explanation has been given.
+                        requestPermissionLauncher.launch((Manifest.permission.ACCESS_COARSE_LOCATION))
+                    }.create().show()
+            } else {
+                // No explanation needed, request the permission.
+                requestPermissionLauncher.launch((Manifest.permission.ACCESS_COARSE_LOCATION))
+            }
+
+            // While the ViewModel's variable will be updated, the ViewModel won't take any action.
+            viewModel.updateForecastLocation(selectedLocation, false)
+        } else {
+            viewModel.updateForecastLocation(selectedLocation, true)
         }
     }
 
@@ -151,36 +174,6 @@ class MainActivity : ComponentActivity() {
     private fun refresh() {
         // TODO: Toast "The new data will be released in 23 minutes." AND Text of "Last checked at 2022-10-03 12:34"
         // TODO: Swipe to refresh(https://stackoverflow.com/questions/67204979/there-is-something-similar-like-swiperefreshlayout-to-pull-to-refresh-in-the-laz)
-    }
-
-    /**
-     * Check the permission and update the location in ViewModel.
-     * Called only if the locating method is [ForecastLocation.Auto].
-     * */
-    private fun updateAutomaticLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
-            viewModel.startLocationUpdate()
-        } else {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(
-                    this,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            ) {
-                // An explanation is required.
-                AlertDialog.Builder(this)
-                    .setTitle(getString(R.string.dialog_title_location_permission))
-                    .setMessage(getString(R.string.dialog_message_location_permission))
-                    .setPositiveButton(getString(R.string.dialog_ok)) { _, _ ->
-                        // Request the permission the explanation has been given.
-                        requestPermissionLauncher.launch((Manifest.permission.ACCESS_COARSE_LOCATION))
-                    }.create().show()
-            } else {
-                // No explanation needed, request the permission.
-                requestPermissionLauncher.launch((Manifest.permission.ACCESS_COARSE_LOCATION))
-            }
-        }
     }
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -222,17 +215,7 @@ class MainActivity : ComponentActivity() {
                 onClickNegative = { viewModel.toShowLocatingDialog.value = false },
                 onClickPositive = { selectedLocation ->
                     viewModel.toShowLocatingDialog.value = false  // Dismiss the dialog anyway.
-                    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-                        != PackageManager.PERMISSION_GRANTED && selectedLocation == ForecastLocation.Auto) {
-                        // The user selected automatic locating which requires location permission, without the permission.
-                        // So, request permission again.
-                        requestPermissionLauncher.launch((Manifest.permission.ACCESS_COARSE_LOCATION))
-
-                        // While the ViewModel's variable will be updated, the ViewModel won't take any action.
-                        viewModel.updateForecastLocation(selectedLocation, false)
-                    } else {
-                        viewModel.updateForecastLocation(selectedLocation, true)
-                    }
+                    viewModel.storeForecastLocation(selectedLocation)
                 }
             )
         }
