@@ -1,9 +1,6 @@
 package com.hsseek.betterthanyesterday.util
 
-import android.content.Context
-import android.location.Location
 import android.util.Log
-import androidx.core.content.edit
 import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
 import com.hsseek.betterthanyesterday.viewmodel.DayOfInterest
@@ -118,31 +115,6 @@ suspend fun logCoroutineContext(msg: String = "") {
     Log.d(tag, msg + "\nThread: ${Thread.currentThread().name}" + "\nScope: $coroutineContext")
 }
 
-internal object SharedPreferenceUtil {
-    const val KEY_FOREGROUND_ENABLED = "tracking_foreground_location"
-
-    /**
-     * Returns true if requesting location updates, otherwise returns false.
-     */
-    fun getLocationTrackingPref(context: Context): Boolean =
-        context.getSharedPreferences(
-            context.getString(R.string.preference_file_key), Context.MODE_PRIVATE
-        )
-            .getBoolean(KEY_FOREGROUND_ENABLED, false)
-
-    /**
-     * Stores the location updates state in SharedPreferences.
-     * @param requestingLocationUpdates The location updates state.
-     */
-    fun saveLocationTrackingPref(context: Context, requestingLocationUpdates: Boolean) =
-        context.getSharedPreferences(
-            context.getString(R.string.preference_file_key),
-            Context.MODE_PRIVATE
-        ).edit {
-            putBoolean(KEY_FOREGROUND_ENABLED, requestingLocationUpdates)
-        }
-}
-
 fun Int.hour(): Int = this / 100
 
 fun getCityName(address: String?): String? {
@@ -177,7 +149,7 @@ enum class KmaHourRoundOff {
     HOUR, VILLAGE, NOON, DAY
 }
 
-enum class LocatingMethod(val code: Int, val regionId: Int, val citiesId: Int, val coordinates: CoordinatesXy?) {
+enum class ForecastLocation(val code: Int, val regionId: Int, val citiesId: Int, val coordinates: CoordinatesXy?) {
     Auto(0, R.string.region_auto, R.string.cities_auto, null),
     Capital(1, R.string.region_captial, R.string.cities_captial, CoordinatesXy(60, 127)),
     Gangwon(2, R.string.region_gangwon, R.string.cities_gangwon, CoordinatesXy(73, 134)),

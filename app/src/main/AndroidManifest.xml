@@ -16,7 +16,6 @@
         android:theme="@style/Theme.BetterThanYesterday"
         tools:targetApi="31"
         android:usesCleartextTraffic="true"
-        android:name=".YesterdayApplication"
         >
         <activity
             android:name=".MainActivity"

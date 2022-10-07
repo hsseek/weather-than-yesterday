@@ -10,7 +10,10 @@ import com.hsseek.betterthanyesterday.R
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.*
 import com.hsseek.betterthanyesterday.network.ForecastResponse
 import com.hsseek.betterthanyesterday.util.OneShotEvent
@@ -33,7 +36,10 @@ private const val HOURLY_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
 private const val PLACEHOLDER = "-"
 
-class WeatherViewModel(application: Application) : AndroidViewModel(application) {
+class WeatherViewModel(
+    application: Application,
+    private val userPreferencesRepository: UserPreferencesRepository,
+) : AndroidViewModel(application) {
     private val context = application
 
     private val retrofitDispatcher = Dispatchers.IO
@@ -54,8 +60,8 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     private val locationClient = LocationServices.getFusedLocationProviderClient(context)
     var toShowLocatingDialog = mutableStateOf(false)
         private set
-    // LocatingMethod is an input from UI.
-    var locatingMethod = LocatingMethod.Auto
+    // The forecast location is an input from UI.
+    var forecastLocation = ForecastLocation.Auto
         private set
 
     private val _baseCityName = mutableStateOf(PLACEHOLDER)
@@ -92,7 +98,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     val toastMessage = _toastMessage.asStateFlow()
 
     /**
-     * Process the selection of locating method from the dialog.
+     * Process the selection of ForecastLocation from the dialog.
      *
      * auto?	permitted?	changed?
     V			V			V			update
@@ -104,25 +110,26 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     -			V			V			update
     -			-			V			update
     * */
-    fun updateLocatingMethod(selectedLocatingMethod: LocatingMethod, isSelectionValid: Boolean = true) {
-        if (selectedLocatingMethod != locatingMethod) {  // Changed
+    fun updateForecastLocation(selectedForecastLocation: ForecastLocation, isSelectionValid: Boolean = true) {
+        if (selectedForecastLocation != forecastLocation) {  // Changed
             /* auto?	permitted?	CHANGED?
             V			V			V			update
             V			-			V			request permission (INVALID SELECTION)
             -			V			V			update
             -			-			V			update
             * */
-            Log.d(LOCATION_TAG, "Locating method changed to ${selectedLocatingMethod.name}")
-            locatingMethod = selectedLocatingMethod
+            Log.d(LOCATION_TAG, "ForecastLocation changed to ${selectedForecastLocation.name}")
+            forecastLocation = selectedForecastLocation
+            storeForecastLocation(selectedForecastLocation)
 
             if (isSelectionValid) {
-                if (selectedLocatingMethod == LocatingMethod.Auto) {
+                if (selectedForecastLocation == ForecastLocation.Auto) {
                     startLocationUpdate()
-                } else {  // Locating methods for fixed locations
-                    updateFixedLocation(selectedLocatingMethod)
+                } else {  // ForecastLocations for fixed locations
+                    updateFixedLocation(selectedForecastLocation)
                 }
             }
-        } else {  // Not changed
+        } else {  // Forecast location not changed
             /* Nothing To do.
              auto?	    permitted?	CHANGED?
              V			-			-			request permission (INVALID SELECTION)
@@ -134,10 +141,10 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * Update location information determined by fixed locating methods,
+     * Update location information determined by fixed ForecastLocations,
      * and triggers retrieving weather data eventually.
      * */
-    fun updateFixedLocation(lm: LocatingMethod) {
+    fun updateFixedLocation(lm: ForecastLocation) {
         val cityName = context.getString(lm.regionId)
         _districtName.value = context.getString(R.string.location_manually)
         updateLocationAndWeather(lm.coordinates!!, cityName)
@@ -659,6 +666,12 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
             fastestInterval = ONE_MINUTE / 4
         }
     }
+
+    fun storeForecastLocation(forecastLocation: ForecastLocation) {
+        viewModelScope.launch {
+            userPreferencesRepository.updateForecastLocation(forecastLocation)
+        }
+    }
 }
 
 enum class CharacteristicTempType(val descriptor: String) {
@@ -680,5 +693,20 @@ sealed class Sky {
         class Mixed(startingHour: Int, endingHour: Int): Bad(startingHour, endingHour)
         class Rainy(startingHour: Int, endingHour: Int): Bad(startingHour, endingHour)
         class Snowy(startingHour: Int, endingHour: Int): Bad(startingHour, endingHour)
+    }
+}
+
+class WeatherViewModelFactory(
+    private val application: Application,
+    private val userPreferencesRepository: UserPreferencesRepository,
+) : ViewModelProvider.Factory {
+
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(WeatherViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return WeatherViewModel(application, userPreferencesRepository
+            ) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

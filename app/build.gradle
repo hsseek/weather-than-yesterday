@@ -71,19 +71,9 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.5.1'
     implementation "androidx.compose.runtime:runtime-livedata:$compose_version"
 
-    // Koin Core features
-    implementation "io.insert-koin:koin-core:$koin_version"
-    // Koin main features for Android
-    implementation "io.insert-koin:koin-android:$koin_android_version"
-    // Java Compatibility
-    implementation "io.insert-koin:koin-android-compat:$koin_android_version"
-    // Jetpack WorkManager
-    implementation "io.insert-koin:koin-androidx-workmanager:$koin_android_version"
-    // Navigation Graph
-    implementation "io.insert-koin:koin-androidx-navigation:$koin_android_version"
-    // Jetpack Compose
-    implementation "io.insert-koin:koin-androidx-compose:$koin_android_compose_version"
-
     // Location
     implementation 'com.google.android.gms:play-services-location:20.0.0'
+
+    // Dats Store
+    implementation "androidx.datastore:datastore-preferences:1.0.0"
 }
