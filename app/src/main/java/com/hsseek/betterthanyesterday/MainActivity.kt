@@ -45,6 +45,7 @@ import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.ui.theme.*
 import com.hsseek.betterthanyesterday.util.*
+import com.hsseek.betterthanyesterday.viewmodel.DailyTemperature
 import com.hsseek.betterthanyesterday.viewmodel.Sky
 import com.hsseek.betterthanyesterday.viewmodel.Sky.Bad
 import com.hsseek.betterthanyesterday.viewmodel.Sky.Bad.*
@@ -53,7 +54,6 @@ import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModelFactory
 import kotlinx.coroutines.launch
 import java.util.*
-import kotlin.collections.ArrayList
 import kotlin.math.roundToInt
 
 private const val TAG = "MainActivity"
@@ -101,14 +101,9 @@ class MainActivity : ComponentActivity() {
                     modifier = modifier,
                     color = MaterialTheme.colors.background
                 ) {
-                    if (!viewModel.isDataUpToDate) {
-//                        LandingScreen()
-                        MainScreen(modifier = modifier)  // test
-                    } else {
-                        MainScreen(
-                            modifier = modifier,
-                        )
-                    }
+                    MainScreen(
+                        modifier = modifier,
+                    )
                 }
             }
         }
@@ -250,7 +245,7 @@ class MainActivity : ComponentActivity() {
         ) {
             LocationInformation(modifier, viewModel.cityName, viewModel.districtName, forecastLocation)
             CurrentTemperature(modifier, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
-            DailyTemperatures(modifier, viewModel.highestTemps, viewModel.lowestTemps)
+            DailyTemperatures(modifier, viewModel.dailyTemps)
             RainfallStatus(modifier, sky)
         }
     }
@@ -389,13 +384,8 @@ class MainActivity : ComponentActivity() {
             )
 
             // The name of the forecast location
-            val cityName = if (forecastLocation == ForecastLocation.Auto || forecastLocation == null) {
-                locatedCityName
-            } else {
-                stringResource(id = forecastLocation.regionId)
-            }
             Text(
-                text = cityName ?: stringResource(id = R.string.null_value),
+                text = locatedCityName ?: stringResource(id = R.string.null_value),
                 style = Typography.h3,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -507,22 +497,9 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun DailyTemperatures(
         modifier: Modifier,
-        highestTemps: List<Int?>,
-        lowestTemps: List<Int?>,
+        dailyTemps: List<DailyTemperature>,
     ) {
         val verticalOffset = (-24).dp
-
-        class DailyTemperature(val isToday: Boolean, val day: String, val highest: String, val lowest: String)
-
-        // Dates
-        val cal = getCurrentKoreanDateTime().also {
-            it.add(Calendar.DAY_OF_YEAR, -2)
-        }
-        val locale = if (Locale.getDefault() == Locale.KOREA) {
-            Locale.KOREA
-        } else {
-            Locale.US
-        }
 
         // Font colors for highest temperatures
         val warmColor: Color = if (isSystemInDarkTheme()) {
@@ -548,29 +525,6 @@ class MainActivity : ComponentActivity() {
             CoolTint400
         } else {
             Cool000
-        }
-
-        val dailyTemps: ArrayList<DailyTemperature> = arrayListOf()
-        dailyTemps.add(DailyTemperature(false, "",
-            stringResource(R.string.daily_highest), stringResource(R.string.daily_lowest)
-        ))
-        for (i in highestTemps.indices) {
-            val isToday = i == 1
-
-            cal.add(Calendar.DAY_OF_YEAR, 1)
-            val day = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT_FORMAT, locale)
-            val highest = if (highestTemps[i] != null) {
-                "${highestTemps[i].toString()}\u00B0"
-            } else {
-                stringResource(id = R.string.null_value)
-            }
-            val lowest = if (lowestTemps[i] != null) {
-                "${lowestTemps[i].toString()}\u00B0"
-            } else {
-                stringResource(id = R.string.null_value)
-            }
-
-            dailyTemps.add(DailyTemperature(isToday, day ?: "", highest, lowest))
         }
 
         LazyRow(
@@ -958,21 +912,6 @@ class MainActivity : ComponentActivity() {
     }
 
 //    @Preview(showBackground = true)
-//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
-    @Composable
-    fun CharTempsPreview() {
-        BetterThanYesterdayTheme {
-            Surface {
-                DailyTemperatures(
-                    modifier = Modifier.fillMaxWidth(),
-                    highestTemps = listOf(25, 22, null, 26),
-                    lowestTemps = listOf(16, null, -3, 20),
-                )
-            }
-        }
-    }
-
-//    @Preview(showBackground = true)
     @Composable
     fun SunnyPreview() {
         BetterThanYesterdayTheme {
@@ -1076,8 +1015,7 @@ class MainActivity : ComponentActivity() {
 
                     DailyTemperatures(
                         modifier = modifier,
-                        highestTemps = listOf(32, 7, null, 23),
-                        lowestTemps = listOf(null, -12, 8, -10)
+                        dailyTemps = viewModel.dailyTemps
                     )
                     RainfallStatus(
                         modifier = modifier,

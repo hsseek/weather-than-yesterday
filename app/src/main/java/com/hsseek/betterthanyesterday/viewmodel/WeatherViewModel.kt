@@ -25,6 +25,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.math.roundToInt
 
 private const val TAG = "WeatherViewModel"
@@ -46,10 +47,6 @@ class WeatherViewModel(
     private val defaultDispatcher = Dispatchers.Default
     private var kmaJob: Job? = null
 
-    private val _isDataUpToDate = mutableStateOf(false)
-    val isDataUpToDate: Boolean
-        get() = _isDataUpToDate.value
-
     private var lastHourBaseTime: KmaTime = getKmaBaseTime(roundOff = HOUR)
     private var lastVillageBaseTime: KmaTime = getKmaBaseTime(roundOff = VILLAGE)
     private var lastNoonBaseTime: KmaTime = getKmaBaseTime(roundOff = NOON)
@@ -64,23 +61,21 @@ class WeatherViewModel(
     var forecastLocation: ForecastLocation? = null
         private set
 
-    private val _baseCityName: MutableState<String?> = mutableStateOf(null)
+    private val _forecastCityName: MutableState<String?> = mutableStateOf(null)
     val cityName: String?
-        get() = _baseCityName.value
+        get() = _forecastCityName.value
 
     private val _districtName: MutableState<String?> = mutableStateOf(null)
     val districtName: String?
         get() = _districtName.value
 
-    // The lowest temperatures of yesterday through the day after tomorrow
-    private val _lowestTemps = mutableStateOf(arrayOfNulls<Int>(4))
-    val lowestTemps: List<Int?>
-        get() = _lowestTemps.value.toList()
-
-    // The highest temperatures of yesterday through the day after tomorrow
-    private val _highestTemps = mutableStateOf(arrayOfNulls<Int>(4))
-    val highestTemps: List<Int?>
-        get() = _highestTemps.value.toList()
+    // The highest/lowest temperatures of yesterday through the day after tomorrow
+    private val temperatureCount: Int = enumValues<DayOfInterest>().size
+    private val lowestTemps: Array<Int?> = arrayOfNulls(temperatureCount)
+    private val highestTemps: Array<Int?> = arrayOfNulls(temperatureCount)
+    private val _dailyTemps: MutableState<List<DailyTemperature>> = mutableStateOf(emptyList())
+    val dailyTemps: List<DailyTemperature>
+        get() = _dailyTemps.value
 
     // The hourly temperature
     private val _hourlyTempDiff: MutableState<Int?> = mutableStateOf(null)
@@ -196,8 +191,41 @@ class WeatherViewModel(
             }
             kmaJob?.join()
 
-            _isDataUpToDate.value = true
             // Job done. Update variables dependent to another requests.
+            val cal = getCurrentKoreanDateTime().also {
+                it.add(Calendar.DAY_OF_YEAR, -2)
+            }
+            val locale = if (Locale.getDefault() == Locale.KOREA) {
+                Locale.KOREA
+            } else {
+                Locale.US
+            }
+
+            val dailyTempsBuilder: ArrayList<DailyTemperature> = arrayListOf()
+            dailyTempsBuilder.add(DailyTemperature(false, "",
+                context.getString(R.string.daily_highest), context.getString(R.string.daily_lowest)
+            ))
+            for (i in highestTemps.indices) {
+                val isToday = i == 1
+
+                cal.add(Calendar.DAY_OF_YEAR, 1)
+                val day = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT_FORMAT, locale)
+                val highest = if (highestTemps[i] != null) {
+                    "${highestTemps[i].toString()}\u00B0"
+                } else {
+                    context.getString(R.string.null_value)
+                }
+                val lowest = if (lowestTemps[i] != null) {
+                    "${lowestTemps[i].toString()}\u00B0"
+                } else {
+                    context.getString(R.string.null_value)
+                }
+
+                dailyTempsBuilder.add(DailyTemperature(isToday, day ?: "", highest, lowest))
+            }
+
+            _dailyTemps.value = dailyTempsBuilder.toList()
+
             updateHourlyTempDiff()
             adjustCharTemp()
         }
@@ -256,8 +284,8 @@ class WeatherViewModel(
 
                     characteristicTemp?.let { temp ->
                         when (type) {
-                            CharacteristicTempType.Lowest -> _lowestTemps.value[date.dayOffset + 1] = temp
-                            CharacteristicTempType.Highest -> _highestTemps.value[date.dayOffset + 1] = temp
+                            CharacteristicTempType.Lowest -> lowestTemps[date.dayOffset + 1] = temp
+                            CharacteristicTempType.Highest -> highestTemps[date.dayOffset + 1] = temp
                         }
                     }
                     Log.d(TAG, "${type.descriptor}\tof D${date.dayOffset}\t: $characteristicTemp")
@@ -492,22 +520,22 @@ class WeatherViewModel(
     private fun adjustCharTemp() {
         hourlyTempToday?.let { tt ->
             val t = tt.roundToInt()
-            _highestTemps.value[1]?.let {
-                if (t > it) _highestTemps.value[1] = t
+            highestTemps[1]?.let {
+                if (t > it) highestTemps[1] = t
             }
 
-            _lowestTemps.value[1]?.let {
-                if (t < it) _lowestTemps.value[1] = t
+            lowestTemps[1]?.let {
+                if (t < it) lowestTemps[1] = t
             }
         }
 
         hourlyTempYesterday?.let { ty ->
             val t = ty.roundToInt()
-            _highestTemps.value[0]?.let {
-                if (t > it) _highestTemps.value[0] = t
+            highestTemps[0]?.let {
+                if (t > it) highestTemps[0] = t
             }
-            _lowestTemps.value[0]?.let {
-                if (t < it) _lowestTemps.value[0] = t
+            lowestTemps[0]?.let {
+                if (t < it) lowestTemps[0] = t
             }
         }
     }
@@ -617,12 +645,12 @@ class WeatherViewModel(
     }
 
     /**
-     * Update [_baseCityName] and [baseCoordinatesXy], then request new weather data based on [baseCoordinatesXy].
+     * Update [_forecastCityName] and [baseCoordinatesXy], then request new weather data based on [baseCoordinatesXy].
      * */
     private fun updateLocationAndWeather(coordinates: CoordinatesXy, locatedCityName: String) {
-        if (locatedCityName != _baseCityName.value) {  // i.e. A new base location
+        if (locatedCityName != _forecastCityName.value) {  // i.e. A new base location
             Log.d(LOCATION_TAG, "A new city\t: $locatedCityName")
-            _baseCityName.value = locatedCityName
+            _forecastCityName.value = locatedCityName
 
             // Request new data for the location.
             baseCoordinatesXy = coordinates
@@ -697,11 +725,12 @@ sealed class Sky {
     }
 }
 
+class DailyTemperature(val isToday: Boolean, val day: String, val highest: String, val lowest: String)
+
 class WeatherViewModelFactory(
     private val application: Application,
     private val userPreferencesRepository: UserPreferencesRepository,
 ) : ViewModelProvider.Factory {
-
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(WeatherViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
