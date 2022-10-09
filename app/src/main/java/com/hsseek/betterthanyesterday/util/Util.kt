@@ -54,7 +54,7 @@ fun getKmaBaseTime(
 ): KmaTime
 {
     if (dayOffset != 0) time.add(Calendar.DAY_OF_YEAR, dayOffset)
-    val isHourAvailable: Boolean = if (isQuickPublish) time.minute() > 10 else time.minute() > 45
+    val isHourAvailable: Boolean = if (isQuickPublish) time.minute() > 10 else false
 
     if (!isHourAvailable) {
         // The data for the current hour are not available. Use the previous hour.
