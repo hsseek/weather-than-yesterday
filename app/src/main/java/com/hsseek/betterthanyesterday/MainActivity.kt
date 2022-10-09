@@ -12,13 +12,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -95,15 +90,10 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colors.background
                 )
 
-                val modifier = Modifier.fillMaxWidth()
+                val modifier = Modifier
 
-                Surface(
-                    modifier = modifier,
-                    color = MaterialTheme.colors.background
-                ) {
-                    MainScreen(
-                        modifier = modifier,
-                    )
+                Surface(color = MaterialTheme.colors.background) {
+                    MainScreen(modifier = modifier)
                 }
             }
         }
@@ -183,26 +173,30 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun MainScreen(
-        modifier: Modifier,
-    ) {
+    private fun MainScreen(modifier: Modifier) {
         val forecastLocation = viewModel.forecastLocation
 
         Scaffold(
             topBar = { WeatherTopAppBar(
-                modifier = modifier,
+                modifier = modifier.fillMaxWidth(),
                 onClickChangeLocation = { viewModel.toShowLocatingDialog.value = true }
             ) },
-            content = { padding ->
-                Column(
-                    modifier = modifier
-                ) {
-                    InformationScreen(modifier, padding, forecastLocation)
-                    Spacer(modifier = modifier.height(10.dp))
-                    CustomScreen()
-                }
-            },
-        )
+        ) { padding ->
+            Column(
+                modifier = modifier
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                val sky: Sky? by viewModel.rainfallStatus.collectAsState()
+
+                LocationInformation(modifier, viewModel.cityName, viewModel.districtName, forecastLocation)
+                CurrentTemperature(modifier, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
+                DailyTemperatures(modifier, viewModel.dailyTemps)
+                RainfallStatus(modifier, sky)
+                CustomScreen(modifier)
+            }
+        }
 
         // A dialog to select locating method.
         if (viewModel.toShowLocatingDialog.value) {
@@ -218,36 +212,24 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun CustomScreen() {
-        Box(
-            modifier = Modifier
-                .padding(20.dp)
-                .fillMaxSize()
-                .background(color = MaterialTheme.colors.secondary)
-        ) {
-            Text(
-                text = "광고",
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
-    }
-
-    @Composable
-    private fun InformationScreen(
-        modifier: Modifier,
-        padding: PaddingValues,
-        forecastLocation: ForecastLocation?,
+    private fun CustomScreen(
+        modifier: Modifier
     ) {
-        val sky: Sky? by viewModel.rainfallStatus.collectAsState()
-
         Column(
-            modifier = modifier.padding(padding),
+            modifier = modifier,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            LocationInformation(modifier, viewModel.cityName, viewModel.districtName, forecastLocation)
-            CurrentTemperature(modifier, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
-            DailyTemperatures(modifier, viewModel.dailyTemps)
-            RainfallStatus(modifier, sky)
+            val gapFromContent = 30.dp
+            Spacer(modifier = modifier.height(gapFromContent))
+            Box(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .height(300.dp)
+                    .background(MaterialTheme.colors.secondary),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                Text(text = "광고")
+            }
         }
     }
 
@@ -256,12 +238,12 @@ class MainActivity : ComponentActivity() {
         modifier: Modifier,
         onClickChangeLocation: () -> Unit,
     ) {
-        val topBarElevation = 0.dp
+        val topAppBarElevation = 0.dp
         val iconSize = 29.dp
 
         TopAppBar(
             backgroundColor = Color.Transparent,
-            elevation = topBarElevation,
+            elevation = topAppBarElevation,
             modifier = modifier,
         ) {
             Row(
@@ -309,7 +291,6 @@ class MainActivity : ComponentActivity() {
                         onDismissRequest = { expanded.value = false }
                     )
                 }
-
             }
         }
     }
@@ -523,18 +504,22 @@ class MainActivity : ComponentActivity() {
             Cool000
         }
 
-        LazyRow(
-            modifier = modifier.offset(y = verticalOffset),
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .offset(y = verticalOffset),
             horizontalArrangement = Arrangement.SpaceAround
         ) {
-            itemsIndexed(dailyTemps) {index, dailyTemp ->
+            for (i in dailyTemps.indices) {
+                val dailyTemp = dailyTemps[i]
+
                 // Values for today
                 val todayMark: String
                 val fontWeight: FontWeight
                 val highTempColor: Color
                 val lowTempColor: Color
 
-                if (index == 0) {
+                if (i == 0) {
                     highTempColor = MaterialTheme.colors.onBackground
                     lowTempColor = MaterialTheme.colors.onBackground
                 } else {
@@ -606,14 +591,16 @@ class MainActivity : ComponentActivity() {
             modifier = modifier,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // Title
             Text(
                 text = stringResource(R.string.rainfall_title),
                 style = Typography.h6,
-                modifier = Modifier.padding(bottom = titleBottomPadding)
+                modifier = modifier.padding(bottom = titleBottomPadding)
             )
+
+            // The icon and the description
             Row(
                 modifier = modifier.height(rowHeight),
-                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // The id of the visual icon
@@ -991,10 +978,10 @@ class MainActivity : ComponentActivity() {
     fun StackedPreview() {
         val stringForNull = stringResource(id = R.string.null_value)
         BetterThanYesterdayTheme {
-            val modifier = Modifier.fillMaxWidth()
+            val modifier = Modifier
             Surface {
                 Column(
-                    modifier = modifier,
+                    modifier = modifier.verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     )
                 {
@@ -1004,13 +991,11 @@ class MainActivity : ComponentActivity() {
                         districtName = "종로구",
                         forecastLocation = ForecastLocation.SouthJl,
                     )
-
                     CurrentTemperature(
                         modifier = modifier,
                         hourlyTempDiff = 3,
                         currentTemp = 23.6f
                     )
-
                     DailyTemperatures(
                         modifier = modifier,
                         dailyTemps = listOf(
@@ -1037,7 +1022,7 @@ class MainActivity : ComponentActivity() {
                         modifier = modifier,
                         sky = Rainy(300, 1200)
                     )
-                    CustomScreen()
+                    CustomScreen(modifier = modifier)
                 }
             }
         }
