@@ -15,10 +15,10 @@
     <string name="hour_pm">오후 %1$d</string>
     <string name="hour_present">(현재)</string>
     <string name="hour_stops_soon">(곧 그침)</string>
-    <string name="today_sunny">비 소식이 없습니다.</string>
-    <string name="today_rainy">비 예보가 있습니다.</string>
-    <string name="today_snowy">눈 예보가 있습니다.</string>
-    <string name="today_mixed">눈, 비 예보가 있습니다.</string>
+    <string name="today_sunny">오늘은 비 소식이 없습니다.</string>
+    <string name="today_rainy">오늘 비 예보가 있습니다.</string>
+    <string name="today_snowy">오늘 눈 예보가 있습니다.</string>
+    <string name="today_mixed">오늘 눈, 비 예보가 있습니다.</string>
     <string name="rainfall_title">강우 예보</string>
     <string name="location_title_current">현재 위치</string>
     <string name="location_manually">(수동 설정)</string>
@@ -56,4 +56,5 @@
     <string name="daily_highest">최고</string>
     <string name="daily_lowest">최저</string>
     <string name="desc_splash_screen">로딩 화면</string>
+    <string name="refresh_up_to_date">날씨 정보가 최신 상태입니다.</string>
 </resources>

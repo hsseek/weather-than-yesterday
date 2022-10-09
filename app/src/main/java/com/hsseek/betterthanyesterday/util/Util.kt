@@ -34,7 +34,7 @@ data class KmaTime(val date: String, val hour: String){
 }
 
 
-private fun Calendar.hour(): Int = this.get(Calendar.HOUR_OF_DAY)
+fun Calendar.hour(): Int = this.get(Calendar.HOUR_OF_DAY)
 private fun Calendar.minute(): Int = this.get(Calendar.MINUTE)
 
 fun getCurrentKoreanDateTime(): Calendar {

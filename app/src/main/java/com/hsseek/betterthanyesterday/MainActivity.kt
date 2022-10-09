@@ -167,7 +167,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refresh() {
-        // TODO: Toast "The new data will be released in 23 minutes." AND Text of "Last checked at 2022-10-03 12:34"
+        viewModel.onRefreshClicked(getCurrentKoreanDateTime())
         // TODO: Swipe to refresh(https://stackoverflow.com/questions/67204979/there-is-something-similar-like-swiperefreshlayout-to-pull-to-refresh-in-the-laz)
     }
 
@@ -198,6 +198,7 @@ class MainActivity : ComponentActivity() {
                     modifier = modifier
                 ) {
                     InformationScreen(modifier, padding, forecastLocation)
+                    Spacer(modifier = modifier.height(10.dp))
                     CustomScreen()
                 }
             },
@@ -268,18 +269,6 @@ class MainActivity : ComponentActivity() {
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Edit location button
-                IconButton(
-                    onClick = { onClickChangeLocation() },
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_edit_location),
-                        contentDescription = stringResource(R.string.desc_edit_location),
-                        tint = MaterialTheme.colors.onSurface,
-                        modifier = Modifier.size(iconSize),
-                    )
-                }
-
                 // Refresh button
                 IconButton(
                     onClick = { refresh() },
@@ -287,6 +276,18 @@ class MainActivity : ComponentActivity() {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = stringResource(R.string.desc_refresh),
+                        tint = MaterialTheme.colors.onSurface,
+                        modifier = Modifier.size(iconSize),
+                    )
+                }
+
+                // Edit location button
+                IconButton(
+                    onClick = { onClickChangeLocation() },
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_edit_location),
+                        contentDescription = stringResource(R.string.desc_edit_location),
                         tint = MaterialTheme.colors.onSurface,
                         modifier = Modifier.size(iconSize),
                     )
@@ -342,7 +343,6 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun LandingScreen(
         modifier: Modifier,
-        viewModel: WeatherViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     ) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             // TODO: Loading screen which shows concatenating of emojis.
@@ -353,7 +353,6 @@ class MainActivity : ComponentActivity() {
             // TODO: Show the splash image about 2 sec at most. After that, dispose the landing screen anyway and compose the main screen with "refreshing"
             LaunchedEffect(true) {
                 logCoroutineContext("Launched effect")
-                viewModel.requestIfNewAvailable()
             }
         }
     }
@@ -442,14 +441,11 @@ class MainActivity : ComponentActivity() {
 
             // A description
             if (currentTemp != null) {
-                Text(
-                    text = stringResource(R.string.current_temp_value, currentTemp.roundToInt()),
-                )
+                Text(text = stringResource(R.string.current_temp_value, currentTemp.roundToInt()))
+            } else {
+                Text(text = "")
             }
-
-            Text(
-                text = description
-            )
+            Text(text = description)
 
             // The temperature difference(HUGE)
             Row(
@@ -604,6 +600,7 @@ class MainActivity : ComponentActivity() {
     ) {
         val titleBottomPadding = 2.dp
         val imageSpacerSize = 6.dp
+        val rowHeight = 56.dp
 
         Column(
             modifier = modifier,
@@ -615,9 +612,9 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.padding(bottom = titleBottomPadding)
             )
             Row(
-                modifier = modifier,
+                modifier = modifier.height(rowHeight),
                 horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 // The id of the visual icon
                 val imageId: Int = if (isSystemInDarkTheme()) {
@@ -670,7 +667,7 @@ class MainActivity : ComponentActivity() {
                 }
                 Image(
                     painter = painterResource(id = imageId),
-                    contentDescription = stringResource(R.string.desc_rainfall_status)
+                    contentDescription = stringResource(R.string.desc_rainfall_status),
                 )
                 Spacer(modifier = Modifier.size(imageSpacerSize))
                 Column {
@@ -992,6 +989,7 @@ class MainActivity : ComponentActivity() {
     @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 320, heightDp = 640)
     @Composable
     fun StackedPreview() {
+        val stringForNull = stringResource(id = R.string.null_value)
         BetterThanYesterdayTheme {
             val modifier = Modifier.fillMaxWidth()
             Surface {
@@ -1015,7 +1013,25 @@ class MainActivity : ComponentActivity() {
 
                     DailyTemperatures(
                         modifier = modifier,
-                        dailyTemps = viewModel.dailyTemps
+                        dailyTemps = listOf(
+                            DailyTemperature(
+                                false, "",
+                                stringResource(id = R.string.daily_highest),
+                                stringResource(id = R.string.daily_lowest)
+                            ),
+                            DailyTemperature(
+                                false, "Tue", "12", stringForNull
+                            ),
+                            DailyTemperature(
+                                true, "Wed", "23", "-10"
+                            ),
+                            DailyTemperature(
+                                false, "Thu", stringForNull, "8"
+                            ),
+                            DailyTemperature(
+                                false, "Fri", "10", "-6"
+                            )
+                        )
                     )
                     RainfallStatus(
                         modifier = modifier,

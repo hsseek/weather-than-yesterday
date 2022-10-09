@@ -42,14 +42,14 @@ class WeatherViewModel(
     private val userPreferencesRepository: UserPreferencesRepository,
 ) : AndroidViewModel(application) {
     private val context = application
+    private val stringForNull = context.getString(R.string.null_value)
 
     private val retrofitDispatcher = Dispatchers.IO
     private val defaultDispatcher = Dispatchers.Default
     private var kmaJob: Job? = null
+    private var isDataInvalid: Boolean = false
 
-    private var lastHourBaseTime: KmaTime = getKmaBaseTime(roundOff = HOUR)
-    private var lastVillageBaseTime: KmaTime = getKmaBaseTime(roundOff = VILLAGE)
-    private var lastNoonBaseTime: KmaTime = getKmaBaseTime(roundOff = NOON)
+    private var lastHourBaseTime: KmaTime = getKmaBaseTime(roundOff = HOUR, isQuickPublish = false)
 
     private var baseCoordinatesXy = CoordinatesXy(60, 127)
 
@@ -61,9 +61,9 @@ class WeatherViewModel(
     var forecastLocation: ForecastLocation? = null
         private set
 
-    private val _forecastCityName: MutableState<String?> = mutableStateOf(null)
+    private val _cityName: MutableState<String?> = mutableStateOf(null)
     val cityName: String?
-        get() = _forecastCityName.value
+        get() = _cityName.value
 
     private val _districtName: MutableState<String?> = mutableStateOf(null)
     val districtName: String?
@@ -73,7 +73,11 @@ class WeatherViewModel(
     private val temperatureCount: Int = enumValues<DayOfInterest>().size
     private val lowestTemps: Array<Int?> = arrayOfNulls(temperatureCount)
     private val highestTemps: Array<Int?> = arrayOfNulls(temperatureCount)
-    private val _dailyTemps: MutableState<List<DailyTemperature>> = mutableStateOf(emptyList())
+    private val dailyTempHeader = DailyTemperature(false, "",
+        context.getString(R.string.daily_highest),
+        context.getString(R.string.daily_lowest)
+    )
+    private val _dailyTemps: MutableState<List<DailyTemperature>> = mutableStateOf(getDefaultDailyTemps())
     val dailyTemps: List<DailyTemperature>
         get() = _dailyTemps.value
 
@@ -82,8 +86,9 @@ class WeatherViewModel(
     val hourlyTempDiff: Int?
         get() = _hourlyTempDiff.value
 
-    var hourlyTempToday: Float? = null
-        private set
+    private val _hourlyTempToday: MutableState<Float?> = mutableStateOf(null)
+    val hourlyTempToday: Float?
+        get() = _hourlyTempToday.value
     private var hourlyTempYesterday: Float? = null
 
     private val _rainfallStatus: MutableStateFlow<Sky?> = MutableStateFlow(null)
@@ -146,33 +151,15 @@ class WeatherViewModel(
         updateLocationAndWeather(lm.coordinates!!, cityName)
     }
 
-    fun requestIfNewAvailable(time: Calendar = getCurrentKoreanDateTime()) {
-        val currentHourBaseTime = getKmaBaseTime(time = time, roundOff = HOUR)
-        val currentVillageBaseTime = getKmaBaseTime(time = time, roundOff = VILLAGE)
-        val currentNoonBaseTime = getKmaBaseTime(time = time, roundOff = NOON)
-
-        if (currentNoonBaseTime.isLaterThan(lastNoonBaseTime)) {
-            Log.d(TAG, "New data available:\nT_H,L\t\t[V]\nD0 PTY\t\t[V]\nD-1 T1H\t[V]")
-            lastHourBaseTime = currentHourBaseTime
-            lastVillageBaseTime = currentVillageBaseTime
-            lastNoonBaseTime = currentNoonBaseTime
-            requestAllWeatherData()
-        } else if (currentVillageBaseTime.isLaterThan(lastVillageBaseTime)) {
-            Log.d(TAG, "New data available:\nT_H,L\t\t[-]\nD0 PTY\t\t[V]\nD-1 T1H\t[V]")
-            lastHourBaseTime = currentHourBaseTime
-            lastVillageBaseTime = currentVillageBaseTime
-            requestAllWeatherData(isHourly = true)
-            // requestVillageData() not needed as the function would be included in requestHourlyData()
-        } else if (currentHourBaseTime.isLaterThan(lastHourBaseTime)) {
-            Log.d(TAG, "New data available:\nT_H,L\t\t[-]\nD0 PTY\t\t[-]\nD-1 T1H\t[V]")
-            lastHourBaseTime = currentHourBaseTime
-            requestAllWeatherData(isHourly = true)
-        } else {
-            Log.d(TAG, "No new data available:\nT_H,L\t\t[-]\nD0 PTY\t\t[-]\nD-1 T1H\t[-]")
-        }
+    private fun nullifyWeatherInfo() {
+        _hourlyTempToday.value = null
+        _hourlyTempDiff.value = null
+        _dailyTemps.value = getDefaultDailyTemps()
+        _rainfallStatus.value = null
     }
 
-    private fun requestAllWeatherData(isHourly: Boolean = false) {
+    private fun requestAllWeatherData() {
+        nullifyWeatherInfo()
         viewModelScope.launch {
             logCoroutineContext(
                 "viewModelScope.launch(default) { ... }"
@@ -180,12 +167,13 @@ class WeatherViewModel(
             kmaJob?.cancel()
             kmaJob?.join()
 
+            isDataInvalid = false
             kmaJob = launch(defaultDispatcher) {
                 logCoroutineContext(
                     "viewModelScope.launch(default) {\n" +
                             "\tlaunch{...}}"
                 )
-                if (!isHourly) launch { requestCharacteristicTemp() }
+                launch { requestCharacteristicTemp() }
                 launch { requestWeatherToday() }
                 launch { requestTempYesterday() }
             }
@@ -202,9 +190,7 @@ class WeatherViewModel(
             }
 
             val dailyTempsBuilder: ArrayList<DailyTemperature> = arrayListOf()
-            dailyTempsBuilder.add(DailyTemperature(false, "",
-                context.getString(R.string.daily_highest), context.getString(R.string.daily_lowest)
-            ))
+            dailyTempsBuilder.add(dailyTempHeader)
             for (i in highestTemps.indices) {
                 val isToday = i == 1
 
@@ -213,12 +199,12 @@ class WeatherViewModel(
                 val highest = if (highestTemps[i] != null) {
                     "${highestTemps[i].toString()}\u00B0"
                 } else {
-                    context.getString(R.string.null_value)
+                    stringForNull
                 }
                 val lowest = if (lowestTemps[i] != null) {
                     "${lowestTemps[i].toString()}\u00B0"
                 } else {
-                    context.getString(R.string.null_value)
+                    stringForNull
                 }
 
                 dailyTempsBuilder.add(DailyTemperature(isToday, day ?: "", highest, lowest))
@@ -294,8 +280,10 @@ class WeatherViewModel(
 
         } catch (e: CancellationException) {
             Log.i(TAG, "Retrieving ${type.descriptor} of D${date.dayOffset} job cancelled.")
+            isDataInvalid = true
         } catch (e: Exception) {
             Log.e(TAG, "Error retrieving ${type.descriptor} of D${date.dayOffset}", e)
+            isDataInvalid = true
         }
     }
 
@@ -429,8 +417,10 @@ class WeatherViewModel(
             }
         } catch (e: CancellationException) {
             Log.i(TAG, "Retrieving D0 forecast job cancelled.")
+            isDataInvalid = true
         } catch (e: Exception) {
             Log.e(TAG, "Error retrieving D0 forecast.", e)
+            isDataInvalid = true
         }
     }
 
@@ -467,9 +457,11 @@ class WeatherViewModel(
                     }
                 }  catch (e: CancellationException) {
                     Log.i(TAG, "Retrieving D${date.dayOffset} short-term forecast job cancelled.")
+                    isDataInvalid = true
                     return@async null
                 } catch (e: Exception) {
                     Log.e(TAG, "Error retrieving D${date.dayOffset} short-term forecast.", e)
+                    isDataInvalid = true
                     return@async null
                 }
             }
@@ -491,7 +483,7 @@ class WeatherViewModel(
                     Log.d(TAG, "T1H\tof D${date.dayOffset}\t: $tem")
 
                     if (date == DayOfInterest.Today) {
-                        hourlyTempToday = tem.toFloat()
+                        _hourlyTempToday.value = tem.toFloat()
                     } else if (date == DayOfInterest.Yesterday) {
                         hourlyTempYesterday = tem.toFloat()
                     }
@@ -500,8 +492,10 @@ class WeatherViewModel(
             }
         }catch (e: CancellationException) {
             Log.i(TAG, "Retrieving T1H of D${date.dayOffset} job cancelled.")
+            isDataInvalid = true
         } catch (e: Exception) {
             Log.e(TAG, "Error retrieving T1H of D${date.dayOffset}.", e)
+            isDataInvalid = true
         }
     }
 
@@ -607,8 +601,10 @@ class WeatherViewModel(
             Log.d(TAG, "PTY: ${_rainfallStatus.value!!::class.simpleName}\t(${hours.minOrNull()} ~ ${hours.maxOrNull()})")
         } catch (e: CancellationException) {
             Log.i(TAG, "Retrieving the short-term PTY job cancelled.")
+            isDataInvalid = true
         } catch (e: Exception) {
             Log.e(TAG, "Error retrieving the short-term PTY.", e)
+            isDataInvalid = true
         }
     }
 
@@ -622,8 +618,10 @@ class WeatherViewModel(
             }
         } catch (e: CancellationException) {
             Log.i(TAG, "Retrieving the yesterday's T1H.")
+            isDataInvalid = true
         } catch (e: Exception) {
             Log.e(TAG, "Error retrieving the yesterday's T1H.", e)
+            isDataInvalid = true
         }
     }
 
@@ -645,12 +643,12 @@ class WeatherViewModel(
     }
 
     /**
-     * Update [_forecastCityName] and [baseCoordinatesXy], then request new weather data based on [baseCoordinatesXy].
+     * Update [_cityName] and [baseCoordinatesXy], then request new weather data based on [baseCoordinatesXy].
      * */
     private fun updateLocationAndWeather(coordinates: CoordinatesXy, locatedCityName: String) {
-        if (locatedCityName != _forecastCityName.value) {  // i.e. A new base location
+        if (locatedCityName != _cityName.value) {  // i.e. A new base location
             Log.d(LOCATION_TAG, "A new city\t: $locatedCityName")
-            _forecastCityName.value = locatedCityName
+            _cityName.value = locatedCityName
 
             // Request new data for the location.
             baseCoordinatesXy = coordinates
@@ -686,6 +684,34 @@ class WeatherViewModel(
                 updateLocationAndWeather(CoordinatesLatLon(it.latitude, it.longitude))
             }
         }
+    }
+
+    fun onRefreshClicked(time: Calendar) {
+        val kmaTime = getKmaBaseTime(
+            time = time,
+            roundOff = HOUR,
+            isQuickPublish = false
+        )
+        if (kmaTime.isLaterThan(lastHourBaseTime) || isDataInvalid) {
+            requestAllWeatherData()
+        } else {
+            // TODO: Brief ( < 1) loading for better UX.
+            _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
+//            requestAllWeatherData()  // test
+        }
+    }
+
+    private fun getDefaultDailyTemps(): List<DailyTemperature> {
+        val dailyTempPlaceholder = DailyTemperature(
+            false, stringForNull, stringForNull, stringForNull
+        )
+
+        val builder: ArrayList<DailyTemperature> = arrayListOf(dailyTempHeader)
+        for (i in 0 until temperatureCount) {
+            builder.add(dailyTempPlaceholder)
+        }
+
+        return builder.toList()
     }
 
     companion object {

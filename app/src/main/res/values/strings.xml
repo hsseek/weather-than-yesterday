@@ -4,9 +4,9 @@
     <string name="dialog_message_location_permission">The permission is required to get the weather conditions of the current location.\n(Otherwise, you can deny the request and set a location manually).</string>
     <string name="desc_splash_screen">Splash screen</string>
     <string name="current_temp_title">Temperature status</string>
-    <string name="current_temp_higher">Which is higher than yesterday by</string>
-    <string name="current_temp_lower">Which is lower than yesterday by</string>
-    <string name="current_temp_same">Which is the same as yesterday.</string>
+    <string name="current_temp_higher">It\'s higher than yesterday by</string>
+    <string name="current_temp_lower">It\'s lower than yesterday by</string>
+    <string name="current_temp_same">It\'s the same as yesterday.</string>
     <string name="daily_today">(Today)</string>
     <string name="null_value" translatable="false">\-</string>
     <string name="desc_rainfall_status">Rainfall status icon</string>
@@ -58,4 +58,5 @@
     <string name="daily_highest">Highest</string>
     <string name="daily_lowest">Lowest</string>
     <string name="current_temp_value">Currently: %1$d\u2103</string>
+    <string name="refresh_up_to_date">Weather information is up-to-date.</string>
 </resources>
