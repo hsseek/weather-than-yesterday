@@ -1,14 +1,14 @@
 package com.hsseek.betterthanyesterday
 
+import com.hsseek.betterthanyesterday.dummy.DUMMY_LONG_TERM_FORECAST_RAINY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_LONG_TERM_FORECAST_SUNNY
+import com.hsseek.betterthanyesterday.dummy.DUMMY_SHORT_TERM_FORECAST_RAINY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_SHORT_TERM_FORECAST_SNOWY
 import com.hsseek.betterthanyesterday.location.*
+import com.hsseek.betterthanyesterday.network.ForecastResponse
+import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.*
-import com.hsseek.betterthanyesterday.util.getCityName
-import com.hsseek.betterthanyesterday.util.getDistrictName
-import com.hsseek.betterthanyesterday.util.getKmaBaseTime
 import com.hsseek.betterthanyesterday.viewmodel.*
-import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Test
 
 import org.junit.Assert.*
@@ -36,7 +36,7 @@ class UnitTest {
     fun village_time_correct() {
         val cal = Calendar.getInstance()
         cal.set(2022, 8, 16, 2, 5)
-        val time = getKmaBaseTime(time = cal, roundOff = VILLAGE)
+        val time = getKmaBaseTime(cal = cal, roundOff = VILLAGE)
         assertEquals("20220915", time.date)
         assertEquals("2300", time.hour)
     }
@@ -45,7 +45,7 @@ class UnitTest {
     fun noon_time_correct() {
         val cal = Calendar.getInstance()
         cal.set(2022, 8, 16, 23, 11)
-        val time = getKmaBaseTime(time = cal, roundOff = NOON)
+        val time = getKmaBaseTime(cal = cal, roundOff = NOON)
         assertEquals("20220916", time.date)
         assertEquals("2300", time.hour)
     }
@@ -56,9 +56,8 @@ class UnitTest {
         cal.set(2022, 8, 16, 5, 11)
 
         val longTermBaseTime = getKmaBaseTime(
-            time = cal,
+            cal = cal,
             roundOff = VILLAGE,
-            isQuickPublish = true,
         )
         val numOfHours: Int = if (longTermBaseTime.hour == "2300") {
             24  // 23:00 of the previous day: whole day's data should be examined.
@@ -72,61 +71,59 @@ class UnitTest {
 
     @Test
     fun is_raining() {
-        val primaryItems = DUMMY_SHORT_TERM_FORECAST_SNOWY
-        val secondaryItems = DUMMY_LONG_TERM_FORECAST_SUNNY
-        val _rainfallStatus: MutableStateFlow<Sky> = MutableStateFlow(Sky.Good)
-
         val RAIN_TAG = "PTY"
+        val todayHourlyData = DUMMY_SHORT_TERM_FORECAST_SNOWY
+        val futureData = DUMMY_LONG_TERM_FORECAST_RAINY
 
+        val today = 20220914
+        val primaryCoveredHourMax: Int? = todayHourlyData.maxOfOrNull { it.fcstTime }
+
+        // Remove duplicate data according to the priority (More recent data is preferred.)
+        val hourlyRainfallData = todayHourlyData.filter { it.category == RAIN_TAG }
+        val futureTodayRainfallData: List<ForecastResponse.Item> = futureData.filter {
+            (it.category == RAIN_TAG) and (it.fcstDate == today) and (it.fcstTime > (primaryCoveredHourMax ?: 0))
+        }
+        val rainfallData: List<ForecastResponse.Item> = hourlyRainfallData + futureTodayRainfallData
+
+        // Process the organized data.
         val rainingHours = arrayListOf<Int>()
         val snowingHours = arrayListOf<Int>()
-        try {
-            val primaryRainfallData = primaryItems.filter { it.category == RAIN_TAG }
-
-            // Data from primary items are the source of truth. Discard data of secondary items for hours before.
-            val primaryCoveredHourMax = primaryRainfallData.maxOf { it.fcstTime }
-            val secondaryRainfallData = secondaryItems.filter {
-                (it.category == RAIN_TAG) and (it.fcstTime > primaryCoveredHourMax)
+        for (i in rainfallData) {
+            val status = i.fcstValue.toInt()  // Must be integers of 0 through 7
+            if (
+                status == RainfallType.Raining.code ||
+                status == RainfallType.Mixed.code ||
+                status == RainfallType.Shower.code
+            ) {
+                rainingHours.add(i.fcstTime)
+            } else if (
+                status == RainfallType.Snowing.code
+            ) {
+                snowingHours.add(i.fcstTime)
             }
-
-            for (i in primaryRainfallData + secondaryRainfallData) {
-                val status = i.fcstValue.toInt()  // Must be integers of 0 through 7
-                if (
-                    status == RainfallType.Raining.code ||
-                    status == RainfallType.Mixed.code ||
-                    status == RainfallType.Shower.code
-                ) {
-                    rainingHours.add(i.fcstTime)
-                } else if (
-                    status == RainfallType.Snowing.code
-                ) {
-                    snowingHours.add(i.fcstTime)
-                }
-            }
-
-            // Finally, update the variable.
-            _rainfallStatus.let {
-                val hours = rainingHours + snowingHours
-                if (rainingHours.size == 0) {
-                    if (snowingHours.size == 0) {
-                        // No raining, no snowing
-                        it.value = Sky.Good
-                    } else {
-                        // No raining, but snowing
-                        it.value = Sky.Bad.Snowy(snowingHours.min(), snowingHours.max())
-                    }
-                } else {  // Raining
-                    if (snowingHours.size == 0) {
-                        it.value = Sky.Bad.Rainy(rainingHours.min(), rainingHours.max())
-                    } else {  // Raining + Snowing
-                        it.value = Sky.Bad.Mixed(hours.min(), hours.max())
-                    }
-                }
-                println("PTY: ${it.value::class.simpleName}\t(${hours.min()} ~ ${hours.max()})")
-            }
-        } catch (e: Exception) {
-            println("$e: Cannot retrieve the short-term rainfall status(PTY).")
         }
+
+        val _rainfallStatus: Sky
+
+        // Finally, update the variable.
+        val hours = rainingHours + snowingHours
+        if (rainingHours.size == 0) {
+            if (snowingHours.size == 0) {
+                // No raining, no snowing
+                _rainfallStatus = Sky.Good
+            } else {
+                // No raining, but snowing
+                _rainfallStatus = Sky.Bad.Snowy(snowingHours.min(), snowingHours.max())
+            }
+        } else {  // Raining
+            if (snowingHours.size == 0) {
+                _rainfallStatus = Sky.Bad.Rainy(rainingHours.min(), rainingHours.max())
+            } else {  // Raining + Snowing
+                _rainfallStatus = Sky.Bad.Mixed(hours.min(), hours.max())
+            }
+        }
+
+        println("PTY: ${_rainfallStatus::class.simpleName}\t(${hours.minOrNull()} ~ ${hours.maxOrNull()})")
     }
 
     @Test

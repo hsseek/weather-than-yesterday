@@ -49,7 +49,6 @@ import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModelFactory
 import kotlinx.coroutines.launch
 import java.util.*
-import kotlin.math.roundToInt
 
 private const val TAG = "MainActivity"
 private const val USER_PREFERENCES_NAME = "bty_user_preferences"
@@ -93,6 +92,7 @@ class MainActivity : ComponentActivity() {
                 val modifier = Modifier
 
                 Surface(color = MaterialTheme.colors.background) {
+                    // TODO: Different Composable for landscape orientation.
                     MainScreen(modifier = modifier)
                 }
             }
@@ -188,7 +188,7 @@ class MainActivity : ComponentActivity() {
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                val sky: Sky? by viewModel.rainfallStatus.collectAsState()
+                val sky: Sky by viewModel.rainfallStatus.collectAsState()
 
                 LocationInformation(modifier, viewModel.cityName, viewModel.districtName, forecastLocation)
                 CurrentTemperature(modifier, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
@@ -389,7 +389,7 @@ class MainActivity : ComponentActivity() {
     fun CurrentTemperature(
         modifier: Modifier,
         hourlyTempDiff: Int?,
-        currentTemp: Float?,
+        currentTemp: Int?,
     ) {
         val tempDiffVerticalOffset = (-20).dp
         val columnTopPadding = 16.dp
@@ -422,7 +422,7 @@ class MainActivity : ComponentActivity() {
 
             // A description
             if (currentTemp != null) {
-                Text(text = stringResource(R.string.current_temp_value, currentTemp.roundToInt()))
+                Text(text = stringResource(R.string.current_temp_value, currentTemp))
             } else {
                 Text(text = "")
             }
@@ -581,7 +581,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun RainfallStatus(
         modifier: Modifier,
-        sky: Sky?,
+        sky: Sky,
     ) {
         val titleBottomPadding = 2.dp
         val imageSpacerSize = 6.dp
@@ -692,11 +692,15 @@ class MainActivity : ComponentActivity() {
             buttons = {
                 val selected = rememberSaveable { mutableStateOf(selectedForecastLocation) }
 
+                // TODO: Make it scrollable.
+                // RadioGroups
                 RegionsRadioGroup(
                     padding = bodyPadding,
                     selected = selected.value,
                     onSelect = { selected.value = it },
                 )
+
+                // The Cancel and Ok buttons
                 Row(
                     horizontalArrangement = Arrangement.End,
                     modifier = Modifier.fillMaxWidth()
@@ -802,9 +806,8 @@ class MainActivity : ComponentActivity() {
 
         // The next forecast baseTime
         val closestHour = getKmaBaseTime(
-            time = time,
+            cal = time,
             roundOff = KmaHourRoundOff.HOUR,
-            isQuickPublish = false
         )
         return if (hour == closestHour.hour.toInt()) {
             stringResource(R.string.hour_present)  // The next forecast hour says it's going to be raining.
@@ -859,7 +862,7 @@ class MainActivity : ComponentActivity() {
                 CurrentTemperature(
                     modifier = Modifier.fillMaxWidth(),
                     hourlyTempDiff = -9,
-                    currentTemp = 23.3f
+                    currentTemp = 23
                 )
             }
         }
@@ -874,7 +877,7 @@ class MainActivity : ComponentActivity() {
                 CurrentTemperature(
                     modifier = Modifier.fillMaxWidth(),
                     hourlyTempDiff = 9,
-                    currentTemp = 32.6f,
+                    currentTemp = 32
                 )
             }
         }
@@ -889,7 +892,7 @@ class MainActivity : ComponentActivity() {
                 CurrentTemperature(
                     modifier = Modifier.fillMaxWidth(),
                     hourlyTempDiff = 0,
-                    currentTemp = -9.1f,
+                    currentTemp = -9
                 )
             }
         }
@@ -994,7 +997,7 @@ class MainActivity : ComponentActivity() {
                     CurrentTemperature(
                         modifier = modifier,
                         hourlyTempDiff = 3,
-                        currentTemp = 23.6f
+                        currentTemp = 24
                     )
                     DailyTemperatures(
                         modifier = modifier,

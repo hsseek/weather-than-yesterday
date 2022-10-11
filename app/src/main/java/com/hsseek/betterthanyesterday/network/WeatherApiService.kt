@@ -7,7 +7,7 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 private const val BASE_URL = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/"
-private const val DATA_TYPE = "JSON"
+private const val DATA_TYPE_JSON = "JSON"
 private val retrofit = Retrofit.Builder()
     .addConverterFactory(GsonConverterFactory.create())
     .baseUrl(BASE_URL)
@@ -30,8 +30,8 @@ interface WeatherApiService {
      * */
     @GET("getVilageFcst?serviceKey=$SERVICE_KEY")
     suspend fun getVillageWeather(
-        @Query("dataType") dataType: String = DATA_TYPE,
-        @Query("numOfRows") numOfRows: Int = 290,
+        @Query("dataType") dataType: String = DATA_TYPE_JSON,
+        @Query("numOfRows") numOfRows: Int,
         @Query("pageNo") pageNo: Int = 1,
         @Query("base_date") baseDate: String,
         @Query("base_time") baseTime: String,
@@ -53,7 +53,7 @@ interface WeatherApiService {
      * */
     @GET("getUltraSrtNcst?serviceKey=$SERVICE_KEY")
     suspend fun getObservedWeather(
-        @Query("dataType") dataType: String = DATA_TYPE,
+        @Query("dataType") dataType: String = DATA_TYPE_JSON,
         @Query("numOfRows") numOfRows: Int = 8,
         @Query("pageNo") pageNo: Int = 1,
         @Query("base_date") baseDate: String,
@@ -76,7 +76,7 @@ interface WeatherApiService {
      * */
     @GET("getUltraSrtFcst?serviceKey=$SERVICE_KEY")
     suspend fun getShortTermWeather(
-        @Query("dataType") dataType: String = DATA_TYPE,
+        @Query("dataType") dataType: String = DATA_TYPE_JSON,
         @Query("numOfRows") numOfRows: Int,
         @Query("pageNo") pageNo: Int = 1,
         @Query("base_date") baseDate: String,
