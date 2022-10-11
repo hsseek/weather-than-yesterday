@@ -12,6 +12,7 @@ private const val TIME_ZONE = "GMT+09:00"
 private const val DATE_FORMAT = "yyyyMMdd"
 private const val HOUR_FORMAT = "HH00"
 private const val TAG = "Util"
+const val LOCATING_METHOD_TAG = "LocatingMethod"
 const val VILLAGE_ROWS_PER_HOUR = 12
 const val VILLAGE_EXTRA_ROWS = 2
 
@@ -146,7 +147,7 @@ enum class KmaHourRoundOff {
     HOUR, VILLAGE, NOON
 }
 
-enum class ForecastLocation(val code: Int, val regionId: Int, val citiesId: Int, val coordinates: CoordinatesXy?) {
+enum class LocatingMethod(val code: Int, val regionId: Int, val citiesId: Int, val coordinates: CoordinatesXy?) {
     Auto(0, R.string.region_auto, R.string.cities_auto, null),
     Capital(1, R.string.region_captial, R.string.cities_captial, CoordinatesXy(60, 127)),
     Gangwon(2, R.string.region_gangwon, R.string.cities_gangwon, CoordinatesXy(73, 134)),

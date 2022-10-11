@@ -58,16 +58,16 @@ class WeatherViewModel(
     var toShowLocatingDialog = mutableStateOf(false)
         private set
     // The forecast location is an input from UI.
-    var forecastLocation: ForecastLocation? = null
+    var locatingMethod: LocatingMethod? = null
         private set
 
     // TODO: Default to ""
-    private val _cityName: MutableState<String?> = mutableStateOf(null)
-    val cityName: String?
+    private val _cityName: MutableState<String> = mutableStateOf(stringForNull)
+    val cityName: String
         get() = _cityName.value
 
-    private val _districtName: MutableState<String?> = mutableStateOf(null)
-    val districtName: String?
+    private val _districtName: MutableState<String> = mutableStateOf(stringForNull)
+    val districtName: String
         get() = _districtName.value
 
     // The highest/lowest temperatures of yesterday through the day after tomorrow
@@ -99,7 +99,7 @@ class WeatherViewModel(
     val toastMessage = _toastMessage.asStateFlow()
 
     /**
-     * Process the selection of ForecastLocation from the dialog.
+     * Process the selection of LocatingMethod from the dialog.
      *
      * auto?	permitted?	changed?
     V			V			V			update
@@ -111,24 +111,29 @@ class WeatherViewModel(
     -			V			V			update
     -			-			V			update
      * */
-    fun updateForecastLocation(
-        selectedForecastLocation: ForecastLocation,
+    fun updateLocatingMethod(
+        selectedLocatingMethod: LocatingMethod,
         isSelectionValid: Boolean = true
     ) {
-        if (selectedForecastLocation != forecastLocation) {  // Changed
+        // Store the selected LocatingMethod.
+        viewModelScope.launch {
+            userPreferencesRepository.updateLocatingMethod(selectedLocatingMethod)
+        }
+
+        if (selectedLocatingMethod != locatingMethod) {  // Changed
             /* auto?	permitted?	CHANGED?
             V			V			V			update
             V			-			V			request permission (INVALID SELECTION)
             -			V			V			update
             -			-			V			update
             * */
-            forecastLocation = selectedForecastLocation
+            locatingMethod = selectedLocatingMethod
 
             if (isSelectionValid) {
-                if (selectedForecastLocation == ForecastLocation.Auto) {
+                if (selectedLocatingMethod == LocatingMethod.Auto) {
                     startLocationUpdate()
-                } else {  // ForecastLocations for fixed locations
-                    updateFixedLocation(selectedForecastLocation)
+                } else {  // LocatingMethod for fixed locations
+                    updateFixedLocation(selectedLocatingMethod)
                 }
             }
         } else {  // Forecast location not changed
@@ -143,10 +148,10 @@ class WeatherViewModel(
     }
 
     /**
-     * Update location information determined by fixed ForecastLocations,
+     * Update location information determined by fixed LocatingMethod,
      * and triggers retrieving weather data eventually.
      * */
-    private fun updateFixedLocation(lm: ForecastLocation) {
+    private fun updateFixedLocation(lm: LocatingMethod) {
         val cityName = context.getString(lm.regionId)
         _districtName.value = context.getString(R.string.location_manually)
         updateLocationAndWeather(lm.coordinates!!, cityName)
@@ -176,7 +181,6 @@ class WeatherViewModel(
                 val yesterday: String = formatToKmaDate(cal)
                 val yesterdayHourlyBaseTime = getKmaBaseTime(cal = cal, roundOff = HOUR)
 
-                val briefDelayMilliSec: Long = (80..120).random().toLong()
                 val t1hPageNo = 5
                 val rowCountShort = 6
                 val rowCount3h = 37
@@ -216,7 +220,6 @@ class WeatherViewModel(
                         rowCount5h  // 3:00, ..., 7:00
                     }
                     todayLowTempResponse = async(retrofitDispatcher) {
-                        delay(briefDelayMilliSec)
                         WeatherApi.service.getVillageWeather(
                             baseDate = today,
                             baseTime = lowTempBaseTime,  // fsctTime starts from 03:00 AM
@@ -234,7 +237,6 @@ class WeatherViewModel(
                         rowCount5h  // 12:00, ..., 16:00
                     }
                     todayHighTempResponse = async(retrofitDispatcher) {
-                        delay(briefDelayMilliSec)
                         WeatherApi.service.getVillageWeather(
                             baseDate = today,
                             baseTime = highTempBaseTime,  // fsctTime starts from the noon
@@ -246,7 +248,6 @@ class WeatherViewModel(
                 }
 
                 val todayHourlyTempResponse = async(retrofitDispatcher) {
-                    delay(briefDelayMilliSec)
                     WeatherApi.service.getShortTermWeather(
                         baseDate = latestHourlyBaseTime.date,
                         baseTime = latestHourlyBaseTime.hour,  // 14:50 -> 13:00, 15:00 -> 14:00
@@ -287,7 +288,6 @@ class WeatherViewModel(
                 }
 
                 val yesterdayLowTempResponse = async(retrofitDispatcher) {
-                    delay(briefDelayMilliSec)
                     WeatherApi.service.getShortTermWeather(
                         baseDate = yesterday,
                         baseTime = lowTempBaseTime,  // fsctTime starts from 03:00 AM
@@ -299,7 +299,6 @@ class WeatherViewModel(
                 }
 
                 val yesterdayHighTempResponse = async(retrofitDispatcher) {
-                    delay(briefDelayMilliSec)
                     WeatherApi.service.getShortTermWeather(
                         baseDate = yesterday,
                         baseTime = highTempBaseTime,  // fsctTime starts from the noon
@@ -599,7 +598,7 @@ class WeatherViewModel(
      * */
     fun startLocationUpdate() {
         if (ActivityCompat.checkSelfPermission(
-                context, Manifest.permission.ACCESS_COARSE_LOCATION
+                context, Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
             locationClient.lastLocation.addOnSuccessListener {
@@ -635,7 +634,7 @@ class WeatherViewModel(
         val locatedCityName = getCityName(address)
         getDistrictName(address)?.let {
             _districtName.value = it
-            Log.d(TAG, "A new district: $it")
+            Log.d(LOCATION_TAG, "A new district: $it")
         }
 
         if (locatedCityName == null) {
@@ -651,6 +650,7 @@ class WeatherViewModel(
         override fun onLocationResult(locationResult: LocationResult) {
             super.onLocationResult(locationResult)
             locationResult.lastLocation?.let {
+                Log.d(LOCATION_TAG, "Lat: ${it.latitude}\nLon: ${it.longitude}")
                 updateLocationAndWeather(CoordinatesLatLon(it.latitude, it.longitude))
             }
         }
@@ -684,12 +684,6 @@ class WeatherViewModel(
         val currentLocationRequest: LocationRequest = LocationRequest.create().apply {
             interval = ONE_MINUTE
             fastestInterval = ONE_MINUTE / 4
-        }
-    }
-
-    fun storeForecastLocation(forecastLocation: ForecastLocation) {
-        viewModelScope.launch {
-            userPreferencesRepository.updateForecastLocation(forecastLocation)
         }
     }
 }

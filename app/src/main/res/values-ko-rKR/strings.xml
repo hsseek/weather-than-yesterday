@@ -15,7 +15,7 @@
     <string name="hour_pm">오후 %1$d</string>
     <string name="hour_present">(현재)</string>
     <string name="hour_stops_soon">(곧 그침)</string>
-    <string name="today_sunny">오늘은 비 소식이 없습니다.</string>
+    <string name="today_sunny">비 소식이 없습니다.</string>
     <string name="today_rainy">오늘 비 예보가 있습니다.</string>
     <string name="today_snowy">오늘 눈 예보가 있습니다.</string>
     <string name="today_mixed">오늘 눈, 비 예보가 있습니다.</string>

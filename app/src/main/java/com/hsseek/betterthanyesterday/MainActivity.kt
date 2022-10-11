@@ -47,6 +47,7 @@ import com.hsseek.betterthanyesterday.viewmodel.Sky.Bad.*
 import com.hsseek.betterthanyesterday.viewmodel.Sky.Good
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModelFactory
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.*
 
@@ -65,18 +66,12 @@ class MainActivity : ComponentActivity() {
             WeatherViewModelFactory(application, prefsRepo)
         )[WeatherViewModel::class.java]
 
-        lifecycleScope.launch {
-            // repeatOnLifecycle launches the block in a new coroutine every time the
-            // lifecycle is in the STARTED state (or above) and cancels it when it's STOPPED.
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                // Observe Preferences changes.
-                prefsRepo.forecastLocationFlow.collect { storedCode ->
-                    Log.d(TAG, "ForecastLocation from preferences: $storedCode")
-                    enumValues<ForecastLocation>().forEach { forecastLocation ->
-                        if (forecastLocation.code == storedCode) {
-                            onStoreForecastLocation(forecastLocation)
-                        }
-                    }
+        // Restore the stored locating method.
+        viewModel.viewModelScope.launch {
+            val storedCode = prefsRepo.locatingMethodFlow.first()
+            enumValues<LocatingMethod>().forEach { locatingMethod ->
+                if (locatingMethod.code == storedCode) {
+                    onSelectLocatingMethod(locatingMethod)
                 }
             }
         }
@@ -100,35 +95,31 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Called after a new [ForecastLocation] has been stored in [UserPreferencesRepository].
+     * Called after a new [LocatingMethod] has been stored in [UserPreferencesRepository].
      * */
-    private fun onStoreForecastLocation(selectedLocation: ForecastLocation) {
-        Log.d(TAG, "${selectedLocation.name} selected")
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED && selectedLocation == ForecastLocation.Auto) {
-            Log.w(TAG, "Permission required.")
-            if (ActivityCompat.shouldShowRequestPermissionRationale(
-                    this,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            ) {
+    private fun onSelectLocatingMethod(selectedLocation: LocatingMethod) {
+        Log.d(LOCATING_METHOD_TAG, "Selected LocatingMethod: ${selectedLocation.code}")
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+            && selectedLocation == LocatingMethod.Auto) {
+            Log.w(LOCATING_METHOD_TAG, "Permission required.")
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
                 // An explanation is required.
                 AlertDialog.Builder(this)
                     .setTitle(getString(R.string.dialog_title_location_permission))
                     .setMessage(getString(R.string.dialog_message_location_permission))
                     .setPositiveButton(getString(R.string.dialog_ok)) { _, _ ->
                         // Request the permission the explanation has been given.
-                        requestPermissionLauncher.launch((Manifest.permission.ACCESS_COARSE_LOCATION))
+                        requestPermissionLauncher.launch((Manifest.permission.ACCESS_FINE_LOCATION))
                     }.create().show()
             } else {
                 // No explanation needed, request the permission.
-                requestPermissionLauncher.launch((Manifest.permission.ACCESS_COARSE_LOCATION))
+                requestPermissionLauncher.launch((Manifest.permission.ACCESS_FINE_LOCATION))
             }
 
             // While the ViewModel's variable will be updated, the ViewModel won't take any action.
-            viewModel.updateForecastLocation(selectedLocation, false)
+            viewModel.updateLocatingMethod(selectedLocation, false)
         } else {
-            viewModel.updateForecastLocation(selectedLocation, true)
+            viewModel.updateLocatingMethod(selectedLocation, true)
         }
     }
 
@@ -174,8 +165,6 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun MainScreen(modifier: Modifier) {
-        val forecastLocation = viewModel.forecastLocation
-
         Scaffold(
             topBar = { WeatherTopAppBar(
                 modifier = modifier.fillMaxWidth(),
@@ -190,7 +179,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 val sky: Sky by viewModel.rainfallStatus.collectAsState()
 
-                LocationInformation(modifier, viewModel.cityName, viewModel.districtName, forecastLocation)
+                LocationInformation(modifier, viewModel.cityName, viewModel.districtName, viewModel.locatingMethod)
                 CurrentTemperature(modifier, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
                 DailyTemperatures(modifier, viewModel.dailyTemps)
                 RainfallStatus(modifier, sky)
@@ -201,11 +190,11 @@ class MainActivity : ComponentActivity() {
         // A dialog to select locating method.
         if (viewModel.toShowLocatingDialog.value) {
             LocationSelectDialog(
-                selectedForecastLocation = forecastLocation,
+                selectedLocatingMethod = viewModel.locatingMethod,
                 onClickNegative = { viewModel.toShowLocatingDialog.value = false },
                 onClickPositive = { selectedLocation ->
                     viewModel.toShowLocatingDialog.value = false  // Dismiss the dialog anyway.
-                    viewModel.storeForecastLocation(selectedLocation)
+                    onSelectLocatingMethod(selectedLocation)
                 }
             )
         }
@@ -339,15 +328,15 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * If [forecastLocation] is automatic, request data depending on the [locatedCityName].
-     * If [forecastLocation] is not automatic, [locatedCityName] does not matter.
+     * If [locatingMethod] is automatic, request data depending on the [cityName].
+     * If [locatingMethod] is not automatic, [cityName] does not matter.
      * */
     @Composable
     private fun LocationInformation(
         modifier: Modifier,
-        locatedCityName: String?,
-        districtName: String?,
-        forecastLocation: ForecastLocation?,
+        cityName: String,
+        districtName: String,
+        locatingMethod: LocatingMethod?,
     ) {
         val titleBottomPadding = 2.dp
         val longNameHorizontalPadding = 12.dp
@@ -365,23 +354,17 @@ class MainActivity : ComponentActivity() {
 
             // The name of the forecast location
             Text(
-                text = locatedCityName ?: stringResource(id = R.string.null_value),
+                text = cityName,
                 style = Typography.h3,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
 
-            // "Warn" the user if the location has been manually set.
-            val specificLocation = if (forecastLocation == ForecastLocation.Auto) {
-                districtName
-            } else {
-                stringResource(R.string.location_manually)
+            if (locatingMethod == LocatingMethod.Auto) {
+                Text(text = districtName, style = Typography.caption)
+            } else {  // "Warn" the user if the location has been manually set.
+                Text(text = stringResource(R.string.location_manually), style = Typography.caption)
             }
-
-            Text(
-                text = specificLocation ?: stringResource(id = R.string.null_value),
-                style = Typography.caption,
-            )
         }
     }
 
@@ -669,9 +652,9 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun LocationSelectDialog(
-        selectedForecastLocation: ForecastLocation?,
+        selectedLocatingMethod: LocatingMethod?,
         onClickNegative: () -> Unit,
-        onClickPositive: (ForecastLocation) -> Unit,
+        onClickPositive: (LocatingMethod) -> Unit,
     ) {
         val bodyPadding = 15.dp
         val titlePadding = 0.dp
@@ -690,7 +673,7 @@ class MainActivity : ComponentActivity() {
                 ) },
             backgroundColor = color,
             buttons = {
-                val selected = rememberSaveable { mutableStateOf(selectedForecastLocation) }
+                val selected = rememberSaveable { mutableStateOf(selectedLocatingMethod) }
 
                 // TODO: Make it scrollable.
                 // RadioGroups
@@ -709,11 +692,11 @@ class MainActivity : ComponentActivity() {
                         Text(text = stringResource(R.string.dialog_cancel))
                     }
                     TextButton(onClick = {
-                        val selectedLocation: ForecastLocation? = selected.value
+                        val selectedLocation: LocatingMethod? = selected.value
                         if (selectedLocation != null) {
                             onClickPositive(selectedLocation)
                         } else {
-                            Log.e(TAG, "The selected ForecastLocation is null.")
+                            Log.e(TAG, "The selected LocatingMethod is null.")
                         }
                     }) {
                         Text(text = stringResource(R.string.dialog_ok))
@@ -726,15 +709,15 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun RegionsRadioGroup(
         padding: Dp,
-        selected: ForecastLocation?,
-        onSelect: (ForecastLocation) -> Unit
+        selected: LocatingMethod?,
+        onSelect: (LocatingMethod) -> Unit
     ) {
         val radioTextStartPadding = 4.dp
 
         Column(
             modifier = Modifier.padding(padding)
         ) {
-            enumValues<ForecastLocation>().forEach { locating ->
+            enumValues<LocatingMethod>().forEach { locating ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable { onSelect(locating) }
@@ -829,9 +812,9 @@ class MainActivity : ComponentActivity() {
             Surface {
                 LocationInformation(
                     modifier = Modifier.fillMaxWidth(),
-                    locatedCityName = "서울",
+                    cityName = "서울",
                     districtName = "종로구",
-                    forecastLocation = ForecastLocation.Auto
+                    locatingMethod = LocatingMethod.Auto
                 )
             }
         }
@@ -845,9 +828,9 @@ class MainActivity : ComponentActivity() {
             Surface {
                 LocationInformation(
                     modifier = Modifier.fillMaxWidth(),
-                    locatedCityName = stringResource(id = R.string.region_south_jl),
+                    cityName = stringResource(id = R.string.region_south_jl),
                     districtName = "남구",
-                    forecastLocation = ForecastLocation.SouthJl
+                    locatingMethod = LocatingMethod.SouthJl
                 )
             }
         }
@@ -965,10 +948,10 @@ class MainActivity : ComponentActivity() {
 //    @Preview(showBackground = true)
 //    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
-    fun ForecastLocationDialogPreview() {
+    fun LocatingMethodDialogPreview() {
         BetterThanYesterdayTheme {
             LocationSelectDialog(
-                selectedForecastLocation = ForecastLocation.Capital,
+                selectedLocatingMethod = LocatingMethod.Capital,
                 onClickNegative = {},
                 onClickPositive = {}
             )
@@ -990,9 +973,9 @@ class MainActivity : ComponentActivity() {
                 {
                     LocationInformation(
                         modifier = modifier,
-                        locatedCityName = "서울",
+                        cityName = "서울",
                         districtName = "종로구",
-                        forecastLocation = ForecastLocation.SouthJl,
+                        locatingMethod = LocatingMethod.SouthJl,
                     )
                     CurrentTemperature(
                         modifier = modifier,
