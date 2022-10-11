@@ -19,10 +19,10 @@ const val VILLAGE_EXTRA_ROWS = 2
 data class KmaTime(val date: String, val hour: String){
     fun isLaterThan(time: KmaTime): Boolean {
         try {
-            if (this.date.toInt() < time.date.toInt()) { // It's a later date.
+            if (this.date.toInt() > time.date.toInt()) { // It's a later date.
                 return true
             } else if (this.date.toInt() == time.date.toInt()) { // It's the same date.
-                if (this.hour.toInt() < time.hour.toInt()) {
+                if (this.hour.toInt() > time.hour.toInt()) {
                     return true
                 }
             }

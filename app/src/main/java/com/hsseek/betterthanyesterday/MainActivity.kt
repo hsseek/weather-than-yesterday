@@ -157,7 +157,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refresh() {
-        viewModel.onRefreshClicked(getCurrentKoreanDateTime())
+        viewModel.onRefreshClicked()
         // TODO: Swipe to refresh(https://stackoverflow.com/questions/67204979/there-is-something-similar-like-swiperefreshlayout-to-pull-to-refresh-in-the-laz)
     }
 

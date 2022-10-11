@@ -656,14 +656,13 @@ class WeatherViewModel(
         }
     }
 
-    fun onRefreshClicked(time: Calendar) {
-        val kmaTime = getKmaBaseTime(cal = time, roundOff = HOUR)
+    fun onRefreshClicked() {
+        val kmaTime = getKmaBaseTime(roundOff = HOUR)
         if (kmaTime.isLaterThan(lastHourBaseTime) || isDataInvalid) {
             requestAllWeatherData()
         } else {
             // TODO: Brief ( < 1) loading for better UX.
             _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
-//            requestAllWeatherData()  // test
         }
     }
 
