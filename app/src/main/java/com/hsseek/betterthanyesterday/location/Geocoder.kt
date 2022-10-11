@@ -30,8 +30,7 @@ class KoreanGeocoder(context: Context) {
             geoCoder.getFromLocation(position.lat, position.lon, 1)
                 .first().getAddressLine(0)
         } catch (e: Exception) {
-            Log.e(TAG, "$e: Cannot retrieve the corresponding address.")
-            e.printStackTrace()
+            Log.e(TAG, "$e: Cannot retrieve the corresponding address.", e)
             null
         }
     }

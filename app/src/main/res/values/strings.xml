@@ -59,4 +59,6 @@
     <string name="daily_lowest">Lowest</string>
     <string name="current_temp_value">Currently: %1$d\u2103</string>
     <string name="refresh_up_to_date">Weather information is up-to-date.</string>
+    <string name="weather_retrieving_failure_general">Cannot retrieve weather data.</string>
+    <string name="weather_retrieving_failure_network">Please check your network status.</string>
 </resources>
