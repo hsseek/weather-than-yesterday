@@ -42,7 +42,7 @@ private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
 private const val HOURLY_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
-private const val NETWORK_TIMEOUT = 4000L
+private const val NETWORK_TIMEOUT = 5000L
 private const val NETWORK_MAX_RETRY = 2
 
 class WeatherViewModel(
@@ -371,8 +371,7 @@ class WeatherViewModel(
                         break
                     } else {
                         Log.w(TAG, "Failed to retrieve weather data.\n$e")
-                        @Suppress("BlockingMethodInNonBlockingContext")
-                        Thread.sleep(200L)
+                        runBlocking { delay(200L) }
                     }
                 } finally {
                     _isLoading.value = false
@@ -704,14 +703,20 @@ class WeatherViewModel(
      * Return true if it refreshes(i.e. refresh request is valid),
      * return false if it won't refresh(e.g. The current data are up-to-date).
      * */
-    fun onRefreshClicked(): Boolean {
+    fun onRefreshClicked() {
         Log.d(TAG, "onRefreshClicked")
         val kmaTime = getKmaBaseTime(roundOff = HOUR)
-        return if (kmaTime.isLaterThan(lastHourBaseTime) || !isDataValid) {
+        if (kmaTime.isLaterThan(lastHourBaseTime) || !isDataValid) {
             requestAllWeatherData()
-            true
-        } else {
-            false
+        }
+    }
+
+    fun showLoading(milliSec: Long) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            delay(milliSec)
+            _isLoading.value = false
+            _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
         }
     }
 

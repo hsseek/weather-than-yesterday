@@ -253,11 +253,9 @@ class MainActivity : ComponentActivity() {
                 // Refresh button
                 IconButton(
                     onClick = {
-                        if (!viewModel.onRefreshClicked()) {
-                            // TODO: Brief ( < 1) loading for better UX.
-                            Toast.makeText(this@MainActivity, R.string.refresh_up_to_date, Toast.LENGTH_LONG).show()
+                        viewModel.onRefreshClicked()
+                        viewModel.showLoading((420..560).random().toLong())
                         }
-                    },
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
