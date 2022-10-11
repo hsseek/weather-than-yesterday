@@ -20,7 +20,7 @@ val Typography = Typography(
     h6 = TextStyle(
         fontSize = 13.sp,
         textAlign = TextAlign.Center,
-        color = Grey000,
+        color = Gray000,
     ),
     body1 = TextStyle(
         fontSize = 16.sp

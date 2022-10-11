@@ -1,8 +1,6 @@
 package com.hsseek.betterthanyesterday
 
 import com.hsseek.betterthanyesterday.dummy.DUMMY_LONG_TERM_FORECAST_RAINY
-import com.hsseek.betterthanyesterday.dummy.DUMMY_LONG_TERM_FORECAST_SUNNY
-import com.hsseek.betterthanyesterday.dummy.DUMMY_SHORT_TERM_FORECAST_RAINY
 import com.hsseek.betterthanyesterday.dummy.DUMMY_SHORT_TERM_FORECAST_SNOWY
 import com.hsseek.betterthanyesterday.location.*
 import com.hsseek.betterthanyesterday.network.ForecastResponse

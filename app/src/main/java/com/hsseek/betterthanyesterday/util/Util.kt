@@ -53,49 +53,44 @@ fun getKmaBaseTime(
     roundOff: KmaHourRoundOff,
 ): KmaTime
 {
-    val isHourAvailable: Boolean = if (roundOff == KmaHourRoundOff.VILLAGE) cal.minute() > 10 else false
+    val calHolder: Calendar = cal.clone() as Calendar  // Hold the value before Calendar.add()
+    val isHourAvailable: Boolean = if (roundOff == KmaHourRoundOff.VILLAGE) calHolder.minute() > 10 else false
 
     if (!isHourAvailable) {
         // The data for the current hour are not available. Use the previous hour.
-        cal.add(Calendar.HOUR_OF_DAY, -1)
-        if (cal.hour() < 1) { // i.e. 00:mm
-            cal.add(Calendar.DAY_OF_YEAR, -1)
-        }
+        calHolder.add(Calendar.HOUR_OF_DAY, -1)
     }
 
     when (roundOff) {
         KmaHourRoundOff.HOUR -> { }  // Nothing to do
         KmaHourRoundOff.VILLAGE -> {
             // Only 0200, 0500, ..., 2300 are accepted as query
-            val hour = cal.hour()
+            val hour = calHolder.hour()
             val hourAdjustment: Int = when (hour % 3) {
                 0 -> 1
                 1 -> 2
                 else -> 0
             }
             if (hourAdjustment > 0) {
-                cal.add(Calendar.HOUR_OF_DAY, -hourAdjustment)
-                if (cal.hour() < hourAdjustment) {  // e.g. 01:00 -> 23:00
-                    cal.add(Calendar.DAY_OF_YEAR, -1)  // Adjust to the previous day
-                }
+                calHolder.add(Calendar.HOUR_OF_DAY, -hourAdjustment)
             }
         }
         KmaHourRoundOff.NOON -> {  // Round off to 11:00 or 23:00
-            if (cal.hour() != 11 && cal.hour() != 23) {
-                if (cal.hour() < 11) {  // Data of the noon not available yet
-                    cal.add(Calendar.DAY_OF_YEAR, -1)
-                    cal.set(Calendar.HOUR_OF_DAY, 23)
-                } else if (cal.hour() != 11) {
+            if (calHolder.hour() != 11 && calHolder.hour() != 23) {
+                if (calHolder.hour() < 11) {  // Data of the noon not available yet
+                    calHolder.add(Calendar.DAY_OF_YEAR, -1)
+                    calHolder.set(Calendar.HOUR_OF_DAY, 23)
+                } else if (calHolder.hour() != 11) {
                     // Data of the noon not available. Utilize theme.
-                    cal.set(Calendar.HOUR_OF_DAY, 11)
+                    calHolder.set(Calendar.HOUR_OF_DAY, 11)
                 }
             }
         }
     }
 
     return KmaTime(
-        date = formatToKmaDate(cal),
-        hour = formatToKmaHour(cal)
+        date = formatToKmaDate(calHolder),
+        hour = formatToKmaHour(calHolder)
     )
 }
 

@@ -66,6 +66,15 @@ class MainActivity : ComponentActivity() {
             WeatherViewModelFactory(application, prefsRepo)
         )[WeatherViewModel::class.java]
 
+        // Toast message listener from ViewModel
+        viewModel.viewModelScope.launch {
+            viewModel.toastMessage.collect{ event ->
+                event.getContentIfNotHandled()?.let { id ->
+                    toastOnUiThread(id)
+                }
+            }
+        }
+
         // Restore the stored locating method.
         viewModel.viewModelScope.launch {
             val storedCode = prefsRepo.locatingMethodFlow.first()
@@ -84,11 +93,22 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colors.background
                 )
 
-                val modifier = Modifier
-
                 Surface(color = MaterialTheme.colors.background) {
+                    val modifier = Modifier
+
                     // TODO: Different Composable for landscape orientation.
                     MainScreen(modifier = modifier)
+
+                    // A dialog to select locating method.
+                    LocationSelectDialog(
+                        isShowing = viewModel.toShowLocatingDialog.value,
+                        selectedLocatingMethod = viewModel.locatingMethod,
+                        onClickNegative = { viewModel.toShowLocatingDialog.value = false },
+                        onClickPositive = { selectedLocation ->
+                            viewModel.toShowLocatingDialog.value = false  // Dismiss the dialog anyway.
+                            onSelectLocatingMethod(selectedLocation)
+                        }
+                    )
                 }
             }
         }
@@ -97,10 +117,13 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.onRefreshClicked()
+        if (viewModel.locatingMethod == LocatingMethod.Auto) {
+            viewModel.startLocationUpdate()
+        }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
+    override fun onPause() {
+        super.onPause()
         viewModel.stopLocationUpdate()
     }
 
@@ -133,17 +156,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onStart() {
-        super.onStart()
-        viewModel.viewModelScope.launch {
-            viewModel.toastMessage.collect{ event ->
-                event.getContentIfNotHandled()?.let { id ->
-                    toastOnUiThread(id)
-                }
-            }
-        }
-    }
-
     private fun toastOnUiThread(id: Int) {
         if (id > 0) {
             Log.d(TAG, "Toast res id: $id")
@@ -165,6 +177,7 @@ class MainActivity : ComponentActivity() {
         } else {
             // The user must select a location to retrieve weather data.
             viewModel.toShowLocatingDialog.value = true
+            viewModel.stopLocationUpdate()
         }
     }
 
@@ -176,32 +189,24 @@ class MainActivity : ComponentActivity() {
                 onClickChangeLocation = { viewModel.toShowLocatingDialog.value = true }
             ) },
         ) { padding ->
-            Column(
-                modifier = modifier
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                val sky: Sky by viewModel.rainfallStatus.collectAsState()
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = modifier
+                        .padding(padding)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    val sky: Sky by viewModel.rainfallStatus.collectAsState()
 
-                LocationInformation(modifier, viewModel.cityName, viewModel.districtName, viewModel.locatingMethod)
-                CurrentTemperature(modifier, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
-                DailyTemperatures(modifier, viewModel.dailyTemps)
-                RainfallStatus(modifier, sky)
-                CustomScreen(modifier)
-            }
-        }
-
-        // A dialog to select locating method.
-        if (viewModel.toShowLocatingDialog.value) {
-            LocationSelectDialog(
-                selectedLocatingMethod = viewModel.locatingMethod,
-                onClickNegative = { viewModel.toShowLocatingDialog.value = false },
-                onClickPositive = { selectedLocation ->
-                    viewModel.toShowLocatingDialog.value = false  // Dismiss the dialog anyway.
-                    onSelectLocatingMethod(selectedLocation)
+                    LocationInformation(modifier, viewModel.cityName, viewModel.districtName, viewModel.locatingMethod)
+                    CurrentTemperature(modifier, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
+                    DailyTemperatures(modifier, viewModel.dailyTemps)
+                    RainfallStatus(modifier, sky)
+                    CustomScreen(modifier)
                 }
-            )
+
+                LoadingScreen(isLoading = viewModel.isLoading)
+            }
         }
     }
 
@@ -319,20 +324,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
     @Composable
-    private fun LandingScreen(
-        modifier: Modifier,
-    ) {
-        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            // TODO: Loading screen which shows concatenating of emojis.
-            Image(
-                painterResource(id = R.drawable.logo),
-                contentDescription = stringResource(R.string.desc_splash_screen)
-            )
-            // TODO: Show the splash image about 2 sec at most. After that, dispose the landing screen anyway and compose the main screen with "refreshing"
-            LaunchedEffect(true) {
-                logCoroutineContext("Launched effect")
+    private fun LoadingScreen(isLoading: Boolean) {
+        if (isLoading) {
+            val width = 6.dp
+            val alpha = 0.85f
+            val size = 40.dp
+            val offset = (-160).dp
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colors.background.copy(alpha = alpha),
+            ) {
+                Box {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(size)
+                            .align(Alignment.Center)
+                            .offset(y = offset),
+                        strokeWidth = width,
+                    )
+                }
             }
         }
     }
@@ -662,58 +673,62 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun LocationSelectDialog(
+        isShowing: Boolean,
         selectedLocatingMethod: LocatingMethod?,
         onClickNegative: () -> Unit,
         onClickPositive: (LocatingMethod) -> Unit,
     ) {
-        val bodyPadding = 15.dp
-        val titlePadding = 0.dp
-        val color = if (isSystemInDarkTheme()) {
-            Gray400
-        } else {
-            MaterialTheme.colors.surface
-        }
+        if (isShowing) {
 
-        AlertDialog(
-            onDismissRequest = onClickNegative,
-            title = {
-                Text(
-                    text = stringResource(R.string.dialog_location_title),
-                    modifier = Modifier.padding(titlePadding),
-                ) },
-            backgroundColor = color,
-            buttons = {
-                val selected = rememberSaveable { mutableStateOf(selectedLocatingMethod) }
+            val bodyPadding = 15.dp
+            val titlePadding = 0.dp
+            val color = if (isSystemInDarkTheme()) {
+                Gray400
+            } else {
+                MaterialTheme.colors.surface
+            }
 
-                // TODO: Make it scrollable.
-                // RadioGroups
-                RegionsRadioGroup(
-                    padding = bodyPadding,
-                    selected = selected.value,
-                    onSelect = { selected.value = it },
-                )
+            AlertDialog(
+                onDismissRequest = onClickNegative,
+                title = {
+                    Text(
+                        text = stringResource(R.string.dialog_location_title),
+                        modifier = Modifier.padding(titlePadding),
+                    ) },
+                backgroundColor = color,
+                buttons = {
+                    val selected = rememberSaveable { mutableStateOf(selectedLocatingMethod) }
 
-                // The Cancel and Ok buttons
-                Row(
-                    horizontalArrangement = Arrangement.End,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    TextButton(onClick = onClickNegative) {
-                        Text(text = stringResource(R.string.dialog_cancel))
-                    }
-                    TextButton(onClick = {
-                        val selectedLocation: LocatingMethod? = selected.value
-                        if (selectedLocation != null) {
-                            onClickPositive(selectedLocation)
-                        } else {
-                            Log.e(TAG, "The selected LocatingMethod is null.")
+                    // TODO: Make it scrollable.
+                    // RadioGroups
+                    RegionsRadioGroup(
+                        padding = bodyPadding,
+                        selected = selected.value,
+                        onSelect = { selected.value = it },
+                    )
+
+                    // The Cancel and Ok buttons
+                    Row(
+                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        TextButton(onClick = onClickNegative) {
+                            Text(text = stringResource(R.string.dialog_cancel))
                         }
-                    }) {
-                        Text(text = stringResource(R.string.dialog_ok))
+                        TextButton(onClick = {
+                            val selectedLocation: LocatingMethod? = selected.value
+                            if (selectedLocation != null) {
+                                onClickPositive(selectedLocation)
+                            } else {
+                                Log.e(TAG, "The selected LocatingMethod is null.")
+                            }
+                        }) {
+                            Text(text = stringResource(R.string.dialog_ok))
+                        }
                     }
                 }
-            }
-        )
+            )
+        }
     }
 
     @Composable
@@ -960,11 +975,14 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun LocatingMethodDialogPreview() {
         BetterThanYesterdayTheme {
-            LocationSelectDialog(
-                selectedLocatingMethod = LocatingMethod.Capital,
-                onClickNegative = {},
-                onClickPositive = {}
-            )
+            Surface {
+                LocationSelectDialog(
+                    isShowing = true,
+                    selectedLocatingMethod = LocatingMethod.Capital,
+                    onClickNegative = {},
+                    onClickPositive = {}
+                )
+            }
         }
     }
 

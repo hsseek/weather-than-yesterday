@@ -6,7 +6,7 @@ val White = Color(0xFFFFFFFF)
 val Black = Color(0xFF000000)
 val Gray500 = Color(0xFF232323)
 val Gray400 = Color(0xFF282828)
-val Grey000 = Color(0xFF808080)
+val Gray000 = Color(0xFF808080)
 
 val Purple200 = Color(0xFFBB86FC)
 val Purple500 = Color(0xFF6200EE)

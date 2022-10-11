@@ -1,33 +1,38 @@
 package com.hsseek.betterthanyesterday.viewmodel
 
 import android.Manifest
-import com.google.android.gms.location.*
 import android.app.Application
 import android.content.pm.PackageManager
 import android.os.Looper
 import android.util.Log
 import androidx.compose.runtime.MutableState
-import com.hsseek.betterthanyesterday.R
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
-import com.hsseek.betterthanyesterday.location.*
+import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
+import com.hsseek.betterthanyesterday.location.CoordinatesXy
+import com.hsseek.betterthanyesterday.location.KoreanGeocoder
+import com.hsseek.betterthanyesterday.location.convertToXy
 import com.hsseek.betterthanyesterday.network.ForecastResponse
-import com.hsseek.betterthanyesterday.util.OneShotEvent
 import com.hsseek.betterthanyesterday.network.WeatherApi
 import com.hsseek.betterthanyesterday.util.*
-import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.*
+import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.HOUR
+import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.VILLAGE
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import retrofit2.Response
 import java.net.UnknownHostException
 import java.util.*
-import kotlin.collections.ArrayList
 import kotlin.math.roundToInt
 
 private const val TAG = "WeatherViewModel"
@@ -37,7 +42,7 @@ private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
 private const val HOURLY_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
-private const val NETWORK_TIMEOUT = 3500L
+private const val NETWORK_TIMEOUT = 4000L
 private const val NETWORK_MAX_RETRY = 2
 
 class WeatherViewModel(
@@ -50,7 +55,10 @@ class WeatherViewModel(
     private val retrofitDispatcher = Dispatchers.IO
     private val defaultDispatcher = Dispatchers.Default
     private var kmaJob: Job? = null
-    private var isDataInvalid: Boolean = false
+    private var isDataValid: Boolean = true
+    private val _isLoading = mutableStateOf(true)
+    val isLoading: Boolean
+        get() = _isLoading.value
 
     private var lastHourBaseTime: KmaTime = getKmaBaseTime(roundOff = HOUR)
 
@@ -179,9 +187,11 @@ class WeatherViewModel(
                 try {
                     withTimeout(NETWORK_TIMEOUT) {
                         kmaJob = launch(defaultDispatcher) {
-                            isDataInvalid = true
+                            isDataValid = false
+                            _isLoading.value = true
+
                             val cal = getCurrentKoreanDateTime()
-                            val today: String = formatToKmaDate(cal)
+                            val today: String = formatToKmaDate(getCurrentKoreanDateTime())
                             val latestVillageBaseTime = getKmaBaseTime(cal = cal, roundOff = VILLAGE)
                             val latestHourlyBaseTime = getKmaBaseTime(cal = cal, roundOff = HOUR)
 
@@ -209,7 +219,10 @@ class WeatherViewModel(
                                 val maxDaySpan = 3  // For today, tomorrow and D+2
                                 val numOfRow = (
                                         (24 + VILLAGE_EXTRA_ROWS) * maxDaySpan
-                                                - (latestVillageBaseTime.hour.toInt() / 100 + 1)  // No past forecasts
+                                                // No past forecasts
+                                                // +1 because the earliest fcstTime = baseTime + 1
+                                                // % 24 for 23 -> 24 -> 0
+                                                - ((latestVillageBaseTime.hour.toInt() / 100) + 1 ) % 24
                                                 - 6  // Only up to D+2 17:00 (not including data for 18:00)
                                         ) * VILLAGE_ROWS_PER_HOUR
                                 + VILLAGE_EXTRA_ROWS * maxDaySpan  // TMN, TMX for 3 days
@@ -344,11 +357,11 @@ class WeatherViewModel(
                         }
                         kmaJob?.join()
                         adjustCharTemp()
-                        isDataInvalid = false
+                        isDataValid = true
                     }
                     break
                 } catch (e: Exception) {
-                    if (++trialCount >= NETWORK_MAX_RETRY) {
+                    if (++trialCount >= NETWORK_MAX_RETRY) {  // Maximum count of trials has been reached.
                         Log.e(TAG, "Cannot retrieve weather data.\n$e")
                         if (e is UnknownHostException) {
                             _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_network)
@@ -358,7 +371,11 @@ class WeatherViewModel(
                         break
                     } else {
                         Log.w(TAG, "Failed to retrieve weather data.\n$e")
+                        @Suppress("BlockingMethodInNonBlockingContext")
+                        Thread.sleep(200L)
                     }
+                } finally {
+                    _isLoading.value = false
                 }
             }
         }
@@ -566,7 +583,6 @@ class WeatherViewModel(
         val closestHour = todayHourlyData.minOf { it.fcstTime }
         var todayTemp: Int? = null
         var yesterdayTemp: Int? = null
-        var yesterdayBaseTime: Int? = null
 
         for (i in todayHourlyData) {
             if (i.fcstTime == closestHour && i.category == HOURLY_TEMPERATURE_TAG) {
@@ -576,15 +592,13 @@ class WeatherViewModel(
         }
 
         for (i in yesterdayHourlyTempData) {
-            if (i.category == HOURLY_TEMPERATURE_TAG) {
+            if (i.fcstTime == closestHour && i.category == HOURLY_TEMPERATURE_TAG) {
                 yesterdayTemp = i.fcstValue.toInt()
-                yesterdayBaseTime = i.baseTime
                 break
             }
         }
 
-        Log.d(TAG, "Today hourly temp: $todayTemp ($closestHour)" +
-                "\nD-1 hourly temp: $yesterdayTemp ($yesterdayBaseTime)")
+        Log.d(TAG, "T1H(at ${closestHour / 100}): $yesterdayTemp -> $todayTemp")
 
         if (todayTemp != null) {
             _hourlyTempToday.value = todayTemp
@@ -693,7 +707,7 @@ class WeatherViewModel(
     fun onRefreshClicked(): Boolean {
         Log.d(TAG, "onRefreshClicked")
         val kmaTime = getKmaBaseTime(roundOff = HOUR)
-        return if (kmaTime.isLaterThan(lastHourBaseTime) || isDataInvalid) {
+        return if (kmaTime.isLaterThan(lastHourBaseTime) || !isDataValid) {
             requestAllWeatherData()
             true
         } else {
