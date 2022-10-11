@@ -134,6 +134,7 @@ class WeatherViewModel(
                     startLocationUpdate()
                 } else {  // LocatingMethod for fixed locations
                     updateFixedLocation(selectedLocatingMethod)
+                    stopLocationUpdate()
                 }
             }
         } else {  // Forecast location not changed
@@ -606,8 +607,12 @@ class WeatherViewModel(
             }
 
             // A costly process to update the current location. Might take about 10 seconds.
-            locationClient.requestLocationUpdates(currentLocationRequest, currentLocationCallback, Looper.getMainLooper())
+            locationClient.requestLocationUpdates(currentLocationRequest, locationCallback, Looper.getMainLooper())
         }
+    }
+
+    fun stopLocationUpdate() {
+        locationClient.removeLocationUpdates(locationCallback)
     }
 
     /**
@@ -646,7 +651,7 @@ class WeatherViewModel(
         }
     }
 
-    private val currentLocationCallback = object : LocationCallback() {
+    private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(locationResult: LocationResult) {
             super.onLocationResult(locationResult)
             locationResult.lastLocation?.let {
@@ -656,13 +661,18 @@ class WeatherViewModel(
         }
     }
 
-    fun onRefreshClicked() {
+    /**
+     * Return true if it refreshes(i.e. refresh request is valid),
+     * return false if it won't refresh(e.g. The current data are up-to-date).
+     * */
+    fun onRefreshClicked(): Boolean {
+        Log.d(TAG, "onRefreshClicked")
         val kmaTime = getKmaBaseTime(roundOff = HOUR)
-        if (kmaTime.isLaterThan(lastHourBaseTime) || isDataInvalid) {
+        return if (kmaTime.isLaterThan(lastHourBaseTime) || isDataInvalid) {
             requestAllWeatherData()
+            true
         } else {
-            // TODO: Brief ( < 1) loading for better UX.
-            _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
+            false
         }
     }
 

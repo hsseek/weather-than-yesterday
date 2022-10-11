@@ -94,6 +94,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.onRefreshClicked()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        viewModel.stopLocationUpdate()
+    }
+
     /**
      * Called after a new [LocatingMethod] has been stored in [UserPreferencesRepository].
      * */
@@ -145,11 +155,6 @@ class MainActivity : ComponentActivity() {
                 Log.e(TAG, "Toast res id invalid.")
             }
         }
-    }
-
-    private fun refresh() {
-        viewModel.onRefreshClicked()
-        // TODO: Swipe to refresh(https://stackoverflow.com/questions/67204979/there-is-something-similar-like-swiperefreshlayout-to-pull-to-refresh-in-the-laz)
     }
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -242,7 +247,12 @@ class MainActivity : ComponentActivity() {
             ) {
                 // Refresh button
                 IconButton(
-                    onClick = { refresh() },
+                    onClick = {
+                        if (!viewModel.onRefreshClicked()) {
+                            // TODO: Brief ( < 1) loading for better UX.
+                            Toast.makeText(this@MainActivity, R.string.refresh_up_to_date, Toast.LENGTH_LONG).show()
+                        }
+                    },
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
