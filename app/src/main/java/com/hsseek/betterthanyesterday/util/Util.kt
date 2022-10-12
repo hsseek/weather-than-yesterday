@@ -17,7 +17,7 @@ const val LOCATING_METHOD_TAG = "LocatingMethod"
 const val LOCATION_TAG = "Location"
 const val VILLAGE_ROWS_PER_HOUR = 12
 const val VILLAGE_EXTRA_ROWS = 2
-
+const val VILLAGE_HOUR_INTERVAL = 3
 
 data class KmaTime(val date: String, val hour: String){
     fun isLaterThan(time: KmaTime): Boolean {
