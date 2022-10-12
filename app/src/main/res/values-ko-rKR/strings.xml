@@ -60,4 +60,6 @@
     <string name="weather_retrieving_failure_general">날씨 정보를 받아올 수 없습니다.</string>
     <string name="weather_retrieving_failure_network">네트워크 상태를 확인해주세요.</string>
     <string name="hour_23">오후 11</string>
+    <string name="topbar_settings">설정</string>
+    <string name="title_activity_web_view">자주 묻는 질문</string>
 </resources>

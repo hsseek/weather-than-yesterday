@@ -41,7 +41,7 @@ private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
 private const val HOURLY_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
-private const val NETWORK_TIMEOUT = 2500L
+private const val NETWORK_TIMEOUT = 3800L
 private const val NETWORK_MAX_RETRY = 2
 
 class WeatherViewModel(
@@ -54,7 +54,8 @@ class WeatherViewModel(
     private val retrofitDispatcher = Dispatchers.IO
     private val defaultDispatcher = Dispatchers.Default
     private var kmaJob: Job? = null
-    private var isDataValid: Boolean = true
+    var isDataValid: Boolean = true
+        private set
     private val _isLoading = mutableStateOf(true)
     val isLoading: Boolean
         get() = _isLoading.value
@@ -71,7 +72,6 @@ class WeatherViewModel(
     var locatingMethod: LocatingMethod? = null
         private set
 
-    // TODO: Default to ""
     private val _cityName: MutableState<String> = mutableStateOf(stringForNull)
     val cityName: String
         get() = _cityName.value
@@ -824,6 +824,8 @@ class WeatherViewModel(
         val kmaTime = getKmaBaseTime(roundOff = HOUR)
         if (kmaTime.isLaterThan(lastHourBaseTime) || !isDataValid) {
             requestAllWeatherData()
+        } else {
+            showLoading((210..420).random().toLong())
         }
 
         // Refresh location on user's demand.

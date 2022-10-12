@@ -1,8 +1,9 @@
-package com.hsseek.betterthanyesterday
+package com.hsseek.betterthanyesterday.ui
 
 import android.Manifest
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.content.res.Resources
@@ -37,6 +38,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.*
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.ui.theme.*
 import com.hsseek.betterthanyesterday.util.*
@@ -96,7 +98,6 @@ class MainActivity : ComponentActivity() {
                 Surface(color = MaterialTheme.colors.background) {
                     val modifier = Modifier
 
-                    // TODO: Different Composable for landscape orientation.
                     MainScreen(modifier = modifier)
 
                     // A dialog to select locating method.
@@ -252,7 +253,6 @@ class MainActivity : ComponentActivity() {
                 IconButton(
                     onClick = {
                         viewModel.onRefreshClicked()
-                        viewModel.showLoading((210..420).random().toLong())
                     }
                 ) {
                     Icon(
@@ -304,16 +304,22 @@ class MainActivity : ComponentActivity() {
             expanded = expanded,
             onDismissRequest = { onDismissRequest() }
         ) {
-            DropdownMenuItem(onClick = {
+            /*DropdownMenuItem(onClick = {
                 onDismissRequest()
-                // TODO: Use an Intent
             }) {
                 Text(text = stringResource(R.string.topbar_share_app))
+            }*/
+
+            DropdownMenuItem(onClick = {
+                onDismissRequest()
+            }) {
+                Text(text = stringResource(R.string.topbar_settings))
             }
 
             DropdownMenuItem(onClick = {
                 onDismissRequest()
-                // TODO: Launch HelpActivity
+                val intent = Intent(this@MainActivity, FaqActivity::class.java)
+                this@MainActivity.startActivity(intent)
             }) {
                 Text(text = stringResource(R.string.topbar_help))
             }
@@ -1022,6 +1028,7 @@ class MainActivity : ComponentActivity() {
 /**
  * [startingHour] and [endingHour] in HH00 format (e.g. 1100 for 11:00 AM, 20:00 for 8:00 PM)
  * */
+@Suppress("LiftReturnOrAssignment")
 internal fun getRainfallHourDescription(
     context: Context,
     startingHour: Int,
