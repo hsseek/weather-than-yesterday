@@ -116,9 +116,6 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.onRefreshClicked()
-        if (viewModel.locatingMethod == LocatingMethod.Auto) {
-            viewModel.startLocationUpdate()
-        }
     }
 
     override fun onPause() {
@@ -253,7 +250,7 @@ class MainActivity : ComponentActivity() {
                 IconButton(
                     onClick = {
                         viewModel.onRefreshClicked()
-                        viewModel.showLoading((420..560).random().toLong())
+                        viewModel.showLoading((210..420).random().toLong())
                         }
                 ) {
                     Icon(
@@ -392,12 +389,8 @@ class MainActivity : ComponentActivity() {
         hourlyTempDiff: Int?,
         currentTemp: Int?,
     ) {
-        val tempDiffVerticalOffset = (-20).dp
         val columnTopPadding = 16.dp
-        val degreeUnitTopPadding = 43.dp
-        val degreeUnitStartPadding = 8.dp
         val titleBottomPadding = 4.dp
-        val degreeUnitFontSize = 23.sp
 
         // A description
         val description = if (hourlyTempDiff == null) {
@@ -430,44 +423,55 @@ class MainActivity : ComponentActivity() {
             Text(text = description)
 
             // The temperature difference(HUGE)
-            Row(
-                Modifier.offset(y = tempDiffVerticalOffset),
-            ) {
-                if (hourlyTempDiff != null) {
-                    // The temperature difference
-                    val color: Color = getTemperatureColor(hourlyTempDiff)
-                    val diffString: String = if (hourlyTempDiff > 0) {
-                        "\u25B4 $hourlyTempDiff"
-                    } else if (hourlyTempDiff < 0) {
-                        "\u25BE ${-hourlyTempDiff}"
-                    } else {
-                        "="
-                    }
+            TemperatureDifference(hourlyTempDiff)
+        }
+    }
 
-                    Text(
-                        text = diffString,
-                        style = Typography.h1,
-                        color = color,
-                    )
-                    if (hourlyTempDiff != 0) {
-                        Text(
-                            text = "\u2103",
-                            color = color,
-                            modifier = Modifier
-                                .padding(
-                                    top = degreeUnitTopPadding,
-                                    start = degreeUnitStartPadding
-                                )
-                                .align(Alignment.Top),
-                            fontSize = degreeUnitFontSize,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
+    @Composable
+    private fun TemperatureDifference(hourlyTempDiff: Int?) {
+        val tempDiffVerticalOffset = (-20).dp
+        val degreeUnitTopPadding = 46.dp
+        val degreeUnitStartPadding = 8.dp
+        val degreeUnitFontSize = 23.sp
+
+        Row(
+            Modifier.offset(y = tempDiffVerticalOffset),
+        ) {
+            if (hourlyTempDiff != null) {
+                // The temperature difference
+                val color: Color = getTemperatureColor(hourlyTempDiff)
+                val diffString: String = if (hourlyTempDiff > 0) {
+                    "\u25B4 $hourlyTempDiff"
+                } else if (hourlyTempDiff < 0) {
+                    "\u25BE ${-hourlyTempDiff}"
                 } else {
-                    Text(
-                        text = stringResource(id = R.string.null_value),
-                        style = Typography.h1)
+                    "="
                 }
+
+                Text(
+                    text = diffString,
+                    style = Typography.h1,
+                    color = color,
+                )
+                if (hourlyTempDiff != 0) {
+                    Text(
+                        text = "\u2103",
+                        color = color,
+                        modifier = Modifier
+                            .padding(
+                                top = degreeUnitTopPadding,
+                                start = degreeUnitStartPadding
+                            )
+                            .align(Alignment.Top),
+                        fontSize = degreeUnitFontSize,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            } else {
+                Text(
+                    text = stringResource(id = R.string.null_value),
+                    style = Typography.h1
+                )
             }
         }
     }

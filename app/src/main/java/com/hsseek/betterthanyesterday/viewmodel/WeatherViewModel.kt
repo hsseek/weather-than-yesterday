@@ -178,6 +178,8 @@ class WeatherViewModel(
     private fun requestAllWeatherData() {
         nullifyWeatherInfo()
         viewModelScope.launch(defaultDispatcher) {
+            logCoroutineContext("requestAllWeatherData()")
+
             kmaJob?.cancel()
             kmaJob?.join()
             var trialCount = 0
@@ -205,13 +207,11 @@ class WeatherViewModel(
                             val lowTempBaseTime = "0200"
                             val highTempBaseTime = "1100"
 
-
                             // Conditional tasks
                             var todayLowTempResponse: Deferred<Response<ForecastResponse>>? = null
                             var todayHighTempResponse: Deferred<Response<ForecastResponse>>? = null
 
                             val fetchingStartTime = System.currentTimeMillis()
-
 
                             // The largest chunk, at most 290 + 290 + (290 - 72) + 2 * 3, which is about 800.
                             val futureDaysResponse: Deferred<Response<ForecastResponse>> = async(retrofitDispatcher) {
@@ -676,7 +676,7 @@ class WeatherViewModel(
         val locatedCityName = getCityName(addresses)
         getDistrictName(addresses)?.let {
             _districtName.value = it
-            Log.d(LOCATION_TAG, "A new district: $it")
+            Log.d(LOCATION_TAG, "District: $it")
         }
 
         if (locatedCityName == null) {
@@ -704,9 +704,16 @@ class WeatherViewModel(
      * */
     fun onRefreshClicked() {
         Log.d(TAG, "onRefreshClicked")
+
+        // Refresh weather data only if new data are available.
         val kmaTime = getKmaBaseTime(roundOff = HOUR)
         if (kmaTime.isLaterThan(lastHourBaseTime) || !isDataValid) {
             requestAllWeatherData()
+        }
+
+        // Refresh location on user's demand.
+        if (locatingMethod == LocatingMethod.Auto) {
+            startLocationUpdate()
         }
     }
 
@@ -733,10 +740,10 @@ class WeatherViewModel(
     }
 
     companion object {
-        private const val ONE_MINUTE: Long = 60000
+        private const val REQUEST_INTERVAL: Long = 60 * 60 * 1000
         val currentLocationRequest: LocationRequest = LocationRequest.create().apply {
-            interval = ONE_MINUTE
-            fastestInterval = ONE_MINUTE / 4
+            interval = REQUEST_INTERVAL
+            fastestInterval = REQUEST_INTERVAL / 2
         }
     }
 }

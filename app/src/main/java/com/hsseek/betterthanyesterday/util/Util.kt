@@ -48,6 +48,8 @@ fun getCurrentKoreanDateTime(): Calendar {
 
 /**
  * Returns the latest baseTime with offsets, in accordance with the [roundOff] rules.
+ * [cal] Object will be passed by reference, which leads to changed [Calendar.time] after the run.
+ * (Therefore, use the default value unless it is intended such as for test purposes.)
  * Note that the returned value may be a future time, at which data are not available yet.
  * */
 fun getKmaBaseTime(
