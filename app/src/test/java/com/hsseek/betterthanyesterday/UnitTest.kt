@@ -40,15 +40,6 @@ class UnitTest {
     }
 
     @Test
-    fun noon_time_correct() {
-        val cal = Calendar.getInstance()
-        cal.set(2022, 8, 16, 23, 11)
-        val time = getKmaBaseTime(cal = cal, roundOff = NOON)
-        assertEquals("20220916", time.date)
-        assertEquals("2300", time.hour)
-    }
-
-    @Test
     fun rest_of_the_day() {
         val cal = Calendar.getInstance()
         cal.set(2022, 8, 16, 5, 11)

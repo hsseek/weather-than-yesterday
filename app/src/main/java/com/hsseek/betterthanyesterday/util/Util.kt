@@ -45,52 +45,45 @@ fun getCurrentKoreanDateTime(): Calendar {
 }
 
 /**
- * Returns the latest baseTime at [cal] in accordance with the [roundOff] rules.
+ * Returns the latest baseTime with offsets, in accordance with the [roundOff] rules.
  * Note that the returned value may be a future time, at which data are not available yet.
  * */
 fun getKmaBaseTime(
     cal: Calendar = getCurrentKoreanDateTime(),
+    dayOffset: Int = 0,
+    hourOffset: Int = 0,
     roundOff: KmaHourRoundOff,
 ): KmaTime
 {
-    val calHolder: Calendar = cal.clone() as Calendar  // Hold the value before Calendar.add()
-    val isHourAvailable: Boolean = if (roundOff == KmaHourRoundOff.VILLAGE) calHolder.minute() > 10 else false
+    if (dayOffset != 0) cal.add(Calendar.DAY_OF_YEAR, dayOffset)
+    if (hourOffset != 0) cal.add(Calendar.HOUR_OF_DAY, hourOffset)
+
+    val isHourAvailable: Boolean = if (roundOff == KmaHourRoundOff.VILLAGE) cal.minute() > 10 else false
 
     if (!isHourAvailable) {
         // The data for the current hour are not available. Use the previous hour.
-        calHolder.add(Calendar.HOUR_OF_DAY, -1)
+        cal.add(Calendar.HOUR_OF_DAY, -1)
     }
 
     when (roundOff) {
         KmaHourRoundOff.HOUR -> { }  // Nothing to do
         KmaHourRoundOff.VILLAGE -> {
             // Only 0200, 0500, ..., 2300 are accepted as query
-            val hour = calHolder.hour()
+            val hour = cal.hour()
             val hourAdjustment: Int = when (hour % 3) {
                 0 -> 1
                 1 -> 2
                 else -> 0
             }
             if (hourAdjustment > 0) {
-                calHolder.add(Calendar.HOUR_OF_DAY, -hourAdjustment)
-            }
-        }
-        KmaHourRoundOff.NOON -> {  // Round off to 11:00 or 23:00
-            if (calHolder.hour() != 11 && calHolder.hour() != 23) {
-                if (calHolder.hour() < 11) {  // Data of the noon not available yet
-                    calHolder.add(Calendar.DAY_OF_YEAR, -1)
-                    calHolder.set(Calendar.HOUR_OF_DAY, 23)
-                } else if (calHolder.hour() != 11) {
-                    // Data of the noon not available. Utilize theme.
-                    calHolder.set(Calendar.HOUR_OF_DAY, 11)
-                }
+                cal.add(Calendar.HOUR_OF_DAY, -hourAdjustment)
             }
         }
     }
 
     return KmaTime(
-        date = formatToKmaDate(calHolder),
-        hour = formatToKmaHour(calHolder)
+        date = formatToKmaDate(cal),
+        hour = formatToKmaHour(cal)
     )
 }
 
@@ -139,7 +132,7 @@ fun getDistrictName(address: String?): String? {
 }
 
 enum class KmaHourRoundOff {
-    HOUR, VILLAGE, NOON
+    HOUR, VILLAGE
 }
 
 enum class LocatingMethod(val code: Int, val regionId: Int, val citiesId: Int, val coordinates: CoordinatesXy?) {

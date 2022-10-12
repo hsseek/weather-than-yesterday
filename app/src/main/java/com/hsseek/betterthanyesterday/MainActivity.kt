@@ -49,7 +49,6 @@ import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModelFactory
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.*
 
 private const val TAG = "MainActivity"
 private const val USER_PREFERENCES_NAME = "bty_user_preferences"
@@ -807,12 +806,9 @@ class MainActivity : ComponentActivity() {
     // TODO: Deal with (start, end, current) = (23, 23, 23) or (23, 23, 0)
     @Composable
     private fun getReadableHour(hour: Int): String {
-        val time = getCurrentKoreanDateTime()
-        time.add(Calendar.HOUR_OF_DAY, 1)
-
         // The next forecast baseTime
         val closestHour = getKmaBaseTime(
-            cal = time,
+            hourOffset = 1,
             roundOff = KmaHourRoundOff.HOUR,
         )
         return if (hour == closestHour.hour.toInt()) {

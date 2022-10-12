@@ -190,14 +190,14 @@ class WeatherViewModel(
                             isDataValid = false
                             _isLoading.value = true
 
-                            val cal = getCurrentKoreanDateTime()
                             val today: String = formatToKmaDate(getCurrentKoreanDateTime())
-                            val latestVillageBaseTime = getKmaBaseTime(cal = cal, roundOff = VILLAGE)
-                            val latestHourlyBaseTime = getKmaBaseTime(cal = cal, roundOff = HOUR)
+                            val latestVillageBaseTime = getKmaBaseTime(roundOff = VILLAGE)
+                            val latestHourlyBaseTime = getKmaBaseTime(roundOff = HOUR)
 
+                            val cal = getCurrentKoreanDateTime()
                             cal.add(Calendar.DAY_OF_YEAR, -1)
                             val yesterday: String = formatToKmaDate(cal)
-                            val yesterdayHourlyBaseTime = getKmaBaseTime(cal = cal, roundOff = HOUR)
+                            val yesterdayHourlyBaseTime = getKmaBaseTime(dayOffset = -1, roundOff = HOUR)
 
                             val t1hPageNo = 5
                             val rowCountShort = 6
