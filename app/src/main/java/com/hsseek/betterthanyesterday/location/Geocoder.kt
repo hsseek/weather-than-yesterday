@@ -1,8 +1,10 @@
 package com.hsseek.betterthanyesterday.location
 
 import android.content.Context
+import android.location.Address
 import android.location.Geocoder
 import android.util.Log
+import com.hsseek.betterthanyesterday.util.LOCATION_TAG
 import java.util.*
 
 private const val TAG = "Geocoder"
@@ -25,10 +27,13 @@ class KoreanGeocoder(context: Context) {
         }
     }
 
-    fun getAddress(position: CoordinatesLatLon): String? {
+    fun getAddresses(position: CoordinatesLatLon): List<Address>? {
         return try {
-            geoCoder.getFromLocation(position.lat, position.lon, 1)
-                .first().getAddressLine(0)
+            val addresses = geoCoder.getFromLocation(position.lat, position.lon, 3)
+            for (address in addresses) {
+                Log.d(LOCATION_TAG, "Address candidate: ${address.getAddressLine(0)}")
+            }
+            addresses
         } catch (e: Exception) {
             Log.e(TAG, "$e: Cannot retrieve the corresponding address.", e)
             null

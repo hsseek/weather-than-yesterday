@@ -1,5 +1,6 @@
 package com.hsseek.betterthanyesterday.util
 
+import android.location.Address
 import android.util.Log
 import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
@@ -13,6 +14,7 @@ private const val DATE_FORMAT = "yyyyMMdd"
 private const val HOUR_FORMAT = "HH00"
 private const val TAG = "Util"
 const val LOCATING_METHOD_TAG = "LocatingMethod"
+const val LOCATION_TAG = "Location"
 const val VILLAGE_ROWS_PER_HOUR = 12
 const val VILLAGE_EXTRA_ROWS = 2
 
@@ -103,32 +105,37 @@ suspend fun logCoroutineContext(msg: String = "") {
 
 fun Int.hour(): Int = this / 100
 
-fun getCityName(address: String?): String? {
-    return if (address == null) {
-        null
-    } else {
+fun getCityName(addresses: List<Address>?): String? {
+    if (addresses != null) {
         val regex = Regex("\\s(.+?[시군])\\s")
-        val cityFullName = regex.find(address)?.groupValues?.get(1)
-        if (cityFullName == null) {
-            null
-        } else {
-            for (special in listOf("특별시", "광역시", "특별자치")) {
-                if (cityFullName.contains(special)) {
-                    return cityFullName.replace(special, "")  // e.g. "서울특별시" -> "서울"
+        for (address in addresses) {
+            val cityFullName = regex.find(address.getAddressLine(0))?.groupValues?.get(1)
+            if (cityFullName != null) {
+                for (special in listOf("특별시", "광역시", "특별자치")) {
+                    if (cityFullName.contains(special)) {
+                        return cityFullName.replace(special, "")  // e.g. "서울특별시" -> "서울"
+                    }
                 }
+                return cityFullName
             }
-            cityFullName
-        }
+        }  // No matching pattern found.
+        return addresses.first().getAddressLine(0).split(" ").first()
     }
+    return null
 }
 
-fun getDistrictName(address: String?): String? {
-    return if (address == null) {
-        null
-    } else {
+fun getDistrictName(addresses: List<Address>?): String? {
+    if (addresses != null) {
         val regex = Regex("\\s(\\S+?[구읍면])\\s")
-        return regex.find(address)?.groupValues?.get(1)
+        for (address in addresses) {
+            val district = regex.find(address.getAddressLine(0))?.groupValues?.get(1)
+            if (district != null) return district
+        }  // No matching pattern found.
+        val generalRegex = Regex("\\s.+?[시군]\\s(\\S+?)\\s")
+        val street = generalRegex.find(addresses.first().getAddressLine(0))?.groupValues?.get(1)
+        if (street != null) return street
     }
+    return null
 }
 
 enum class KmaHourRoundOff {

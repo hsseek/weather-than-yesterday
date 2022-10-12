@@ -114,25 +114,4 @@ class UnitTest {
 
         println("PTY: ${_rainfallStatus::class.simpleName}\t(${hours.minOrNull()} ~ ${hours.maxOrNull()})")
     }
-
-    @Test
-    fun cityName() {
-        val address = "대한민국 세종특별자치시 중구 서석동 465-2"
-        val name = getCityName(address)
-        assertEquals("세종", name)
-    }
-
-    @Test
-    fun districtName() {
-        val address = "대한민국 세종특별자치시 연기군 서석읍 465-2"
-        val name = getDistrictName(address)
-        assertEquals("서석읍", name)
-    }
-
-    @Test
-    fun temp() {
-        val emptyArrayList = arrayListOf<Int>()
-        println("size: ${emptyArrayList.size}")
-        println(emptyArrayList.minOrNull())
-    }
 }

@@ -36,7 +36,6 @@ import java.util.*
 import kotlin.math.roundToInt
 
 private const val TAG = "WeatherViewModel"
-private const val LOCATION_TAG = "Location"
 private const val VILLAGE_TEMPERATURE_TAG = "TMP"
 private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
@@ -673,9 +672,9 @@ class WeatherViewModel(
         baseCoordinatesXy = convertToXy(coordinates)
 
         val geocoder = KoreanGeocoder(context)
-        val address = geocoder.getAddress(coordinates)
-        val locatedCityName = getCityName(address)
-        getDistrictName(address)?.let {
+        val addresses = geocoder.getAddresses(coordinates)
+        val locatedCityName = getCityName(addresses)
+        getDistrictName(addresses)?.let {
             _districtName.value = it
             Log.d(LOCATION_TAG, "A new district: $it")
         }
