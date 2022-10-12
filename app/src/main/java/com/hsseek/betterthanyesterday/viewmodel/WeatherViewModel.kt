@@ -41,7 +41,7 @@ private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
 private const val HOURLY_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
-private const val NETWORK_TIMEOUT = 3200L
+private const val NETWORK_TIMEOUT = 2500L
 private const val NETWORK_MAX_RETRY = 2
 
 class WeatherViewModel(

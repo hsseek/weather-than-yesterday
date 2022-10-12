@@ -49,6 +49,7 @@ import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModelFactory
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 private const val TAG = "MainActivity"
 private const val USER_PREFERENCES_NAME = "bty_user_preferences"
@@ -67,7 +68,7 @@ class MainActivity : ComponentActivity() {
 
         // Toast message listener from ViewModel
         viewModel.viewModelScope.launch {
-            viewModel.toastMessage.collect{ event ->
+            viewModel.toastMessage.collect { event ->
                 event.getContentIfNotHandled()?.let { id ->
                     toastOnUiThread(id)
                 }
@@ -104,7 +105,8 @@ class MainActivity : ComponentActivity() {
                         selectedLocatingMethod = viewModel.locatingMethod,
                         onClickNegative = { viewModel.toShowLocatingDialog.value = false },
                         onClickPositive = { selectedLocation ->
-                            viewModel.toShowLocatingDialog.value = false  // Dismiss the dialog anyway.
+                            viewModel.toShowLocatingDialog.value =
+                                false  // Dismiss the dialog anyway.
                             onSelectLocatingMethod(selectedLocation)
                         }
                     )
@@ -251,7 +253,7 @@ class MainActivity : ComponentActivity() {
                     onClick = {
                         viewModel.onRefreshClicked()
                         viewModel.showLoading((210..420).random().toLong())
-                        }
+                    }
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
@@ -627,34 +629,30 @@ class MainActivity : ComponentActivity() {
 
                 // Text description
                 val qualitative: String
-                val quantitative: String
+                val hourDescription: String
                 when (sky) {
                     is Good -> {
                         qualitative = stringResource(R.string.today_sunny)
-                        quantitative = ""
+                        hourDescription = ""
                     }
                     is Bad -> {
-                        val startingHour: String = getReadableHour(sky.startingHour.hour())
-                        val endingHour: String = getReadableHour(sky.endingHour.hour())
-
-                        quantitative = if (startingHour == endingHour) {
-                            if (endingHour == stringResource(id = R.string.hour_present)) {
-                                stringResource(R.string.hour_stops_soon)
-                            } else {
-                                "~ $endingHour"
-                            }
+                        if (sky.endingHour < getCurrentKoreanDateTime().get(Calendar.HOUR_OF_DAY)) {
+                            // It has stopped. The rest of the day is sunny.
+                            qualitative = stringResource(R.string.today_sunny)
+                            hourDescription = ""
                         } else {
-                            "$startingHour ~ $endingHour"
-                        }
-                        qualitative = when (sky) {
-                            is Rainy -> stringResource(R.string.today_rainy)
-                            is Snowy -> stringResource(R.string.today_snowy)
-                            else -> stringResource(R.string.today_mixed)
+                            hourDescription =
+                                getRainfallHourDescription(this@MainActivity, sky.startingHour, sky.endingHour)
+                            qualitative = when (sky) {
+                                is Rainy -> stringResource(R.string.today_rainy)
+                                is Snowy -> stringResource(R.string.today_snowy)
+                                else -> stringResource(R.string.today_mixed)
+                            }
                         }
                     }
                     else -> {
                         qualitative = ""
-                        quantitative = ""
+                        hourDescription = ""
                     }
                 }
                 Image(
@@ -665,7 +663,7 @@ class MainActivity : ComponentActivity() {
                 Column {
                     Text(text = qualitative)
                     if (sky is Bad) {
-                        Text(text = quantitative)
+                        Text(text = hourDescription)
                     }
                 }
             }
@@ -695,7 +693,8 @@ class MainActivity : ComponentActivity() {
                     Text(
                         text = stringResource(R.string.dialog_location_title),
                         modifier = Modifier.padding(titlePadding),
-                    ) },
+                    )
+                },
                 backgroundColor = color,
                 buttons = {
                     val selected = rememberSaveable { mutableStateOf(selectedLocatingMethod) }
@@ -807,28 +806,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // TODO: Deal with (start, end, current) = (23, 23, 23) or (23, 23, 0)
-    @Composable
-    private fun getReadableHour(hour: Int): String {
-        // The next forecast baseTime
-        val closestHour = getKmaBaseTime(
-            hourOffset = 1,
-            roundOff = KmaHourRoundOff.HOUR,
-        )
-        return if (hour == closestHour.hour.toInt()) {
-            stringResource(R.string.hour_present)  // The next forecast hour says it's going to be raining.
-        } else if (hour == 12) {
-            stringResource(id = R.string.hour_noon) // 1200 -> Noon
-        } else if (hour == 23) {
-            stringResource(R.string.hour_overnight)
-        } else if (hour < 12) {
-            stringResource(R.string.hour_am, hour) // 800 -> 8 AM
-        } else {
-            stringResource(R.string.hour_pm, hour - 12) // 1300 -> 1 PM
-        }
-    }
-
-//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+    //    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
     fun LocationInformationPreview() {
         BetterThanYesterdayTheme {
@@ -843,7 +821,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-//    @Preview(showBackground = true)
+    //    @Preview(showBackground = true)
 //    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
     fun ManualLocationInformationPreview() {
@@ -859,7 +837,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-//    @Preview(showBackground = true)
+    //    @Preview(showBackground = true)
 //    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
     fun ColdCurrentTempPreview() {
@@ -874,7 +852,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-//    @Preview(showBackground = true)
+    //    @Preview(showBackground = true)
 //    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
     fun HotCurrentTempPreview() {
@@ -889,7 +867,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-//    @Preview(showBackground = true)
+    //    @Preview(showBackground = true)
 //    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
     fun SameCurrentTempPreview() {
@@ -904,7 +882,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-//    @Preview(showBackground = true)
+    //    @Preview(showBackground = true)
     @Composable
     fun SunnyPreview() {
         BetterThanYesterdayTheme {
@@ -956,7 +934,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-//    @Preview(showBackground = true)
+    //    @Preview(showBackground = true)
     @Composable
     fun AppBarPreview() {
         BetterThanYesterdayTheme {
@@ -964,22 +942,6 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxWidth(),
             ) {
 
-            }
-        }
-    }
-
-//    @Preview(showBackground = true)
-//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
-    @Composable
-    fun LocatingMethodDialogPreview() {
-        BetterThanYesterdayTheme {
-            Surface {
-                LocationSelectDialog(
-                    isShowing = true,
-                    selectedLocatingMethod = LocatingMethod.Capital,
-                    onClickNegative = {},
-                    onClickPositive = {}
-                )
             }
         }
     }
@@ -995,7 +957,7 @@ class MainActivity : ComponentActivity() {
                 Column(
                     modifier = modifier.verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    )
+                )
                 {
                     LocationInformation(
                         modifier = modifier,
@@ -1038,5 +1000,107 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+//    @Preview(showBackground = true)
+//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
+    @Composable
+    fun LocatingMethodDialogPreview() {
+        BetterThanYesterdayTheme {
+            Surface {
+                LocationSelectDialog(
+                    isShowing = true,
+                    selectedLocatingMethod = LocatingMethod.Capital,
+                    onClickNegative = {},
+                    onClickPositive = {}
+                )
+            }
+        }
+    }
+}
+
+/**
+ * [startingHour] and [endingHour] in HH00 format (e.g. 1100 for 11:00 AM, 20:00 for 8:00 PM)
+ * */
+internal fun getRainfallHourDescription(
+    context: Context,
+    startingHour: Int,
+    endingHour: Int,
+    cal: Calendar = getCurrentKoreanDateTime(),
+): String {
+    val openingString: String
+    val closingString: String
+    val currentHour = cal.get(Calendar.HOUR_OF_DAY) * 100
+    val lastHour = 2300
+    val through = " ~ "
+
+    // (Start, Current, End)
+    if (endingHour == lastHour) {  // (?, ?, 23)
+        closingString = context.getString(R.string.hour_overnight)
+        if (startingHour == endingHour) {  // (23, ?, 23)
+            if (startingHour > currentHour) {
+                // (23, 9, 23)  11 PM ~ Overnight
+                openingString = context.getString(R.string.hour_23) + through
+            } else {
+                // (23, 23, 23) Ongoing ~ Overnight
+                openingString = context.getString(R.string.hour_present) + through
+            }
+        } else {  // (11, ?, 23)
+            if (endingHour <= currentHour) {  // if ending < current, this won't be called from the first place.
+                openingString = context.getString(R.string.hour_present) + through
+            } else {
+                if (startingHour <= currentHour) {
+                    // (11, 11, 23)
+                    openingString = context.getString(R.string.hour_present) + through
+                } else {
+                    // (11, 7, 23)
+                    openingString = getReadableHour(context, startingHour) + through
+                }
+            }
+        }
+    } else {  // (?, ?, 18)
+        if (startingHour == endingHour) {  // (18, ?, 18)
+            closingString = context.getString(R.string.hour_stops_soon)
+            if (startingHour <= currentHour) {
+                // (18, 18, 18)
+                openingString = ""
+            } else {
+                // (18, 7, 18)
+                openingString = getReadableHour(context, startingHour)
+            }
+        } else {  // (15, ?, 18)
+            if (endingHour <= currentHour) {  // if ending < current, this won't be called from the first place.
+                closingString = context.getString(R.string.hour_stops_soon)
+                openingString = ""
+            } else {
+                closingString = getReadableHour(context, endingHour, true)
+                if (startingHour <= currentHour) {
+                    // (15, 16, 18)
+                    openingString = context.getString(R.string.hour_present) + through
+                } else {
+                    // (15, 12, 18)
+                    openingString = getReadableHour(context, startingHour) + through
+                }
+            }
+        }
+    }
+
+    return openingString + closingString
+}
+
+/**
+ * [hour] in HH00 format (e.g. 1100 for 11:00 AM, 20:00 for 8:00 PM)
+ * */
+private fun getReadableHour(context: Context, hour: Int, roundUp: Boolean = false): String {
+    val modifiedHour = if (roundUp) hour + 100 else hour
+
+    return if (modifiedHour == 1200) {
+        context.getString(R.string.hour_noon) // 1200 -> Noon
+    } else if (modifiedHour == 2300) {
+        context.getString(R.string.hour_overnight)
+    } else if (modifiedHour < 1200) {
+        context.getString(R.string.hour_am, modifiedHour / 100) // 800 -> 8 AM
+    } else {
+        context.getString(R.string.hour_pm, modifiedHour / 100 - 12) // 1300 -> 1 PM
     }
 }

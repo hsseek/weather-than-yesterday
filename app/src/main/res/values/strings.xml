@@ -13,6 +13,7 @@
     <string name="hour_noon">Noon</string>
     <string name="hour_am">%1$d AM</string>
     <string name="hour_pm">%1$d PM</string>
+    <string name="hour_23">11 PM</string>
     <string name="hour_present">(Ongoing)</string>
     <string name="hour_stops_soon">(Stops soon)</string>
     <string name="today_sunny">No rain forecast</string>

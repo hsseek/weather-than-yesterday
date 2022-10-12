@@ -105,8 +105,6 @@ suspend fun logCoroutineContext(msg: String = "") {
     Log.d(tag, msg + "\nThread: ${Thread.currentThread().name}" + "\nScope: $coroutineContext")
 }
 
-fun Int.hour(): Int = this / 100
-
 fun getCityName(addresses: List<Address>?): String? {
     if (addresses != null) {
         val regex = Regex("\\s(.+?[시군])\\s")
