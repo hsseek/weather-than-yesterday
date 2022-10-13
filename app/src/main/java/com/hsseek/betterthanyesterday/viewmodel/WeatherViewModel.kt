@@ -760,7 +760,12 @@ class WeatherViewModel(
             ) == PackageManager.PERMISSION_GRANTED
         ) {
             locationClient.lastLocation.addOnSuccessListener {
-                updateLocationAndWeather(CoordinatesLatLon(lat = it.latitude, lon = it.longitude))
+                if (it != null) {
+                    updateLocationAndWeather(CoordinatesLatLon(lat = it.latitude, lon = it.longitude))
+                } else {
+                    // e.g. On the very first boot of the device
+                    Log.w(LOCATION_TAG, "FusedLocationProviderClient.lastLocation is null.")
+                }
             }
 
             // A costly process to update the current location. Might take about 10 seconds.
