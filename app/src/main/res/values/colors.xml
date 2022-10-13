@@ -4,4 +4,6 @@
     <color name="secondary">#FFEC407A</color>  <!--Pink400-->
     <color name="background">#FFFFFF</color>
     <color name="on_background">#000000</color>
+    <color name="grey">#808080</color>
+    <color name="icon_pink">#FFEC407A</color>
 </resources>
