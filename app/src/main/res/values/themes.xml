@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.BetterThanYesterday" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">@color/purple_700</item>
+    <style name="Theme.BetterThanYesterday" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@color/primary</item>
+        <item name="android:colorBackground">@color/primary</item>
+<!--        <item name="android:statusBarColor">?attr/colorPrimary</item>-->
+<!--        <item name="colorPrimary">@color/blue_500</item>-->
     </style>
 </resources>

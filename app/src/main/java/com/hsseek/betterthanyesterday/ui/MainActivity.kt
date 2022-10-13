@@ -118,7 +118,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.onRefreshClicked()
+        viewModel.onRefreshClicked(false)
     }
 
     override fun onPause() {
@@ -222,9 +222,9 @@ class MainActivity : ComponentActivity() {
             Box(
                 modifier = modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .height(120.dp)
                     .background(MaterialTheme.colors.secondary),
-                contentAlignment = Alignment.TopCenter,
+                contentAlignment = Alignment.Center,
             ) {
                 Text(text = "광고")
             }
@@ -252,7 +252,7 @@ class MainActivity : ComponentActivity() {
                 // Refresh button
                 IconButton(
                     onClick = {
-                        viewModel.onRefreshClicked()
+                        viewModel.onRefreshClicked(true)
                     }
                 ) {
                     Icon(

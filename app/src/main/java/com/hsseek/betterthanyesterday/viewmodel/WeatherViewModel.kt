@@ -817,7 +817,7 @@ class WeatherViewModel(
      * Return true if it refreshes(i.e. refresh request is valid),
      * return false if it won't refresh(e.g. The current data are up-to-date).
      * */
-    fun onRefreshClicked() {
+    fun onRefreshClicked(isManual: Boolean = false) {
         Log.d(TAG, "onRefreshClicked")
 
         // Refresh weather data only if new data are available.
@@ -825,7 +825,9 @@ class WeatherViewModel(
         if (kmaTime.isLaterThan(lastHourBaseTime) || !isDataValid) {
             requestAllWeatherData()
         } else {
-            showLoading((210..420).random().toLong())
+            if (isManual) {
+                showLoading((210..420).random().toLong())
+            }
         }
 
         // Refresh location on user's demand.
@@ -834,7 +836,7 @@ class WeatherViewModel(
         }
     }
 
-    fun showLoading(milliSec: Long) {
+    private fun showLoading(milliSec: Long) {
         viewModelScope.launch {
             _isLoading.value = true
             delay(milliSec)
