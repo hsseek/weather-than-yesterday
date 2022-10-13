@@ -5,7 +5,6 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Bundle
 import android.util.Log
@@ -13,6 +12,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
@@ -24,11 +25,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,6 +50,7 @@ import com.hsseek.betterthanyesterday.viewmodel.Sky.Bad.*
 import com.hsseek.betterthanyesterday.viewmodel.Sky.Good
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModelFactory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -89,16 +91,28 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             BetterThanYesterdayTheme {
-                // Make the status bar transparent.
-                val systemUiController = rememberSystemUiController()
-                systemUiController.setSystemBarsColor(
-                    color = MaterialTheme.colors.background
-                )
-
                 Surface(color = MaterialTheme.colors.background) {
-                    val modifier = Modifier
+                    val transitionDuration = 340
+                    Crossfade(
+                        targetState = viewModel.showLandingScreen,
+                        animationSpec = tween(durationMillis = transitionDuration)
+                    ) { showLandingScreenState ->
+                        if (showLandingScreenState) {
+                            LandingScreen(
+                                timeout = 2400L,
+                                onTimeout = { viewModel.onLandingScreenTimeout() },
+                            )
+                        } else {
+                            val modifier = Modifier
+                            MainScreen(modifier = modifier)
+                        }
+                    }
 
-                    MainScreen(modifier = modifier)
+//                    if (viewModel.showLandingScreen) {
+//                        LandingScreen(onTimeout = { viewModel.onLandingScreenTimeout() })
+//                    } else {
+//                        MainScreen(modifier = modifier)
+//                    }
 
                     // A dialog to select locating method.
                     LocationSelectDialog(
@@ -182,6 +196,12 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun MainScreen(modifier: Modifier) {
+        // Make the status bar transparent.
+        val systemUiController = rememberSystemUiController()
+        systemUiController.setSystemBarsColor(
+            color = MaterialTheme.colors.background
+        )
+
         Scaffold(
             topBar = { WeatherTopAppBar(
                 modifier = modifier.fillMaxWidth(),
@@ -228,6 +248,31 @@ class MainActivity : ComponentActivity() {
             ) {
                 Text(text = "광고")
             }
+        }
+    }
+
+    @Composable
+    private fun LandingScreen(timeout: Long, onTimeout: () -> Unit) {
+        val padding = 30.dp
+        val letterSize= 600.dp
+
+        LaunchedEffect(true) {
+            delay(timeout)
+            onTimeout()
+        }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colorResource(id = R.color.primary)),
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.landing_letter_00),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(letterSize)
+                    .padding(padding)
+            )
         }
     }
 
@@ -948,62 +993,6 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxWidth(),
             ) {
 
-            }
-        }
-    }
-
-//    @Preview(showBackground = true)
-    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 320, heightDp = 640)
-    @Composable
-    fun StackedPreview() {
-        val stringForNull = stringResource(id = R.string.null_value)
-        BetterThanYesterdayTheme {
-            val modifier = Modifier
-            Surface {
-                Column(
-                    modifier = modifier.verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                )
-                {
-                    LocationInformation(
-                        modifier = modifier,
-                        cityName = "서울",
-                        districtName = "종로구",
-                        locatingMethod = LocatingMethod.SouthJl,
-                    )
-                    CurrentTemperature(
-                        modifier = modifier,
-                        hourlyTempDiff = 3,
-                        currentTemp = 24
-                    )
-                    DailyTemperatures(
-                        modifier = modifier,
-                        dailyTemps = listOf(
-                            DailyTemperature(
-                                false, "",
-                                stringResource(id = R.string.daily_highest),
-                                stringResource(id = R.string.daily_lowest)
-                            ),
-                            DailyTemperature(
-                                false, "Tue", "12", stringForNull
-                            ),
-                            DailyTemperature(
-                                true, "Wed", "23", "-10"
-                            ),
-                            DailyTemperature(
-                                false, "Thu", stringForNull, "8"
-                            ),
-                            DailyTemperature(
-                                false, "Fri", "10", "-6"
-                            )
-                        )
-                    )
-                    RainfallStatus(
-                        modifier = modifier,
-                        sky = Rainy(300, 1200)
-                    )
-                    CustomScreen(modifier = modifier)
-                }
             }
         }
     }

@@ -49,6 +49,7 @@ class WeatherViewModel(
     private val userPreferencesRepository: UserPreferencesRepository,
 ) : AndroidViewModel(application) {
     private val context = application
+
     private val stringForNull = context.getString(R.string.null_value)
 
     private val retrofitDispatcher = Dispatchers.IO
@@ -59,6 +60,9 @@ class WeatherViewModel(
     private val _isLoading = mutableStateOf(true)
     val isLoading: Boolean
         get() = _isLoading.value
+    private val _showLandingScreen = mutableStateOf(true)
+    val showLandingScreen: Boolean
+        get() = _showLandingScreen.value
 
     private var lastHourBaseTime: KmaTime = getKmaBaseTime(roundOff = HOUR)
 
@@ -507,6 +511,7 @@ class WeatherViewModel(
                         buildDailyTemps()
                         isDataValid = true
                     }
+                    _showLandingScreen.value = false
                     break
                 } catch (e: Exception) {
                     if (++trialCount >= NETWORK_MAX_RETRY) {  // Maximum count of trials has been reached.
@@ -856,6 +861,10 @@ class WeatherViewModel(
         }
 
         return builder.toList()
+    }
+
+    fun onLandingScreenTimeout() {
+        _showLandingScreen.value = false
     }
 
     companion object {
