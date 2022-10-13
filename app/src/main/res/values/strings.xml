@@ -62,6 +62,9 @@
     <string name="refresh_up_to_date">Weather information is up-to-date.</string>
     <string name="weather_retrieving_failure_general">Cannot retrieve weather data.</string>
     <string name="weather_retrieving_failure_network">Please check your network status.</string>
-    <string name="topbar_settings">Settings</string>
     <string name="title_activity_web_view">FAQ</string>
+    <string name="title_activity_settings">Settings</string>
+    <string name="help">Help</string>
+    <string name="settings_language">Language</string>
+    <string name="desc_back">Back</string>
 </resources>
