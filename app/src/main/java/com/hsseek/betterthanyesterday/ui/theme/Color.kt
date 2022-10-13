@@ -15,6 +15,11 @@ val Amber500 = Color(0xFFFFC107)
 val Amber600 = Color(0xFFFFB300)
 val Amber700 = Color(0xFFFFA000)
 
+val Pink400 = Color(0xFFEC407A)
+val Pink600 = Color(0xFFD81B60)
+val Pink700 = Color(0xFFC2185B)
+val Pink800 = Color(0xFFAD1457)
+
 val RedShade700 = Color(0xFF350000)
 val RedShade600 = Color(0xFF470000)
 val RedShade500 = Color(0xFF590000)

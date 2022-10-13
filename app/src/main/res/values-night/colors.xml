@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="primary">#FFFFD54F</color>  <!--Not applied to the icon color-->
+    <color name="secondary">#C2185B</color>  <!--Pink700-->
+    <color name="background">#232323</color>  <!--Gray500-->
+    <color name="on_background">#FFFFFF</color>
 </resources>

@@ -25,11 +25,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -253,25 +254,33 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun LandingScreen(timeout: Long, onTimeout: () -> Unit) {
-        val padding = 30.dp
-        val letterSize= 600.dp
+        val letterFraction = .5f
+        val iconFraction = .25f
+        val space = 30.dp
 
         LaunchedEffect(true) {
             delay(timeout)
             onTimeout()
         }
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .fillMaxSize()
-                .background(colorResource(id = R.color.primary)),
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center
         ) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_thermostat),
+                contentDescription = null,
+                contentScale = ContentScale.FillWidth,
+                modifier = Modifier
+                    .fillMaxWidth(iconFraction),
+            )
+            Spacer(modifier = Modifier.height(space))
             Image(
                 painter = painterResource(id = R.drawable.landing_letter_00),
                 contentDescription = null,
+                contentScale = ContentScale.FillWidth,
                 modifier = Modifier
-                    .size(letterSize)
-                    .padding(padding)
+                    .fillMaxWidth(letterFraction),
             )
         }
     }
@@ -1009,6 +1018,16 @@ class MainActivity : ComponentActivity() {
                     onClickNegative = {},
                     onClickPositive = {}
                 )
+            }
+        }
+    }
+
+    @Preview(showBackground = true)
+    @Composable
+    fun LandingScreenPreview() {
+        BetterThanYesterdayTheme {
+            Surface {
+                LandingScreen(timeout = 0) {}
             }
         }
     }
