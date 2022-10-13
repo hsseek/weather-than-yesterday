@@ -671,20 +671,11 @@ class MainActivity : ComponentActivity() {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // The id of the visual icon
-                val imageId: Int = if (isSystemInDarkTheme()) {
-                    when (sky) {
-                        is Good -> R.drawable.ic_smile_dark
-                        is Rainy -> R.drawable.ic_rainy_dark
-                        is Snowy -> R.drawable.ic_snow_dark
-                        else -> R.drawable.ic_umbrella_dark
-                    }
-                } else {
-                    when (sky) {
-                        is Good -> R.drawable.ic_smile
-                        is Rainy -> R.drawable.ic_rainy
-                        is Snowy -> R.drawable.ic_snow
-                        else -> R.drawable.ic_umbrella
-                    }
+                val imageId: Int = when (sky) {
+                    is Good -> R.drawable.ic_smile
+                    is Rainy -> R.drawable.ic_rainy
+                    is Snowy -> R.drawable.ic_snow
+                    else -> R.drawable.ic_umbrella
                 }
 
                 // Text description

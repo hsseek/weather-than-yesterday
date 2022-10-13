@@ -4,8 +4,8 @@
     <string name="dialog_title_location_permission">위치정보 이용권한 설정</string>
     <string name="dialog_message_location_permission">현재 위치의 날씨 정보를 얻기 위해 위치정보 이용권한이 필요합니다.\n(권한을 부여하지 않더라도 수동 위치 설정이 가능합니다.)</string>
     <string name="current_temp_title">온도 정보</string>
-    <string name="current_temp_higher">어제보다 기온이 높습니다.</string>
-    <string name="current_temp_lower">어제보다 기온이 낮습니다.</string>
+    <string name="current_temp_higher">어제 동 시간대보다 기온이 높습니다.</string>
+    <string name="current_temp_lower">어제 동 시간대보다 기온이 낮습니다.</string>
     <string name="current_temp_same">어제와 기온이 같습니다.</string>
     <string name="current_temp_value">현재 %1$d\u2103</string>
     <string name="daily_today">(오늘)</string>
