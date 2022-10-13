@@ -41,8 +41,10 @@ private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
 private const val HOURLY_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
-private const val NETWORK_TIMEOUT = 3200L
-private const val NETWORK_MAX_RETRY = 2
+private const val NETWORK_TIMEOUT = 1200L
+private const val NETWORK_ADDITIONAL_TIMEOUT = 400L
+private const val NETWORK_PAUSE = 150L
+private const val NETWORK_MAX_RETRY = 3
 
 class WeatherViewModel(
     application: Application,
@@ -184,13 +186,14 @@ class WeatherViewModel(
         viewModelScope.launch(defaultDispatcher) {
             logCoroutineContext("requestAllWeatherData()")
 
+            // Cancel previous job if active.
             kmaJob?.cancel()
             kmaJob?.join()
             var trialCount = 0
 
-            while (true) {
+            while (trialCount < NETWORK_MAX_RETRY) {
                 try {
-                    withTimeout(NETWORK_TIMEOUT) {
+                    withTimeout(NETWORK_TIMEOUT + trialCount * NETWORK_ADDITIONAL_TIMEOUT) {
                         kmaJob = launch(defaultDispatcher) {
                             isDataValid = false
                             _isLoading.value = true
@@ -526,7 +529,7 @@ class WeatherViewModel(
                         Log.w(TAG, "Failed to retrieve weather data.\n$e")
                         kmaJob?.cancel()
                         kmaJob?.join()
-                        runBlocking { delay(320L) }
+                        runBlocking { delay(NETWORK_PAUSE) }
                     }
                 } finally {
                     kmaJob?.cancel()
