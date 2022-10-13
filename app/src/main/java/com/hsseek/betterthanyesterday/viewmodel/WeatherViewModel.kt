@@ -41,7 +41,7 @@ private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
 private const val HOURLY_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
-private const val NETWORK_TIMEOUT = 3800L
+private const val NETWORK_TIMEOUT = 3200L
 private const val NETWORK_MAX_RETRY = 2
 
 class WeatherViewModel(
@@ -524,9 +524,12 @@ class WeatherViewModel(
                         break
                     } else {
                         Log.w(TAG, "Failed to retrieve weather data.\n$e")
-                        runBlocking { delay(200L) }
+                        kmaJob?.cancel()
+                        kmaJob?.join()
+                        runBlocking { delay(320L) }
                     }
                 } finally {
+                    kmaJob?.cancel()
                     _isLoading.value = false
                 }
             }
