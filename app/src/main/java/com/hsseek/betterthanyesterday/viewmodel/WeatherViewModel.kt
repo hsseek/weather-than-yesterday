@@ -74,6 +74,8 @@ class WeatherViewModel(
     private val locationClient = LocationServices.getFusedLocationProviderClient(context)
     var toShowLocatingDialog = mutableStateOf(false)
         private set
+    var isUpdatingLocation: Boolean = false
+
     // The forecast location is an input from UI.
     var locatingMethod: LocatingMethod? = null
         private set
@@ -765,6 +767,8 @@ class WeatherViewModel(
                 context, Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
+            if (isUpdatingLocation) stopLocationUpdate()
+
             locationClient.lastLocation.addOnSuccessListener {
                 if (it != null) {
                     updateLocationAndWeather(CoordinatesLatLon(lat = it.latitude, lon = it.longitude))
@@ -774,13 +778,18 @@ class WeatherViewModel(
                 }
             }
 
-            // A costly process to update the current location. Might take about 10 seconds.
-            locationClient.requestLocationUpdates(currentLocationRequest, locationCallback, Looper.getMainLooper())
+            try {// A costly process to update the current location. Might take about 10 seconds.
+                locationClient.requestLocationUpdates(currentLocationRequest, locationCallback, Looper.getMainLooper())
+                isUpdatingLocation = true
+            } catch (e: Exception) {
+                Log.e(LOCATION_TAG, "Location update failed.", e)
+            }
         }
     }
 
     fun stopLocationUpdate() {
         locationClient.removeLocationUpdates(locationCallback)
+        isUpdatingLocation = false
     }
 
     /**
