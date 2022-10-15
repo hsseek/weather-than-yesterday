@@ -69,7 +69,7 @@ class WeatherViewModel(
     private val retrofitDispatcher = Dispatchers.IO
     private val defaultDispatcher = Dispatchers.Default
     private var kmaJob: Job = Job()
-    private val _isLoading = mutableStateOf(true)
+    private val _isLoading = mutableStateOf(false)
     val isLoading: Boolean
         get() = _isLoading.value
     private val _showLandingScreen = mutableStateOf(true)

@@ -108,12 +108,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        Log.d(TAG, "onStart() called.")
+        requestRefreshIfValid(viewModel.locatingMethod)
+    }
+
     override fun onResume() {
         super.onResume()
         Log.d(TAG, "onResume() called.")
-        if (isLocatingMethodValid(viewModel.locatingMethod)) {
-            viewModel.refreshWeatherData()
-        }
     }
 
     override fun onPause() {
@@ -136,17 +139,7 @@ class MainActivity : ComponentActivity() {
             viewModel.refreshWeatherData()
         } else {
             Log.d(TAG, "LocatingMethod invalid.")
-            if (true) {
-                Log.d(TAG, "Request permission.")
-                showRequestPermissionLauncher()
-            } else {
-                // When the launcher is dismissed, onResume() called.
-                // As onResume() requests data refresh,
-                // LocatingMethod should be checked onResume().
-                // After checking, another launcher would be created if LocatingMethod is not valid.
-                // In that case, it reaches here to prevent duplicate launchers.
-                Log.d(TAG, "Skipping request.")
-            }
+            showRequestPermissionLauncher()
         }
     }
 
