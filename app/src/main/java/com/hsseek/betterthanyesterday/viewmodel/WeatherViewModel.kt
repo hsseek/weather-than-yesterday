@@ -30,6 +30,7 @@ import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.VILLAGE
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import retrofit2.Response
 import java.net.UnknownHostException
 import java.util.*
@@ -41,24 +42,33 @@ private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
 private const val HOURLY_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
-private const val NETWORK_TIMEOUT = 1200L
+private const val NETWORK_TIMEOUT_MIN = 1_200L
 private const val NETWORK_ADDITIONAL_TIMEOUT = 400L
+private const val NETWORK_TIMEOUT_MAX = 6_400L
 private const val NETWORK_PAUSE = 150L
-private const val NETWORK_MAX_RETRY = 3
+private const val NETWORK_MAX_RETRY = 12
 
 class WeatherViewModel(
     application: Application,
     private val userPreferencesRepository: UserPreferencesRepository,
 ) : AndroidViewModel(application) {
+    init {
+        runBlocking {
+            val storedCode = userPreferencesRepository.locatingMethodFlow.first()
+            enumValues<LocatingMethod>().forEach { storedLocatingMethod ->
+                if (storedLocatingMethod.code == storedCode) {
+                    this@WeatherViewModel.locatingMethod = storedLocatingMethod
+                }
+            }
+        }
+    }
     private val context = application
 
     private val stringForNull = context.getString(R.string.null_value)
 
     private val retrofitDispatcher = Dispatchers.IO
     private val defaultDispatcher = Dispatchers.Default
-    private var kmaJob: Job? = null
-    var isDataValid: Boolean = true
-        private set
+    private var kmaJob: Job = Job()
     private val _isLoading = mutableStateOf(true)
     val isLoading: Boolean
         get() = _isLoading.value
@@ -66,7 +76,7 @@ class WeatherViewModel(
     val showLandingScreen: Boolean
         get() = _showLandingScreen.value
 
-    private var lastHourBaseTime: KmaTime = getKmaBaseTime(roundOff = HOUR)
+    private var lastBaseTime: KmaTime? = null
 
     private var baseCoordinatesXy = CoordinatesXy(60, 127)
 
@@ -74,10 +84,10 @@ class WeatherViewModel(
     private val locationClient = LocationServices.getFusedLocationProviderClient(context)
     var toShowLocatingDialog = mutableStateOf(false)
         private set
-    var isUpdatingLocation: Boolean = false
+    private var isUpdatingLocation: Boolean = false
 
     // The forecast location is an input from UI.
-    var locatingMethod: LocatingMethod? = null
+    lateinit var locatingMethod: LocatingMethod
         private set
 
     private val _cityName: MutableState<String> = mutableStateOf(stringForNull)
@@ -116,53 +126,12 @@ class WeatherViewModel(
     private val _toastMessage = MutableStateFlow(OneShotEvent(0))
     val toastMessage = _toastMessage.asStateFlow()
 
-    /**
-     * Process the selection of LocatingMethod from the dialog.
-     *
-     * auto?	permitted?	changed?
-    V			V			V			update
-    V			-			V			request permission (Dealt with Activity)
-    V			-			-			request permission (Dealt with Activity)
-    V			V			-			none
-    -			-			-			none
-    -			V			-			none
-    -			V			V			update
-    -			-			V			update
-     * */
-    fun updateLocatingMethod(
-        selectedLocatingMethod: LocatingMethod,
-        isSelectionValid: Boolean = true
-    ) {
+    fun updateLocatingMethod(selectedLocatingMethod: LocatingMethod) {
+        locatingMethod = selectedLocatingMethod
+
         // Store the selected LocatingMethod.
         viewModelScope.launch {
             userPreferencesRepository.updateLocatingMethod(selectedLocatingMethod)
-        }
-
-        if (selectedLocatingMethod != locatingMethod) {  // Changed
-            /* auto?	permitted?	CHANGED?
-            V			V			V			update
-            V			-			V			request permission (INVALID SELECTION)
-            -			V			V			update
-            -			-			V			update
-            * */
-            locatingMethod = selectedLocatingMethod
-
-            if (isSelectionValid) {
-                if (selectedLocatingMethod == LocatingMethod.Auto) {
-                    startLocationUpdate()
-                } else {  // LocatingMethod for fixed locations
-                    updateFixedLocation(selectedLocatingMethod)
-                    stopLocationUpdate()
-                }
-            }
-        } else {  // Forecast location not changed
-            /* Nothing To do.
-             auto?	    permitted?	CHANGED?
-             V			-			-			request permission (INVALID SELECTION)
-             V			V			-			none
-             -			-			-			none
-             -			V			-			none
-            * */
         }
     }
 
@@ -181,6 +150,7 @@ class WeatherViewModel(
         _hourlyTempDiff.value = null
         _dailyTemps.value = getDefaultDailyTemps()
         _rainfallStatus.value = Sky.Undetermined
+        lastBaseTime = null
     }
 
     private fun requestAllWeatherData() {
@@ -189,15 +159,14 @@ class WeatherViewModel(
             logCoroutineContext("requestAllWeatherData()")
 
             // Cancel previous job if active.
-            kmaJob?.cancel()
-            kmaJob?.join()
+            kmaJob.cancel()
+            kmaJob.join()
             var trialCount = 0
 
             while (trialCount < NETWORK_MAX_RETRY) {
                 try {
-                    withTimeout(NETWORK_TIMEOUT + trialCount * NETWORK_ADDITIONAL_TIMEOUT) {
+                    withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
                         kmaJob = launch(defaultDispatcher) {
-                            isDataValid = false
                             _isLoading.value = true
 
                             val today: String = formatToKmaDate(getCurrentKoreanDateTime())
@@ -511,10 +480,10 @@ class WeatherViewModel(
                             // Refresh the rainfall status.
                             launch { refreshRainfall(todayHourlyData, futureTodayData) }
                         }
-                        kmaJob?.join()
+                        kmaJob.join()
                         adjustCharTemp()
                         buildDailyTemps()
-                        isDataValid = true
+                        lastBaseTime = getKmaBaseTime(roundOff = HOUR)
                     }
                     _showLandingScreen.value = false
                     break
@@ -529,12 +498,12 @@ class WeatherViewModel(
                         break
                     } else {
                         Log.w(TAG, "Failed to retrieve weather data.\n$e")
-                        kmaJob?.cancel()
-                        kmaJob?.join()
+                        kmaJob.cancel()
+                        kmaJob.join()
                         runBlocking { delay(NETWORK_PAUSE) }
                     }
                 } finally {
-                    kmaJob?.cancel()
+                    kmaJob.cancel()
                     _isLoading.value = false
                 }
             }
@@ -759,10 +728,20 @@ class WeatherViewModel(
         }
     }
 
+    fun refreshWeatherData() {
+        if (locatingMethod != LocatingMethod.Auto) {
+            stopLocationUpdate()  // No need to request location.
+            updateFixedLocation(locatingMethod)  // Update the location directly.
+        } else {
+            startLocationUpdate()
+        }
+    }
+
     /**
      * Start location update and eventually retrieve new weather data based on the location.
      * */
-    fun startLocationUpdate() {
+    private fun startLocationUpdate() {
+        Log.d(TAG, "startLocationUpdated() called.")
         if (ActivityCompat.checkSelfPermission(
                 context, Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
@@ -804,7 +783,17 @@ class WeatherViewModel(
             baseCoordinatesXy = coordinates
             requestAllWeatherData()
         } else {
-            Log.d(LOCATION_TAG, "The same city, no need to renew.")
+            Log.d(TAG, "The same city.")
+            val kmaTime = getKmaBaseTime(roundOff = HOUR)
+            val lastChecked = lastBaseTime
+
+            if (lastChecked == null || kmaTime.isLaterThan(lastChecked)) {
+                Log.d(TAG, "Renewing old data.")
+                requestAllWeatherData()
+            } else {
+                Log.d(TAG, "The data is up-to-date as well.")
+                _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
+            }
         }
     }
 
@@ -835,38 +824,6 @@ class WeatherViewModel(
                 Log.d(LOCATION_TAG, "Lat: ${it.latitude}\nLon: ${it.longitude}")
                 updateLocationAndWeather(CoordinatesLatLon(it.latitude, it.longitude))
             }
-        }
-    }
-
-    /**
-     * Return true if it refreshes(i.e. refresh request is valid),
-     * return false if it won't refresh(e.g. The current data are up-to-date).
-     * */
-    fun onRefreshClicked(isManual: Boolean = false) {
-        Log.d(TAG, "onRefreshClicked")
-
-        // Refresh weather data only if new data are available.
-        val kmaTime = getKmaBaseTime(roundOff = HOUR)
-        if (kmaTime.isLaterThan(lastHourBaseTime) || !isDataValid) {
-            requestAllWeatherData()
-        } else {
-            if (isManual) {
-                showLoading((210..420).random().toLong())
-            }
-        }
-
-        // Refresh location on user's demand.
-        if (locatingMethod == LocatingMethod.Auto) {
-            startLocationUpdate()
-        }
-    }
-
-    private fun showLoading(milliSec: Long) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            delay(milliSec)
-            _isLoading.value = false
-            _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
         }
     }
 

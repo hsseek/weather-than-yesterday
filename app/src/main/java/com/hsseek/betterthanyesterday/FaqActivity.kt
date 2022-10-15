@@ -1,4 +1,4 @@
-package com.hsseek.betterthanyesterday.ui
+package com.hsseek.betterthanyesterday
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap

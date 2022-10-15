@@ -3,8 +3,8 @@ package com.hsseek.betterthanyesterday
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
 import com.hsseek.betterthanyesterday.location.KoreanGeocoder
-import com.hsseek.betterthanyesterday.ui.getRainfallHourDescription
 
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,6 +34,27 @@ class InstrumentedTest {
         Log.d("geocoder", "(lat, lon): (${coordinates?.lat}, ${coordinates?.lon})")
         assertEquals(37.24293628036336, coordinates!!.lat, 1e-5)
         assertEquals(131.8668420793528, coordinates.lon, 1e-5)
+    }
+
+    @Test
+    fun geocoderAddress() {
+        val geo = KoreanGeocoder(appContext)
+        val query = "서울대학교 중앙도서관"
+        val ll = geo.getLatLng(query)
+        val tag = "geocoder"
+
+        if (ll != null) {
+            val addresses = geo.getAddresses(CoordinatesLatLon(ll.lat, ll.lon), 20)
+            if (addresses != null) {
+                for (i in addresses) {
+                    Log.d(tag, i.getAddressLine(0))
+                }
+            } else {
+                Log.e(tag, "Address null.")
+            }
+        } else {
+            Log.e(tag, "Location null.")
+        }
     }
 
     @Test

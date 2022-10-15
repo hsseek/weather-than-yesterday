@@ -1,4 +1,4 @@
-package com.hsseek.betterthanyesterday.ui
+package com.hsseek.betterthanyesterday
 
 import android.Manifest
 import android.app.AlertDialog
@@ -35,12 +35,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.*
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
-import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.ui.theme.*
 import com.hsseek.betterthanyesterday.util.*
@@ -52,23 +48,21 @@ import com.hsseek.betterthanyesterday.viewmodel.Sky.Good
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModelFactory
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
-private const val TAG = "MainActivity"
-private const val USER_PREFERENCES_NAME = "bty_user_preferences"
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(USER_PREFERENCES_NAME)
+private const val TAG = "MainActivityLog"
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: WeatherViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val prefsRepo = UserPreferencesRepository(dataStore)
+        Log.d(TAG, "onCreated() called.")
+
         viewModel = ViewModelProvider(
             this,
-            WeatherViewModelFactory(application, prefsRepo)
+            WeatherViewModelFactory(application, UserPreferencesRepository(this))
         )[WeatherViewModel::class.java]
 
         // Toast message listener from ViewModel
@@ -76,16 +70,6 @@ class MainActivity : ComponentActivity() {
             viewModel.toastMessage.collect { event ->
                 event.getContentIfNotHandled()?.let { id ->
                     toastOnUiThread(id)
-                }
-            }
-        }
-
-        // Restore the stored locating method.
-        viewModel.viewModelScope.launch {
-            val storedCode = prefsRepo.locatingMethodFlow.first()
-            enumValues<LocatingMethod>().forEach { locatingMethod ->
-                if (locatingMethod.code == storedCode) {
-                    onSelectLocatingMethod(locatingMethod)
                 }
             }
         }
@@ -109,20 +93,13 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-//                    if (viewModel.showLandingScreen) {
-//                        LandingScreen(onTimeout = { viewModel.onLandingScreenTimeout() })
-//                    } else {
-//                        MainScreen(modifier = modifier)
-//                    }
-
                     // A dialog to select locating method.
                     LocationSelectDialog(
                         isShowing = viewModel.toShowLocatingDialog.value,
                         selectedLocatingMethod = viewModel.locatingMethod,
                         onClickNegative = { viewModel.toShowLocatingDialog.value = false },
                         onClickPositive = { selectedLocation ->
-                            viewModel.toShowLocatingDialog.value =
-                                false  // Dismiss the dialog anyway.
+                            viewModel.toShowLocatingDialog.value = false  // Dismiss the dialog anyway.
                             onSelectLocatingMethod(selectedLocation)
                         }
                     )
@@ -133,7 +110,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.onRefreshClicked(false)
+        Log.d(TAG, "onResume() called.")
+        if (isLocatingMethodValid(viewModel.locatingMethod)) {
+            viewModel.refreshWeatherData()
+        }
     }
 
     override fun onPause() {
@@ -141,38 +121,66 @@ class MainActivity : ComponentActivity() {
         viewModel.stopLocationUpdate()
     }
 
-    /**
-     * Called after a new [LocatingMethod] has been stored in [UserPreferencesRepository].
-     * */
-    private fun onSelectLocatingMethod(selectedLocation: LocatingMethod) {
-        Log.d(LOCATING_METHOD_TAG, "Selected LocatingMethod: ${selectedLocation.code}")
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-            && selectedLocation == LocatingMethod.Auto) {
-            Log.w(LOCATING_METHOD_TAG, "Permission required.")
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
-                // An explanation is required.
-                AlertDialog.Builder(this)
-                    .setTitle(getString(R.string.dialog_title_location_permission))
-                    .setMessage(getString(R.string.dialog_message_location_permission))
-                    .setPositiveButton(getString(R.string.dialog_ok)) { _, _ ->
-                        // Request the permission the explanation has been given.
-                        requestPermissionLauncher.launch((Manifest.permission.ACCESS_FINE_LOCATION))
-                    }.create().show()
-            } else {
-                // No explanation needed, request the permission.
-                requestPermissionLauncher.launch((Manifest.permission.ACCESS_FINE_LOCATION))
-            }
+    private fun onSelectLocatingMethod(selectedLocatingMethod: LocatingMethod) {
+        Log.d(TAG, "Selected LocatingMethod: ${selectedLocatingMethod.code}")
+        // Weather it is permitted or not, the user intended to use the locating method. Respect the selection.
+        viewModel.updateLocatingMethod(selectedLocatingMethod)
 
-            // While the ViewModel's variable will be updated, the ViewModel won't take any action.
-            viewModel.updateLocatingMethod(selectedLocation, false)
+        // Now check the validity of the selection.
+        requestRefreshIfValid(selectedLocatingMethod)
+    }
+
+    private fun requestRefreshIfValid(selectedLocatingMethod: LocatingMethod) {
+        if (isLocatingMethodValid(selectedLocatingMethod)) {
+            Log.d(TAG, "LocatingMethod valid.")
+            viewModel.refreshWeatherData()
         } else {
-            viewModel.updateLocatingMethod(selectedLocation, true)
+            Log.d(TAG, "LocatingMethod invalid.")
+            if (true) {
+                Log.d(TAG, "Request permission.")
+                showRequestPermissionLauncher()
+            } else {
+                // When the launcher is dismissed, onResume() called.
+                // As onResume() requests data refresh,
+                // LocatingMethod should be checked onResume().
+                // After checking, another launcher would be created if LocatingMethod is not valid.
+                // In that case, it reaches here to prevent duplicate launchers.
+                Log.d(TAG, "Skipping request.")
+            }
+        }
+    }
+
+    private fun isLocatingMethodValid(locatingMethod: LocatingMethod): Boolean {
+        return if (locatingMethod == LocatingMethod.Auto) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                return true
+            } else {
+                Log.w(TAG, "Permission required.")
+                return false
+            }
+        } else {
+            true
+        }
+    }
+
+    private fun showRequestPermissionLauncher() {
+        if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
+            // An explanation is required.
+            AlertDialog.Builder(this)
+                .setTitle(getString(R.string.dialog_title_location_permission))
+                .setMessage(getString(R.string.dialog_message_location_permission))
+                .setPositiveButton(getString(R.string.dialog_ok)) { _, _ ->
+                    // Request the permission the explanation has been given.
+                    requestPermissionLauncher.launch((Manifest.permission.ACCESS_FINE_LOCATION))
+                }.create().show()
+        } else {
+            // No explanation needed, request the permission.
+            requestPermissionLauncher.launch((Manifest.permission.ACCESS_FINE_LOCATION))
         }
     }
 
     private fun toastOnUiThread(id: Int) {
         if (id > 0) {
-            Log.d(TAG, "Toast res id: $id")
             try {
                 runOnUiThread {
                     Toast.makeText(this, getString(id), Toast.LENGTH_SHORT).show()
@@ -187,14 +195,17 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            viewModel.startLocationUpdate()
+            viewModel.refreshWeatherData()
         } else {
+            viewModel.stopLocationUpdate()
+
             // The user must select a location to retrieve weather data.
             viewModel.toShowLocatingDialog.value = true
-            viewModel.stopLocationUpdate()
         }
+        // Regardless of the result, the launcher dialog has been dismissed.
     }
 
+    // TODO: SEPARATE
     @Composable
     private fun MainScreen(modifier: Modifier) {
         // Make the status bar transparent.
@@ -304,11 +315,7 @@ class MainActivity : ComponentActivity() {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // Refresh button
-                IconButton(
-                    onClick = {
-                        viewModel.onRefreshClicked(true)
-                    }
-                ) {
+                IconButton(onClick = { requestRefreshIfValid(viewModel.locatingMethod) }) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = stringResource(R.string.desc_refresh),
@@ -360,14 +367,16 @@ class MainActivity : ComponentActivity() {
         ) {
             /*DropdownMenuItem(onClick = {
                 onDismissRequest()
-            }) {
+            }) {  // TODO: Use an implicit intent with extras.
                 Text(text = stringResource(R.string.topbar_share_app))
             }*/
 
             DropdownMenuItem(onClick = {
                 onDismissRequest()
+                val intent = Intent(this@MainActivity, SettingsActivity::class.java)
+                this@MainActivity.startActivity(intent)
             }) {
-                Text(text = stringResource(R.string.topbar_settings))
+                Text(text = stringResource(R.string.title_activity_settings))
             }
 
             DropdownMenuItem(onClick = {
@@ -432,7 +441,7 @@ class MainActivity : ComponentActivity() {
             // The name of the forecast location
             Text(
                 text = cityName,
-                style = Typography.h3,
+                style = Typography.h2,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -843,8 +852,8 @@ class MainActivity : ComponentActivity() {
             hourlyTempDiff == 5 -> Red000
             hourlyTempDiff == 4 -> RedShade100
             hourlyTempDiff == 3 -> RedShade200
-            hourlyTempDiff == 2 -> RedShade300
-            hourlyTempDiff == 1 -> RedShade400
+            hourlyTempDiff == 2 -> RedShade200
+            hourlyTempDiff == 1 -> RedShade300
             hourlyTempDiff == 0 -> Black
             hourlyTempDiff == -1 -> CoolShade400
             hourlyTempDiff == -2 -> CoolShade300
@@ -993,22 +1002,6 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxWidth(),
             ) {
 
-            }
-        }
-    }
-
-//    @Preview(showBackground = true)
-//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
-    @Composable
-    fun LocatingMethodDialogPreview() {
-        BetterThanYesterdayTheme {
-            Surface {
-                LocationSelectDialog(
-                    isShowing = true,
-                    selectedLocatingMethod = LocatingMethod.Capital,
-                    onClickNegative = {},
-                    onClickPositive = {}
-                )
             }
         }
     }

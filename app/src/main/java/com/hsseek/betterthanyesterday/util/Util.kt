@@ -13,7 +13,6 @@ private const val TIME_ZONE = "GMT+09:00"
 private const val DATE_FORMAT = "yyyyMMdd"
 private const val HOUR_FORMAT = "HH00"
 private const val TAG = "Util"
-const val LOCATING_METHOD_TAG = "LocatingMethod"
 const val LOCATION_TAG = "Location"
 const val VILLAGE_ROWS_PER_HOUR = 12
 const val VILLAGE_EXTRA_ROWS = 2

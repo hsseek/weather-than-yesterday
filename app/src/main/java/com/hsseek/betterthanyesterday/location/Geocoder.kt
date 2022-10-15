@@ -27,9 +27,9 @@ class KoreanGeocoder(context: Context) {
         }
     }
 
-    fun getAddresses(position: CoordinatesLatLon): List<Address>? {
+    fun getAddresses(position: CoordinatesLatLon, maxResult: Int = 3): List<Address>? {
         return try {
-            val addresses = geoCoder.getFromLocation(position.lat, position.lon, 3)
+            val addresses = geoCoder.getFromLocation(position.lat, position.lon, maxResult)
             for (address in addresses) {
                 Log.d(LOCATION_TAG, "Address candidate: ${address.getAddressLine(0)}")
             }
