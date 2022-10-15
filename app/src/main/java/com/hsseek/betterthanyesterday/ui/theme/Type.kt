@@ -13,9 +13,15 @@ val Typography = Typography(
         fontSize = 150.sp,
         textAlign = TextAlign.Center,
     ),
-    h3 = TextStyle(
+    h2 = TextStyle(
         fontSize = 32.sp,
         textAlign = TextAlign.Center,
+    ),
+    h3 = TextStyle(
+        fontSize = 24.sp,
+    ),
+    h4 = TextStyle(
+        fontSize = 20.sp,
     ),
     h6 = TextStyle(
         fontSize = 13.sp,
