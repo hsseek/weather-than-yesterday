@@ -77,6 +77,10 @@ class WeatherViewModel(
         get() = _showLandingScreen.value
 
     private var lastBaseTime: KmaTime? = null
+        set(value) {
+            Log.d(TAG, "lastBaseTime: $value")
+            field = value
+        }
 
     private var baseCoordinatesXy = CoordinatesXy(60, 127)
 
@@ -140,9 +144,9 @@ class WeatherViewModel(
      * and triggers retrieving weather data eventually.
      * */
     private fun updateFixedLocation(lm: LocatingMethod) {
-        val cityName = context.getString(lm.regionId)
+        _cityName.value = context.getString(lm.regionId)
         _districtName.value = context.getString(R.string.location_manually)
-        updateLocationAndWeather(lm.coordinates!!, cityName)
+        updateWeather(lm.coordinates!!)
     }
 
     private fun nullifyWeatherInfo() {
@@ -150,362 +154,374 @@ class WeatherViewModel(
         _hourlyTempDiff.value = null
         _dailyTemps.value = getDefaultDailyTemps()
         _rainfallStatus.value = Sky.Undetermined
-        lastBaseTime = null
+        lastBaseTime?.let{ lastBaseTime = null }
     }
 
     private fun requestAllWeatherData() {
+        Log.d(TAG, "requestAllWeatherData() called.")
         nullifyWeatherInfo()
         viewModelScope.launch(defaultDispatcher) {
-            logCoroutineContext("requestAllWeatherData()")
-
-            // Cancel previous job if active.
-            kmaJob.cancel()
-            kmaJob.join()
+            kmaJob.cancelAndJoin()
             var trialCount = 0
 
-            while (trialCount < NETWORK_MAX_RETRY) {
-                try {
-                    withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
-                        kmaJob = launch(defaultDispatcher) {
-                            _isLoading.value = true
+            kmaJob = launch(defaultDispatcher) {
+                Log.d(TAG, "kmaJob launched.")
+                while (trialCount < NETWORK_MAX_RETRY) {
+                    try {
+                        withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
+                            val job = launch(defaultDispatcher) {
+                                _isLoading.value = true
 
-                            val today: String = formatToKmaDate(getCurrentKoreanDateTime())
-                            val latestVillageBaseTime = getKmaBaseTime(roundOff = VILLAGE)  // 2:00 for 2:11 ~ 5:10
-                            val latestHourlyBaseTime = getKmaBaseTime(roundOff = HOUR)  // 2:00 for 3:00 ~ 3:59
+                                val today: String = formatToKmaDate(getCurrentKoreanDateTime())
+                                val latestVillageBaseTime = getKmaBaseTime(roundOff = VILLAGE)  // 2:00 for 2:11 ~ 5:10
+                                val latestHourlyBaseTime = getKmaBaseTime(roundOff = HOUR)  // 2:00 for 3:00 ~ 3:59
 
-                            val cal = getCurrentKoreanDateTime()
-                            cal.add(Calendar.DAY_OF_YEAR, -1)
-                            val yesterday: String = formatToKmaDate(cal)
-                            val yesterdayHourlyBaseTime = getKmaBaseTime(dayOffset = -1, roundOff = HOUR)
+                                val cal = getCurrentKoreanDateTime()
+                                cal.add(Calendar.DAY_OF_YEAR, -1)
+                                val yesterday: String = formatToKmaDate(cal)
+                                val yesterdayHourlyBaseTime = getKmaBaseTime(dayOffset = -1, roundOff = HOUR)
 
-                            val t1hPageNo = 5
-                            val rowCountShort = 6
-                            val lowTempBaseTime = "0200"  // From 3:00
-                            val highTempBaseTime = "1100"  // From 12:00
-                            val characteristicTempHourSpan = 5  // Monitors 5 hours(3:00 ~ 8:00 and 12:00 ~ 17:00)
+                                val t1hPageNo = 5
+                                val rowCountShort = 6
+                                val lowTempBaseTime = "0200"  // From 3:00
+                                val highTempBaseTime = "1100"  // From 12:00
+                                val characteristicTempHourSpan = 5  // Monitors 5 hours(3:00 ~ 8:00 and 12:00 ~ 17:00)
 
-                            // Conditional tasks, only if the current time passed baseTime
-                            var todayLowTempResponse: Deferred<Response<ForecastResponse>>? = null
-                            var todayHighTempResponse: Deferred<Response<ForecastResponse>>? = null
+                                // Conditional tasks, only if the current time passed baseTime
+                                var todayLowTempResponse: Deferred<Response<ForecastResponse>>? = null
+                                var todayHighTempResponse: Deferred<Response<ForecastResponse>>? = null
 
-                            val fetchingStartTime = System.currentTimeMillis()
+                                val fetchingStartTime = System.currentTimeMillis()
 
-                            // The largest chunk, at most 290 + 290 + (290 - 72) + 2 * 3, which is about 800.
-                            /* val futureDaysResponse: Deferred<Response<ForecastResponse>> = async(retrofitDispatcher) {
-                                val maxDaySpan = 3  // For today, tomorrow and D+2
-                                val numOfRow = (
-                                        24 * maxDaySpan
-                                                // No past forecasts
-                                                // +1 because the earliest fcstTime = baseTime + 1
-                                                // % 24 for 23 -> 24 -> 0
-                                                - ((latestVillageBaseTime.hour.toInt() / 100) + 1 ) % 24
-                                                - 6  // Only up to D+2 17:00 (not including data for 18:00)
-                                        ) * VILLAGE_ROWS_PER_HOUR
-                                + VILLAGE_EXTRA_ROWS * maxDaySpan  // TMN, TMX for 3 days
-                                WeatherApi.service.getVillageWeather(
-                                    baseDate = latestVillageBaseTime.date,  // Yesterday(23:00 only) or today
-                                    baseTime = latestVillageBaseTime.hour,
-                                    numOfRows = numOfRow,
-                                    nx = baseCoordinatesXy.nx,
-                                    ny = baseCoordinatesXy.ny,
-                                )
-                            } */
-
-                            // The response includes duplicate data of earlier hours of hourly data.
-                            // However, only cutting tails is allowed, retrieve the whole data.
-                            val futureTodayResponse: Deferred<Response<ForecastResponse>> = async(retrofitDispatcher) {
-                                val remainingHours = (2400 - getEarliestFcstHour(latestVillageBaseTime)) / 100
-                                WeatherApi.service.getVillageWeather(
-                                    baseDate = latestVillageBaseTime.date,  // Yesterday(23:00 only) or today
-                                    baseTime = latestVillageBaseTime.hour,
-                                    numOfRows = remainingHours * VILLAGE_ROWS_PER_HOUR,
-                                    nx = baseCoordinatesXy.nx,
-                                    ny = baseCoordinatesXy.ny,
-                                )
-                            }
-
-                            // Responses to extract the highest/lowest temperatures of tomorrow and D2
-                            val futureDayHourSpan = 4  // 300 ~ 700, 1200 ~ 1600
-                            val futureDayRowCount = futureDayHourSpan * VILLAGE_ROWS_PER_HOUR + VILLAGE_EXTRA_ROWS
-                            val baseTime1 = "1100"
-                            val baseTime2 = "2300"  // of yesterday
-                            val pagesPerDay: Int = 24 / futureDayHourSpan
-
-                            val futureDayBaseTime: String
-                            val futureDayBaseDate: String
-                            val tomorrowHighTempPageNo: Int
-                            val tomorrowLowTempPageNo: Int
-                            if (latestVillageBaseTime.hour.toInt() in baseTime1.toInt() until baseTime2.toInt()) {
-                                // fcstTIme starts from today 12:00.
-                                futureDayBaseDate = today
-                                futureDayBaseTime = baseTime1
-                                tomorrowLowTempPageNo = 5
-                                tomorrowHighTempPageNo = 7
-                            } else {
-                                // fcstTIme starts from today 00:00.
-                                futureDayBaseDate = yesterday
-                                futureDayBaseTime = baseTime2
-                                tomorrowLowTempPageNo = 8
-                                tomorrowHighTempPageNo = 10
-                            }
-
-                            val tomorrowHighTempResponse = async(retrofitDispatcher) {
-                                WeatherApi.service.getVillageWeather(
-                                    baseDate = futureDayBaseDate,  // Yesterday(23:00 only) or today
-                                    baseTime = futureDayBaseTime,
-                                    numOfRows = futureDayRowCount,
-                                    pageNo = tomorrowHighTempPageNo,
-                                    nx = baseCoordinatesXy.nx,
-                                    ny = baseCoordinatesXy.ny,
-                                )
-                            }
-
-                            val tomorrowLowTempResponse = async(retrofitDispatcher) {
-                                WeatherApi.service.getVillageWeather(
-                                    baseDate = futureDayBaseDate,  // Yesterday(23:00 only) or today
-                                    baseTime = futureDayBaseTime,
-                                    numOfRows = futureDayRowCount,
-                                    pageNo = tomorrowLowTempPageNo,
-                                    nx = baseCoordinatesXy.nx,
-                                    ny = baseCoordinatesXy.ny,
-                                )
-                            }
-
-                            val d2HighTempResponse = async(retrofitDispatcher) {
-                                WeatherApi.service.getVillageWeather(
-                                    baseDate = futureDayBaseDate,  // Yesterday(23:00 only) or today
-                                    baseTime = futureDayBaseTime,
-                                    numOfRows = futureDayRowCount,
-                                    pageNo = tomorrowHighTempPageNo + pagesPerDay,
-                                    nx = baseCoordinatesXy.nx,
-                                    ny = baseCoordinatesXy.ny,
-                                )
-                            }
-
-                            val d2LowTempResponse = async(retrofitDispatcher) {
-                                WeatherApi.service.getVillageWeather(
-                                    baseDate = futureDayBaseDate,  // Yesterday(23:00 only) or today
-                                    baseTime = futureDayBaseTime,
-                                    numOfRows = futureDayRowCount,
-                                    pageNo = tomorrowLowTempPageNo + pagesPerDay,
-                                    nx = baseCoordinatesXy.nx,
-                                    ny = baseCoordinatesXy.ny,
-                                )
-                            }
-
-                            if (latestVillageBaseTime.hour.toInt() >= lowTempBaseTime.toInt()) {  // As soon as the latest lowest temperature span available
-                                val numOfRows = if (latestVillageBaseTime.hour.toInt() == lowTempBaseTime.toInt() + VILLAGE_HOUR_INTERVAL * 100) {  // During baseTime = 500
-                                    getRowCount(VILLAGE_HOUR_INTERVAL)  // Missing hours span only an interval: 3:00, 4:00, 5:00
-                                } else {  // After baseTime became 800, the lowest temperature won't be renewed.
-                                    getRowCount(characteristicTempHourSpan)  // Full span: 3:00, ..., 7:00
-                                }
-                                Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$numOfRows rows")
-
-                                todayLowTempResponse = async(retrofitDispatcher) {
+                                // Useful for causing timeout(with multiple requests and awaits.
+                                // The largest chunk, at most 290 + 290 + (290 - 72) + 2 * 3, which is about 800.
+                                /*val futureDaysResponse: Deferred<Response<ForecastResponse>> = async(retrofitDispatcher) {
+                                    val maxDaySpan = 3  // For today, tomorrow and D+2
+                                    val numOfRow = (
+                                            24 * maxDaySpan
+                                                    // No past forecasts
+                                                    // +1 because the earliest fcstTime = baseTime + 1
+                                                    // % 24 for 23 -> 24 -> 0
+                                                    - ((latestVillageBaseTime.hour.toInt() / 100) + 1 ) % 24
+                                                    - 6  // Only up to D+2 17:00 (not including data for 18:00)
+                                            ) * VILLAGE_ROWS_PER_HOUR
+                                    + VILLAGE_EXTRA_ROWS * maxDaySpan  // TMN, TMX for 3 days
                                     WeatherApi.service.getVillageWeather(
-                                        baseDate = today,
+                                        baseDate = latestVillageBaseTime.date,  // Yesterday(23:00 only) or today
+                                        baseTime = latestVillageBaseTime.hour,
+                                        numOfRows = numOfRow,
+                                        nx = baseCoordinatesXy.nx,
+                                        ny = baseCoordinatesXy.ny,
+                                    )
+                                }*/
+
+                                // The response includes duplicate data of earlier hours of hourly data.
+                                // However, only cutting tails is allowed, retrieve the whole data.
+                                val futureTodayResponse: Deferred<Response<ForecastResponse>> = async(retrofitDispatcher) {
+                                    val remainingHours = (2400 - getEarliestFcstHour(latestVillageBaseTime)) / 100
+                                    WeatherApi.service.getVillageWeather(
+                                        baseDate = latestVillageBaseTime.date,  // Yesterday(23:00 only) or today
+                                        baseTime = latestVillageBaseTime.hour,
+                                        numOfRows = remainingHours * VILLAGE_ROWS_PER_HOUR,
+                                        nx = baseCoordinatesXy.nx,
+                                        ny = baseCoordinatesXy.ny,
+                                    )
+                                }
+
+                                // Responses to extract the highest/lowest temperatures of tomorrow and D2
+                                val futureDayHourSpan = 4  // 300 ~ 700, 1200 ~ 1600
+                                val futureDayRowCount = futureDayHourSpan * VILLAGE_ROWS_PER_HOUR + VILLAGE_EXTRA_ROWS
+                                val baseTime1 = "1100"
+                                val baseTime2 = "2300"  // of yesterday
+                                val pagesPerDay: Int = 24 / futureDayHourSpan
+
+                                val futureDayBaseTime: String
+                                val futureDayBaseDate: String
+                                val tomorrowHighTempPageNo: Int
+                                val tomorrowLowTempPageNo: Int
+                                if (latestVillageBaseTime.hour.toInt() in baseTime1.toInt() until baseTime2.toInt()) {
+                                    // fcstTIme starts from today 12:00.
+                                    futureDayBaseDate = today
+                                    futureDayBaseTime = baseTime1
+                                    tomorrowLowTempPageNo = 5
+                                    tomorrowHighTempPageNo = 7
+                                } else {
+                                    // fcstTIme starts from today 00:00.
+                                    futureDayBaseDate = yesterday
+                                    futureDayBaseTime = baseTime2
+                                    tomorrowLowTempPageNo = 8
+                                    tomorrowHighTempPageNo = 10
+                                }
+
+                                val tomorrowHighTempResponse = async(retrofitDispatcher) {
+                                    WeatherApi.service.getVillageWeather(
+                                        baseDate = futureDayBaseDate,  // Yesterday(23:00 only) or today
+                                        baseTime = futureDayBaseTime,
+                                        numOfRows = futureDayRowCount,
+                                        pageNo = tomorrowHighTempPageNo,
+                                        nx = baseCoordinatesXy.nx,
+                                        ny = baseCoordinatesXy.ny,
+                                    )
+                                }
+
+                                val tomorrowLowTempResponse = async(retrofitDispatcher) {
+                                    WeatherApi.service.getVillageWeather(
+                                        baseDate = futureDayBaseDate,  // Yesterday(23:00 only) or today
+                                        baseTime = futureDayBaseTime,
+                                        numOfRows = futureDayRowCount,
+                                        pageNo = tomorrowLowTempPageNo,
+                                        nx = baseCoordinatesXy.nx,
+                                        ny = baseCoordinatesXy.ny,
+                                    )
+                                }
+
+                                val d2HighTempResponse = async(retrofitDispatcher) {
+                                    WeatherApi.service.getVillageWeather(
+                                        baseDate = futureDayBaseDate,  // Yesterday(23:00 only) or today
+                                        baseTime = futureDayBaseTime,
+                                        numOfRows = futureDayRowCount,
+                                        pageNo = tomorrowHighTempPageNo + pagesPerDay,
+                                        nx = baseCoordinatesXy.nx,
+                                        ny = baseCoordinatesXy.ny,
+                                    )
+                                }
+
+                                val d2LowTempResponse = async(retrofitDispatcher) {
+                                    WeatherApi.service.getVillageWeather(
+                                        baseDate = futureDayBaseDate,  // Yesterday(23:00 only) or today
+                                        baseTime = futureDayBaseTime,
+                                        numOfRows = futureDayRowCount,
+                                        pageNo = tomorrowLowTempPageNo + pagesPerDay,
+                                        nx = baseCoordinatesXy.nx,
+                                        ny = baseCoordinatesXy.ny,
+                                    )
+                                }
+
+                                if (latestVillageBaseTime.hour.toInt() >= lowTempBaseTime.toInt()) {  // As soon as the latest lowest temperature span available
+                                    val numOfRows = if (latestVillageBaseTime.hour.toInt() == lowTempBaseTime.toInt() + VILLAGE_HOUR_INTERVAL * 100) {  // During baseTime = 500
+                                        getRowCount(VILLAGE_HOUR_INTERVAL)  // Missing hours span only an interval: 3:00, 4:00, 5:00
+                                    } else {  // After baseTime became 800, the lowest temperature won't be renewed.
+                                        getRowCount(characteristicTempHourSpan)  // Full span: 3:00, ..., 7:00
+                                    }
+                                    Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$numOfRows rows")
+
+                                    todayLowTempResponse = async(retrofitDispatcher) {
+                                        WeatherApi.service.getVillageWeather(
+                                            baseDate = today,
+                                            baseTime = lowTempBaseTime,  // fsctTime starts from 03:00 AM
+                                            numOfRows = numOfRows,
+                                            nx = baseCoordinatesXy.nx,
+                                            ny = baseCoordinatesXy.ny,
+                                        )
+                                    }
+                                }
+
+                                if (latestVillageBaseTime.hour.toInt() >= highTempBaseTime.toInt()) {  // As soon as the latest highest temperature span available
+                                    val numOfRows = if (latestVillageBaseTime.hour.toInt() == highTempBaseTime.toInt() + VILLAGE_HOUR_INTERVAL * 100) {  // During baseTime = 1400
+                                        getRowCount(VILLAGE_HOUR_INTERVAL)  // Missing hours span only an interval: 12:00, 13:00, 14:00
+                                    } else {  // After baseTime became 1700, the highest temperature won't be renewed.
+                                        getRowCount(characteristicTempHourSpan)  // Full span: 12:00, ..., 16:00
+                                    }
+                                    Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$numOfRows rows")
+                                    todayHighTempResponse = async(retrofitDispatcher) {
+                                        WeatherApi.service.getVillageWeather(
+                                            baseDate = today,
+                                            baseTime = highTempBaseTime,  // fsctTime starts from the noon
+                                            numOfRows = numOfRows,
+                                            nx = baseCoordinatesXy.nx,
+                                            ny = baseCoordinatesXy.ny,
+                                        )
+                                    }
+                                }
+
+                                val todayHourlyTempResponse = async(retrofitDispatcher) {
+                                    WeatherApi.service.getShortTermWeather(
+                                        baseDate = latestHourlyBaseTime.date,
+                                        baseTime = latestHourlyBaseTime.hour,  // 14:50 -> 13:00, 15:00 -> 14:00
+                                        numOfRows = 30,  // [LGT -> PTY -> RN1 -> SKY -> TH1] -> REH -> UUU -> VVV -> ...
+                                        nx = baseCoordinatesXy.nx,
+                                        ny = baseCoordinatesXy.ny,
+                                    )
+                                }
+
+                                val yesterdayHourlyTempResponse = async(retrofitDispatcher) {
+                                    WeatherApi.service.getShortTermWeather(
+                                        baseDate = yesterdayHourlyBaseTime.date,
+                                        baseTime = yesterdayHourlyBaseTime.hour,  // 14:50 -> 13:00, 15:00 -> 14:00
+                                        numOfRows = rowCountShort,
+                                        pageNo = t1hPageNo,  // LGT -> PTY -> RN1 -> SKY -> [TH1] -> REH -> UUU -> VVV -> ...
+                                        nx = baseCoordinatesXy.nx,
+                                        ny = baseCoordinatesXy.ny,
+                                    )
+
+                                    /* KMA often emits the data earlier, at which expires the oldest observed data which is the following lines try to retrieve.
+                                    delay(briefDelayMilliSec)
+                                    val observedCal = getCurrentKoreanDateTime()
+                                    observedCal.add(Calendar.DAY_OF_YEAR, -1)
+                                    observedCal.add(Calendar.HOUR_OF_DAY, 1)
+                                    val observedBaseTime = getKmaBaseTime(
+                                        cal = observedCal,
+                                        roundOff = HOUR,
+                                        isQuickPublish = false
+                                    )
+
+                                    WeatherApi.service.getObservedWeather(
+                                        baseDate = observedBaseTime.date,
+                                        baseTime = observedBaseTime.hour,
+                                        nx = baseCoordinatesXy.nx,
+                                        ny = baseCoordinatesXy.ny,
+                                    )
+                                    */
+                                }
+
+                                val yesterdayLowTempResponse = async(retrofitDispatcher) {
+                                    WeatherApi.service.getShortTermWeather(
+                                        baseDate = yesterday,
                                         baseTime = lowTempBaseTime,  // fsctTime starts from 03:00 AM
-                                        numOfRows = numOfRows,
+                                        numOfRows = rowCountShort,
+                                        pageNo = t1hPageNo,  // LGT -> PTY -> RN1 -> SKY -> [TH1] -> REH -> UUU -> VVV -> ...
                                         nx = baseCoordinatesXy.nx,
                                         ny = baseCoordinatesXy.ny,
                                     )
                                 }
-                            }
 
-                            if (latestVillageBaseTime.hour.toInt() >= highTempBaseTime.toInt()) {  // As soon as the latest highest temperature span available
-                                val numOfRows = if (latestVillageBaseTime.hour.toInt() == highTempBaseTime.toInt() + VILLAGE_HOUR_INTERVAL * 100) {  // During baseTime = 1400
-                                    getRowCount(VILLAGE_HOUR_INTERVAL)  // Missing hours span only an interval: 12:00, 13:00, 14:00
-                                } else {  // After baseTime became 1700, the highest temperature won't be renewed.
-                                    getRowCount(characteristicTempHourSpan)  // Full span: 12:00, ..., 16:00
-                                }
-                                Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$numOfRows rows")
-                                todayHighTempResponse = async(retrofitDispatcher) {
-                                    WeatherApi.service.getVillageWeather(
-                                        baseDate = today,
+                                val yesterdayHighTempResponse = async(retrofitDispatcher) {
+                                    WeatherApi.service.getShortTermWeather(
+                                        baseDate = yesterday,
                                         baseTime = highTempBaseTime,  // fsctTime starts from the noon
-                                        numOfRows = numOfRows,
+                                        numOfRows = rowCountShort,
+                                        pageNo = t1hPageNo,  // LGT -> PTY -> RN1 -> SKY -> [TH1] -> REH -> UUU -> VVV -> ...
                                         nx = baseCoordinatesXy.nx,
                                         ny = baseCoordinatesXy.ny,
                                     )
                                 }
-                            }
 
-                            val todayHourlyTempResponse = async(retrofitDispatcher) {
-                                WeatherApi.service.getShortTermWeather(
-                                    baseDate = latestHourlyBaseTime.date,
-                                    baseTime = latestHourlyBaseTime.hour,  // 14:50 -> 13:00, 15:00 -> 14:00
-                                    numOfRows = 30,  // [LGT -> PTY -> RN1 -> SKY -> TH1] -> REH -> UUU -> VVV -> ...
-                                    nx = baseCoordinatesXy.nx,
-                                    ny = baseCoordinatesXy.ny,
-                                )
-                            }
+                                // Gather the data.
+                                val futureTodayData: List<ForecastResponse.Item> = futureTodayResponse.await().body()?.response?.body?.items?.item ?: emptyList()
+                                val tomorrowHighTempData = tomorrowHighTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
+                                val tomorrowLowTempData = tomorrowLowTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
+                                val d2HighTempData = d2HighTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
+                                val d2LowTempData = d2LowTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
+                                val yesterdayHighTempData = yesterdayHighTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
+                                val yesterdayLowTempData = yesterdayLowTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
+                                val yesterdayHourlyTempData = yesterdayHourlyTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
+                                val todayHourlyData = todayHourlyTempResponse.await().body()?.response?.body?.items?.item?.filter { it.fcstDate == today.toInt() } ?: emptyList()
+                                val todayHighTempData = todayHighTempResponse?.await()?.body()?.response?.body?.items?.item ?: emptyList()
+                                val todayLowTempData = todayLowTempResponse?.await()?.body()?.response?.body?.items?.item ?: emptyList()
 
-                            val yesterdayHourlyTempResponse = async(retrofitDispatcher) {
-                                WeatherApi.service.getShortTermWeather(
-                                    baseDate = yesterdayHourlyBaseTime.date,
-                                    baseTime = yesterdayHourlyBaseTime.hour,  // 14:50 -> 13:00, 15:00 -> 14:00
-                                    numOfRows = rowCountShort,
-                                    pageNo = t1hPageNo,  // LGT -> PTY -> RN1 -> SKY -> [TH1] -> REH -> UUU -> VVV -> ...
-                                    nx = baseCoordinatesXy.nx,
-                                    ny = baseCoordinatesXy.ny,
-                                )
-
-                                /* KMA often emits the data earlier, at which expires the oldest observed data which is the following lines try to retrieve.
-                                delay(briefDelayMilliSec)
-                                val observedCal = getCurrentKoreanDateTime()
-                                observedCal.add(Calendar.DAY_OF_YEAR, -1)
-                                observedCal.add(Calendar.HOUR_OF_DAY, 1)
-                                val observedBaseTime = getKmaBaseTime(
-                                    cal = observedCal,
-                                    roundOff = HOUR,
-                                    isQuickPublish = false
-                                )
-
-                                WeatherApi.service.getObservedWeather(
-                                    baseDate = observedBaseTime.date,
-                                    baseTime = observedBaseTime.hour,
-                                    nx = baseCoordinatesXy.nx,
-                                    ny = baseCoordinatesXy.ny,
-                                )
-                                */
-                            }
-
-                            val yesterdayLowTempResponse = async(retrofitDispatcher) {
-                                WeatherApi.service.getShortTermWeather(
-                                    baseDate = yesterday,
-                                    baseTime = lowTempBaseTime,  // fsctTime starts from 03:00 AM
-                                    numOfRows = rowCountShort,
-                                    pageNo = t1hPageNo,  // LGT -> PTY -> RN1 -> SKY -> [TH1] -> REH -> UUU -> VVV -> ...
-                                    nx = baseCoordinatesXy.nx,
-                                    ny = baseCoordinatesXy.ny,
-                                )
-                            }
-
-                            val yesterdayHighTempResponse = async(retrofitDispatcher) {
-                                WeatherApi.service.getShortTermWeather(
-                                    baseDate = yesterday,
-                                    baseTime = highTempBaseTime,  // fsctTime starts from the noon
-                                    numOfRows = rowCountShort,
-                                    pageNo = t1hPageNo,  // LGT -> PTY -> RN1 -> SKY -> [TH1] -> REH -> UUU -> VVV -> ...
-                                    nx = baseCoordinatesXy.nx,
-                                    ny = baseCoordinatesXy.ny,
-                                )
-                            }
-
-                            // Gather the data.
-                            val futureTodayData: List<ForecastResponse.Item> = futureTodayResponse.await().body()?.response?.body?.items?.item ?: emptyList()
-                            val tomorrowHighTempData = tomorrowHighTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
-                            val tomorrowLowTempData = tomorrowLowTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
-                            val d2HighTempData = d2HighTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
-                            val d2LowTempData = d2LowTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
-                            val yesterdayHighTempData = yesterdayHighTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
-                            val yesterdayLowTempData = yesterdayLowTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
-                            val yesterdayHourlyTempData = yesterdayHourlyTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
-                            val todayHourlyData = todayHourlyTempResponse.await().body()?.response?.body?.items?.item?.filter { it.fcstDate == today.toInt() } ?: emptyList()
-                            val todayHighTempData = todayHighTempResponse?.await()?.body()?.response?.body?.items?.item ?: emptyList()
-                            val todayLowTempData = todayLowTempResponse?.await()?.body()?.response?.body?.items?.item ?: emptyList()
-
-                            // Log for debugging.
-                            var size = 0
-                            for (i in yesterdayHighTempData) {
-                                size += 1
-                                Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
-                            }
-                            for (i in yesterdayLowTempData) {
-                                size += 1
-                                Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
-                            }
-                            for (i in yesterdayHourlyTempData) {
-                                size += 1
-                                Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
-                            }
-                            for (i in todayHourlyData) {
-                                size += 1
-                                Log.d("D${DayOfInterest.Today.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
-                            }
-                            for (i in todayHighTempData) {
-                                size += 1
-                                if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
-                                    Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                // Log for debugging.
+                                launch {
+                                    var size = 0
+                                    for (i in yesterdayHighTempData) {
+                                        size += 1
+                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                    }
+                                    for (i in yesterdayLowTempData) {
+                                        size += 1
+                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+                                    }
+                                    for (i in yesterdayHourlyTempData) {
+                                        size += 1
+                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
+                                    }
+                                    for (i in todayHourlyData) {
+                                        size += 1
+                                        Log.d("D${DayOfInterest.Today.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
+                                    }
+                                    for (i in todayHighTempData) {
+                                        size += 1
+                                        if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
+                                            Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                        }
+                                    }
+                                    for (i in todayLowTempData) {
+                                        size += 1
+                                        if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
+                                            Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+                                        }
+                                    }
+                                    for (i in futureTodayData) {
+                                        size += 1
+                                        if (i.category == VILLAGE_TEMPERATURE_TAG) {
+                                            Log.d("D${DayOfInterest.Today.dayOffset}", "$i")
+                                        }
+                                    }
+                                    for (i in tomorrowHighTempData) {
+                                        size += 1
+                                        if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
+                                            Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                        }
+                                    }
+                                    for (i in tomorrowLowTempData) {
+                                        size += 1
+                                        if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
+                                            Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+                                        }
+                                    }
+                                    for (i in d2HighTempData) {
+                                        size += 1
+                                        if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
+                                            Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                        }
+                                    }
+                                    for (i in d2LowTempData) {
+                                        size += 1
+                                        if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
+                                            Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+                                        }
+                                    }
+                                    logElapsedTime(TAG, "$size items", fetchingStartTime)
                                 }
-                            }
-                            for (i in todayLowTempData) {
-                                size += 1
-                                if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
-                                    Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
-                                }
-                            }
-                            for (i in futureTodayData) {
-                                size += 1
-                                if (i.category == VILLAGE_TEMPERATURE_TAG) {
-                                    Log.d("D${DayOfInterest.Today.dayOffset}", "$i")
-                                }
-                            }
-                            for (i in tomorrowHighTempData) {
-                                size += 1
-                                if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
-                                    Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
-                                }
-                            }
-                            for (i in tomorrowLowTempData) {
-                                size += 1
-                                if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
-                                    Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
-                                }
-                            }
-                            for (i in d2HighTempData) {
-                                size += 1
-                                if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
-                                    Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
-                                }
-                            }
-                            for (i in d2LowTempData) {
-                                size += 1
-                                if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
-                                    Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
-                                }
-                            }
 
-                            logElapsedTime(TAG, "$size items", fetchingStartTime)
+                                // Refresh the hourly temperature and the difference.
+                                launch { refreshHourlyTemp(todayHourlyData, yesterdayHourlyTempData) }
 
-                            // Refresh the hourly temperature and the difference.
-                            launch { refreshHourlyTemp(todayHourlyData, yesterdayHourlyTempData) }
+                                // Refresh the highest/lowest temperatures
+                                launch { refreshCharacteristicTemp(DayOfInterest.Yesterday, yesterdayHighTempData, yesterdayLowTempData) }
+                                launch { refreshTodayCharacteristicTemp(todayHighTempData, todayLowTempData, todayHourlyData, futureTodayData) }
+                                launch { refreshCharacteristicTemp(DayOfInterest.Tomorrow, tomorrowHighTempData, tomorrowLowTempData) }
+                                launch { refreshCharacteristicTemp(DayOfInterest.Day2, d2HighTempData, d2LowTempData) }
 
-                            // Refresh the highest/lowest temperatures
-                            launch { refreshCharacteristicTemp(DayOfInterest.Yesterday, yesterdayHighTempData, yesterdayLowTempData) }
-                            launch { refreshTodayCharacteristicTemp(todayHighTempData, todayLowTempData, todayHourlyData, futureTodayData) }
-                            launch { refreshCharacteristicTemp(DayOfInterest.Tomorrow, tomorrowHighTempData, tomorrowLowTempData) }
-                            launch { refreshCharacteristicTemp(DayOfInterest.Day2, d2HighTempData, d2LowTempData) }
-
-                            // Refresh the rainfall status.
-                            launch { refreshRainfall(todayHourlyData, futureTodayData) }
+                                // Refresh the rainfall status.
+                                launch { refreshRainfall(todayHourlyData, futureTodayData) }
+                            }
+                            job.join()
+                            adjustCharTemp()
+                            buildDailyTemps()
                         }
-                        kmaJob.join()
-                        adjustCharTemp()
-                        buildDailyTemps()
                         lastBaseTime = getKmaBaseTime(roundOff = HOUR)
-                    }
-                    _showLandingScreen.value = false
-                    break
-                } catch (e: Exception) {
-                    if (++trialCount >= NETWORK_MAX_RETRY) {  // Maximum count of trials has been reached.
-                        Log.e(TAG, "Cannot retrieve weather data.\n$e")
-                        if (e is UnknownHostException) {
-                            _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_network)
-                        } else {
-                            _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_general)
-                        }
                         break
-                    } else {
-                        Log.w(TAG, "Failed to retrieve weather data.\n$e")
-                        kmaJob.cancel()
-                        kmaJob.join()
-                        runBlocking { delay(NETWORK_PAUSE) }
+                    } catch (e: TimeoutCancellationException) {
+                        if (++trialCount < NETWORK_MAX_RETRY) {
+                            val timeout: String = e.toString().split("for ").last()
+                            Log.w(TAG, "Retrieving weather timeout($timeout)")
+                            runBlocking { delay(NETWORK_PAUSE) }
+                        } else {  // Maximum count of trials has been reached.
+                            Log.e(TAG, "Stop trying after reaching timeout $NETWORK_MAX_RETRY times.\n$e")
+                            _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_general)
+                            break
+                        }
+                    } catch (e: CancellationException) {
+                        Log.d(TAG, "Retrieving weather data cancelled.")
+                        break
+                    } catch (e: UnknownHostException) {
+                        _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_network)
+                        break
                     }
-                } finally {
-                    kmaJob.cancel()
-                    _isLoading.value = false
+                    catch (e: Exception) {
+                        Log.e(TAG, "Cannot retrieve weather data.\n$e")
+                        _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_general)
+                        break
+                    } finally {
+                        // _isLoading.value = false   Called on every loops, which is not intended.
+                        // kmaJob.cancelAndJoin()  Cannot be run here: https://kt.academy/article/cc-cancellation
+                    }
                 }
+            }
+
+            kmaJob.invokeOnCompletion {
+                _isLoading.value = false
+                _showLandingScreen.value = false
             }
         }
     }
@@ -750,6 +766,7 @@ class WeatherViewModel(
 
             locationClient.lastLocation.addOnSuccessListener {
                 if (it != null) {
+                    Log.d(LOCATION_TAG, "Last location: (${it.latitude}, ${it.longitude})")
                     updateLocationAndWeather(CoordinatesLatLon(lat = it.latitude, lon = it.longitude))
                 } else {
                     // e.g. On the very first boot of the device
@@ -774,46 +791,42 @@ class WeatherViewModel(
     /**
      * Update [_cityName] and [baseCoordinatesXy], then request new weather data based on [baseCoordinatesXy].
      * */
-    private fun updateLocationAndWeather(coordinates: CoordinatesXy, locatedCityName: String) {
-        if (locatedCityName != _cityName.value) {  // i.e. A new base location
-            Log.d(LOCATION_TAG, "A new city\t: $locatedCityName")
-            _cityName.value = locatedCityName
-
-            // Request new data for the location.
-            baseCoordinatesXy = coordinates
-            requestAllWeatherData()
-        } else {
-            Log.d(TAG, "The same city.")
+    private fun updateWeather(coordinates: CoordinatesXy) {
+        if (coordinates == baseCoordinatesXy) {
+            Log.d(TAG, "The same coordinates.")
             val kmaTime = getKmaBaseTime(roundOff = HOUR)
             val lastChecked = lastBaseTime
 
             if (lastChecked == null || kmaTime.isLaterThan(lastChecked)) {
-                Log.d(TAG, "Renewing old data.")
+                Log.d(TAG, "However, new data are available.")
                 requestAllWeatherData()
             } else {
                 Log.d(TAG, "The data is up-to-date as well.")
                 _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
             }
+        } else {
+            Log.d(LOCATION_TAG, "A new coordinates\t: (${coordinates.nx}, ${coordinates.ny})")
+            baseCoordinatesXy = coordinates
+
+            // Request new data for the location.
+            requestAllWeatherData()
         }
     }
 
     fun updateLocationAndWeather(coordinates: CoordinatesLatLon) {
-        baseCoordinatesXy = convertToXy(coordinates)
-
         val geocoder = KoreanGeocoder(context)
         val addresses = geocoder.getAddresses(coordinates)
         val locatedCityName = getCityName(addresses)
         getDistrictName(addresses)?.let {
             _districtName.value = it
-            Log.d(LOCATION_TAG, "District: $it")
         }
 
         if (locatedCityName == null) {
             Log.e(LOCATION_TAG, "Error retrieving a city name(${coordinates.lat}, ${coordinates.lon}).")
         } else {
+            _cityName.value = locatedCityName
             val xy = convertToXy(coordinates)
-            Log.d(LOCATION_TAG, "Location: (${xy.nx}, ${xy.ny})")
-            updateLocationAndWeather(xy, locatedCityName)
+            updateWeather(xy)
         }
     }
 
@@ -821,7 +834,7 @@ class WeatherViewModel(
         override fun onLocationResult(locationResult: LocationResult) {
             super.onLocationResult(locationResult)
             locationResult.lastLocation?.let {
-                Log.d(LOCATION_TAG, "Lat: ${it.latitude}\nLon: ${it.longitude}")
+                Log.d(LOCATION_TAG, "Current location: (${it.latitude}, ${it.longitude})")
                 updateLocationAndWeather(CoordinatesLatLon(it.latitude, it.longitude))
             }
         }

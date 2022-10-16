@@ -114,13 +114,8 @@ class MainActivity : ComponentActivity() {
         requestRefreshIfValid(viewModel.locatingMethod)
     }
 
-    override fun onResume() {
-        super.onResume()
-        Log.d(TAG, "onResume() called.")
-    }
-
-    override fun onPause() {
-        super.onPause()
+    override fun onStop() {
+        super.onStop()
         viewModel.stopLocationUpdate()
     }
 
@@ -188,6 +183,7 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
+            Log.d(TAG, "Permission granted.")
             viewModel.refreshWeatherData()
         } else {
             viewModel.stopLocationUpdate()
