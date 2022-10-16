@@ -170,8 +170,6 @@ class WeatherViewModel(
                     try {
                         withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
                             val job = launch(defaultDispatcher) {
-                                _isLoading.value = true
-
                                 val today: String = formatToKmaDate(getCurrentKoreanDateTime())
                                 val latestVillageBaseTime = getKmaBaseTime(roundOff = VILLAGE)  // 2:00 for 2:11 ~ 5:10
                                 val latestHourlyBaseTime = getKmaBaseTime(roundOff = HOUR)  // 2:00 for 3:00 ~ 3:59
@@ -745,11 +743,26 @@ class WeatherViewModel(
     }
 
     fun refreshWeatherData() {
+        showLoadingBriefly((320..480).random().toLong())
         if (locatingMethod != LocatingMethod.Auto) {
             stopLocationUpdate()  // No need to request location.
             updateFixedLocation(locatingMethod)  // Update the location directly.
         } else {
             startLocationUpdate()
+        }
+        viewModelScope.launch {
+            delay((320..480).random().toLong())  // FAKE loading for UX
+            _isLoading.value = false  // Or, if _isLoading.value has already been set to false after job completed, it doesn't any effect.
+        }
+    }
+
+    private fun showLoadingBriefly(milliSec: Long) {
+        // Suspend functions will do their own thread confinement properly.
+        // So launching on another dispatcher will introduce at least 2 extra thread switches.
+        viewModelScope.launch {
+            _isLoading.value = true
+            delay(milliSec)  // FAKE loading for UX
+            if (kmaJob.isCompleted) _isLoading.value = false
         }
     }
 
