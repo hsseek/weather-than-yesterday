@@ -4,6 +4,7 @@
     <string name="dialog_message_location_permission">The permission is required to get the weather conditions of the current location(Otherwise, you can deny the request and set a location manually).</string>
     <string name="desc_splash_screen">Splash screen</string>
     <string name="current_temp_title">Temperature status</string>
+    <string name="current_temp_time">Forecast time:</string>
     <string name="current_temp_higher">It\'s higher than yesterday by</string>
     <string name="current_temp_lower">It\'s lower than yesterday by</string>
     <string name="current_temp_same">It\'s the same as yesterday.</string>
