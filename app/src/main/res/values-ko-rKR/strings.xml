@@ -4,15 +4,15 @@
     <string name="dialog_title_location_permission">위치정보 이용권한 설정</string>
     <string name="dialog_message_location_permission">현재 위치의 날씨 정보를 얻기 위해 위치정보 이용권한이 필요합니다.\n(권한을 부여하지 않더라도 수동 위치 설정이 가능합니다.)</string>
     <string name="current_temp_title">온도 정보</string>
-    <string name="current_temp_higher">어제 동 시간대보다 기온이 높습니다.</string>
-    <string name="current_temp_lower">어제 동 시간대보다 기온이 낮습니다.</string>
+    <string name="current_temp_higher">어제보다 기온이 높습니다.</string>
+    <string name="current_temp_lower">어제보다 기온이 낮습니다.</string>
     <string name="current_temp_same">어제와 기온이 같습니다.</string>
-    <string name="current_temp_value">현재 %1$d\u2103</string>
+    <string name="current_temp_value">현재</string>
     <string name="daily_today">(오늘)</string>
     <string name="desc_rainfall_status">강우 정보 아이콘</string>
     <string name="hour_noon">정오</string>
-    <string name="hour_am">오전 %1$d</string>
-    <string name="hour_pm">오후 %1$d</string>
+    <string name="hour_am">오전 %1$d시</string>
+    <string name="hour_pm">오후 %1$d시</string>
     <string name="hour_present">(현재)</string>
     <string name="hour_stops_soon">(곧 그침)</string>
     <string name="today_sunny">비 소식이 없습니다.</string>
@@ -25,8 +25,8 @@
     <string name="dialog_location_title">날씨 정보 위치</string>
     <string name="hour_overnight">내일</string>
     <string name="desc_edit_location">날씨 정보 위치 수정</string>
-    <string name="dialog_cancel">취소</string>
-    <string name="dialog_ok">확인</string>
+    <string name="dialog_dismiss_cancel">취소</string>
+    <string name="dialog_dismiss_ok">확인</string>
     <string name="region_auto">현재 위치</string>
     <string name="cities_auto">자동 설정</string>
     <string name="region_captial">서울\u2022인천\u2022경기</string>
@@ -59,10 +59,13 @@
     <string name="refresh_up_to_date">날씨 정보가 최신 상태입니다.</string>
     <string name="weather_retrieving_failure_general">날씨 정보를 받아올 수 없습니다.</string>
     <string name="weather_retrieving_failure_network">네트워크 상태를 확인해주세요.</string>
-    <string name="hour_23">오후 11</string>
+    <string name="hour_23">오후 11시</string>
     <string name="title_activity_web_view">자주 묻는 질문</string>
     <string name="title_activity_settings">설정</string>
     <string name="help">도움말</string>
-    <string name="settings_language">언어</string>
     <string name="desc_back">뒤로 가기</string>
+    <string name="pref_title_simple_mode">심플 모드</string>
+    <string name="pref_desc_simple_mode">깔끔한 화면 구성을 위해 글자들을 숨깁니다.</string>
+    <string name="pref_desc_simple_help">더 깔끔한 화면 구성을 위해 제목과 일부 설명들을 숨깁니다. 앱에 표시되는 숫자들에 익숙해진 후 사용하는 것을 권장합니다.</string>
+    <string name="dialog_dismiss_close">닫기</string>
 </resources>

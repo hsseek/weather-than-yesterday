@@ -50,11 +50,11 @@ private const val NETWORK_MAX_RETRY = 12
 
 class WeatherViewModel(
     application: Application,
-    private val userPreferencesRepository: UserPreferencesRepository,
+    private val userPrefsRepo: UserPreferencesRepository,
 ) : AndroidViewModel(application) {
     init {
         runBlocking {
-            val storedCode = userPreferencesRepository.locatingMethodFlow.first()
+            val storedCode = userPrefsRepo.locatingMethodFlow.first()
             enumValues<LocatingMethod>().forEach { storedLocatingMethod ->
                 if (storedLocatingMethod.code == storedCode) {
                     this@WeatherViewModel.locatingMethod = storedLocatingMethod
@@ -62,8 +62,8 @@ class WeatherViewModel(
             }
         }
     }
-    private val context = application
 
+    private val context = application
     private val stringForNull = context.getString(R.string.null_value)
 
     private val retrofitDispatcher = Dispatchers.IO
@@ -81,6 +81,10 @@ class WeatherViewModel(
             Log.d(TAG, "lastBaseTime: $value")
             field = value
         }
+
+    private val _isSimplified = mutableStateOf(false)
+    val isSimplified: Boolean
+        get() = _isSimplified.value
 
     private var baseCoordinatesXy = CoordinatesXy(60, 127)
 
@@ -106,10 +110,6 @@ class WeatherViewModel(
     private val temperatureCount: Int = enumValues<DayOfInterest>().size
     private val lowestTemps: Array<Int?> = arrayOfNulls(temperatureCount)
     private val highestTemps: Array<Int?> = arrayOfNulls(temperatureCount)
-    private val dailyTempHeader = DailyTemperature(false, "",
-        context.getString(R.string.daily_highest),
-        context.getString(R.string.daily_lowest)
-    )
     private val _dailyTemps: MutableState<List<DailyTemperature>> = mutableStateOf(getDefaultDailyTemps())
     val dailyTemps: List<DailyTemperature>
         get() = _dailyTemps.value
@@ -135,7 +135,7 @@ class WeatherViewModel(
 
         // Store the selected LocatingMethod.
         viewModelScope.launch {
-            userPreferencesRepository.updateLocatingMethod(selectedLocatingMethod)
+            userPrefsRepo.updateLocatingMethod(selectedLocatingMethod)
         }
     }
 
@@ -602,7 +602,6 @@ class WeatherViewModel(
         }
 
         val dailyTempsBuilder: ArrayList<DailyTemperature> = arrayListOf()
-        dailyTempsBuilder.add(dailyTempHeader)
         for (i in highestTemps.indices) {
             val isToday = i == 1
 
@@ -750,10 +749,6 @@ class WeatherViewModel(
         } else {
             startLocationUpdate()
         }
-        viewModelScope.launch {
-            delay((320..480).random().toLong())  // FAKE loading for UX
-            _isLoading.value = false  // Or, if _isLoading.value has already been set to false after job completed, it doesn't any effect.
-        }
     }
 
     private fun showLoadingBriefly(milliSec: Long) {
@@ -858,7 +853,7 @@ class WeatherViewModel(
             false, stringForNull, stringForNull, stringForNull
         )
 
-        val builder: ArrayList<DailyTemperature> = arrayListOf(dailyTempHeader)
+        val builder: ArrayList<DailyTemperature> = arrayListOf()
         for (i in 0 until temperatureCount) {
             builder.add(dailyTempPlaceholder)
         }
@@ -868,6 +863,10 @@ class WeatherViewModel(
 
     fun onLandingScreenTimeout() {
         _showLandingScreen.value = false
+    }
+
+    fun onToggleSimplified(enabled: Boolean) {
+        _isSimplified.value = enabled
     }
 
     companion object {

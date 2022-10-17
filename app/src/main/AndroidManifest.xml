@@ -18,7 +18,16 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
         <activity
-            android:name=".ui.FaqActivity"
+            android:name=".SettingsActivity"
+            android:exported="true"
+            android:label="@string/title_activity_settings"
+            android:theme="@style/Theme.BetterThanYesterday">
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="" />
+        </activity>
+        <activity
+            android:name=".FaqActivity"
             android:exported="false"
             android:label="@string/title_activity_web_view"
             android:theme="@style/Theme.BetterThanYesterday">
@@ -27,7 +36,7 @@
                 android:value="" />
         </activity>
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.BetterThanYesterday">
             <intent-filter>

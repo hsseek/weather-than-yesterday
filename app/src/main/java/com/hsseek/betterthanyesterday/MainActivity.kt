@@ -60,10 +60,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Log.d(TAG, "onCreated() called.")
 
+        val prefsRepo = UserPreferencesRepository(this)
+
         viewModel = ViewModelProvider(
             this,
-            WeatherViewModelFactory(application, UserPreferencesRepository(this))
+            WeatherViewModelFactory(application, prefsRepo)
         )[WeatherViewModel::class.java]
+
+        // Observe to Preferences changes.
+        viewModel.viewModelScope.launch {
+            prefsRepo.simpleViewFlow.collect{ isSimplified ->
+                viewModel.onToggleSimplified(isSimplified)
+            }
+        }
 
         // Toast message listener from ViewModel
         viewModel.viewModelScope.launch {
@@ -157,7 +166,7 @@ class MainActivity : ComponentActivity() {
             AlertDialog.Builder(this)
                 .setTitle(getString(R.string.dialog_title_location_permission))
                 .setMessage(getString(R.string.dialog_message_location_permission))
-                .setPositiveButton(getString(R.string.dialog_ok)) { _, _ ->
+                .setPositiveButton(getString(R.string.dialog_dismiss_ok)) { _, _ ->
                     // Request the permission the explanation has been given.
                     requestPermissionLauncher.launch((Manifest.permission.ACCESS_FINE_LOCATION))
                 }.create().show()
@@ -218,10 +227,10 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val sky: Sky by viewModel.rainfallStatus.collectAsState()
 
-                    LocationInformation(modifier, viewModel.cityName, viewModel.districtName, viewModel.locatingMethod)
-                    CurrentTemperature(modifier, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
-                    DailyTemperatures(modifier, viewModel.dailyTemps)
-                    RainfallStatus(modifier, sky)
+                    LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.locatingMethod)
+                    CurrentTemperature(modifier, viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
+                    DailyTemperatures(modifier, viewModel.isSimplified, viewModel.dailyTemps)
+                    RainfallStatus(modifier, viewModel.isSimplified, sky)
                     CustomScreen(modifier)
                 }
 
@@ -409,6 +418,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun LocationInformation(
         modifier: Modifier,
+        isSimplified: Boolean,
         cityName: String,
         districtName: String,
         locatingMethod: LocatingMethod?,
@@ -421,11 +431,13 @@ class MainActivity : ComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // A descriptive title
-            Text(
-                text = stringResource(R.string.location_title_current),
-                style = Typography.h6,
-                modifier = Modifier.padding(bottom = titleBottomPadding)
-            )
+            if (!isSimplified) {
+                Text(
+                    text = stringResource(R.string.location_title_current),
+                    style = Typography.h6,
+                    modifier = Modifier.padding(bottom = titleBottomPadding)
+                )
+            }
 
             // The name of the forecast location
             Text(
@@ -446,41 +458,52 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun CurrentTemperature(
         modifier: Modifier,
+        isSimplified: Boolean,
         hourlyTempDiff: Int?,
         currentTemp: Int?,
     ) {
         val columnTopPadding = 16.dp
         val titleBottomPadding = 4.dp
 
-        // A description
-        val description = if (hourlyTempDiff == null) {
-            stringResource(id = R.string.null_value)
-        } else if (hourlyTempDiff > 0) {
-            stringResource(R.string.current_temp_higher)
-        } else if (hourlyTempDiff < 0) {
-            stringResource(R.string.current_temp_lower)
-        } else {
-            stringResource(R.string.current_temp_same)
-        }
-
         Column(
             modifier = modifier.padding(top = columnTopPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // The title
-            Text(
-                text = stringResource(R.string.current_temp_title),
-                style = Typography.h6,
-                modifier = modifier.padding(bottom = titleBottomPadding),
-            )
-
-            // A description
-            if (currentTemp != null) {
-                Text(text = stringResource(R.string.current_temp_value, currentTemp))
-            } else {
-                Text(text = "")
+            if (!isSimplified) {
+                Text(
+                    text = stringResource(R.string.current_temp_title),
+                    style = Typography.h6,
+                    modifier = modifier.padding(bottom = titleBottomPadding),
+                )
             }
-            Text(text = description)
+
+            // The current temperature
+            val currentTempString = if (currentTemp == null) {
+                ""
+            } else {
+                if (!isSimplified) {
+                    stringResource(R.string.current_temp_value) + " $currentTemp \u2103"
+                } else {
+                    "$currentTemp \u2103"
+                }
+            }
+
+            Text(text = currentTempString)
+
+            if (!isSimplified) {  // A description
+                val description = if (hourlyTempDiff == null) {
+                    stringResource(id = R.string.null_value)
+                } else if (hourlyTempDiff > 0) {
+                    stringResource(R.string.current_temp_higher)
+                } else if (hourlyTempDiff < 0) {
+                    stringResource(R.string.current_temp_lower)
+                } else {
+                    stringResource(R.string.current_temp_same)
+                }
+
+                Text(text = description)
+            }
 
             // The temperature difference(HUGE)
             TemperatureDifference(hourlyTempDiff)
@@ -537,108 +560,99 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
+    fun DailyTemperatureColumn(
+        dailyTemp: DailyTemperature?,
+        isSimplified: Boolean,
+    ) {
+        val columnWidth = 54.dp
+        val columnPadding = 6.dp
+
+        Column(
+            modifier = Modifier
+                .widthIn(min = columnWidth)
+                .padding(horizontal = columnPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+
+            // Font colors for highest temperatures
+            val warmColor: Color = if (isSystemInDarkTheme()) RedTint700 else RedShade200
+            val hotColor: Color = if (isSystemInDarkTheme()) RedTint400 else Red000
+
+            // Font colors for lowest temperatures
+            val coolColor: Color = if (isSystemInDarkTheme()) CoolTint700 else CoolShade200
+            val coldColor: Color = if (isSystemInDarkTheme()) CoolTint400 else Cool000
+
+            // Values for today
+            val todayMark: String
+            val fontWeight: FontWeight
+            val highTempColor: Color
+            val lowTempColor: Color
+
+            if (dailyTemp?.isToday == true) {
+                highTempColor = hotColor
+                lowTempColor = coldColor
+            } else {
+                highTempColor = warmColor
+                lowTempColor = coolColor
+            }
+
+            if (dailyTemp?.isToday == true) {
+                todayMark = stringResource(id = R.string.daily_today)
+                fontWeight = FontWeight.ExtraBold
+            } else {
+                todayMark = ""
+                fontWeight = FontWeight.Normal
+            }
+
+            // Today mark (empty for the header column)
+            Text(
+                text = if (dailyTemp != null) todayMark else "",
+                fontWeight = fontWeight,
+                style = Typography.caption,
+            )
+
+            // Mon, Tue, ... (empty for the header column)
+            if (!isSimplified) {
+                Text(text = dailyTemp?.day ?: "", fontWeight = fontWeight)
+            }
+
+            // Highest temperatures
+            Text(
+                text = dailyTemp?.highest ?: stringResource(id = R.string.daily_highest),
+                fontWeight = fontWeight,
+                color = if (dailyTemp != null) highTempColor else MaterialTheme.colors.onBackground,
+            )
+
+            // Lowest temperatures
+            Text(
+                text = dailyTemp?.lowest ?: stringResource(id = R.string.daily_lowest),
+                fontWeight = fontWeight,
+                color = if (dailyTemp != null) lowTempColor else MaterialTheme.colors.onBackground,
+            )
+        }
+    }
+
+    @Composable
     fun DailyTemperatures(
         modifier: Modifier,
+        isSimplified: Boolean,
         dailyTemps: List<DailyTemperature>,
     ) {
         val verticalOffset = (-24).dp
+        val arrangement = if (!isSimplified) Arrangement.SpaceEvenly else Arrangement.Center
 
-        // Font colors for highest temperatures
-        val warmColor: Color = if (isSystemInDarkTheme()) {
-            RedTint700
-        } else {
-            RedShade200
-        }
-
-        val hotColor: Color = if (isSystemInDarkTheme()) {
-            RedTint400
-        } else {
-            Red000
-        }
-
-        // Font colors for lowest temperatures
-        val coolColor: Color = if (isSystemInDarkTheme()) {
-            CoolTint700
-        } else {
-            CoolShade200
-        }
-
-        val coldColor: Color = if (isSystemInDarkTheme()) {
-            CoolTint400
-        } else {
-            Cool000
-        }
-
+        // Day by day
         Row(
             modifier = modifier
                 .fillMaxWidth()
                 .offset(y = verticalOffset),
-            horizontalArrangement = Arrangement.SpaceAround
+            horizontalArrangement = arrangement
         ) {
-            for (i in dailyTemps.indices) {
-                val dailyTemp = dailyTemps[i]
+            // The header column
+            if (!isSimplified) DailyTemperatureColumn(dailyTemp = null, isSimplified = false)
 
-                // Values for today
-                val todayMark: String
-                val fontWeight: FontWeight
-                val highTempColor: Color
-                val lowTempColor: Color
-
-                if (i == 0) {
-                    highTempColor = MaterialTheme.colors.onBackground
-                    lowTempColor = MaterialTheme.colors.onBackground
-                } else {
-                    if (dailyTemp.isToday) {
-                        highTempColor = hotColor
-                        lowTempColor = coldColor
-                    } else {
-                        highTempColor = warmColor
-                        lowTempColor = coolColor
-                    }
-                }
-
-                if (dailyTemp.isToday) {
-                    todayMark = stringResource(id = R.string.daily_today)
-                    fontWeight = FontWeight.ExtraBold
-                } else {
-                    todayMark = ""
-                    fontWeight = FontWeight.Normal
-                }
-
-                Column {
-                    val columnMod = Modifier.align(Alignment.CenterHorizontally)
-
-                    // Today mark
-                    Text(
-                        text = todayMark,
-                        fontWeight = fontWeight,
-                        style = Typography.caption,
-                        modifier = columnMod,
-                    )
-
-                    // Mon, Tue, ...
-                    Text(
-                        text = dailyTemp.day,
-                        fontWeight = fontWeight,
-                        modifier = columnMod,
-                    )
-
-                    // Highest temperatures
-                    Text(
-                        text = dailyTemp.highest,
-                        fontWeight = fontWeight,
-                        color = highTempColor,
-                        modifier = columnMod,
-                    )
-
-                    // Lowest temperatures
-                    Text(
-                        text = dailyTemp.lowest,
-                        fontWeight = fontWeight,
-                        color = lowTempColor,
-                        modifier = columnMod,
-                    )
-                }
+            for (dailyTemp in dailyTemps) {
+                DailyTemperatureColumn(dailyTemp = dailyTemp, isSimplified = isSimplified)
             }
         }
     }
@@ -646,6 +660,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun RainfallStatus(
         modifier: Modifier,
+        isSimplified: Boolean,
         sky: Sky,
     ) {
         val titleBottomPadding = 2.dp
@@ -656,12 +671,13 @@ class MainActivity : ComponentActivity() {
             modifier = modifier,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Title
-            Text(
-                text = stringResource(R.string.rainfall_title),
-                style = Typography.h6,
-                modifier = modifier.padding(bottom = titleBottomPadding)
-            )
+            if (!isSimplified) {// Title
+                Text(
+                    text = stringResource(R.string.rainfall_title),
+                    style = Typography.h6,
+                    modifier = modifier.padding(bottom = titleBottomPadding)
+                )
+            }
 
             // The icon and the description
             Row(
@@ -708,10 +724,18 @@ class MainActivity : ComponentActivity() {
                     painter = painterResource(id = imageId),
                     contentDescription = stringResource(R.string.desc_rainfall_status),
                 )
-                Spacer(modifier = Modifier.size(imageSpacerSize))
-                Column {
-                    Text(text = qualitative)
+
+                if (!isSimplified) {
+                    Spacer(modifier = Modifier.size(imageSpacerSize))
+                    Column {
+                        Text(text = qualitative)
+                        if (sky is Bad) {
+                            Text(text = hourDescription)
+                        }
+                    }
+                } else {
                     if (sky is Bad) {
+                        Spacer(modifier = Modifier.size(imageSpacerSize))
                         Text(text = hourDescription)
                     }
                 }
@@ -762,7 +786,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         TextButton(onClick = onClickNegative) {
-                            Text(text = stringResource(R.string.dialog_cancel))
+                            Text(text = stringResource(R.string.dialog_dismiss_cancel))
                         }
                         TextButton(onClick = {
                             val selectedLocation: LocatingMethod? = selected.value
@@ -772,7 +796,7 @@ class MainActivity : ComponentActivity() {
                                 Log.e(TAG, "The selected LocatingMethod is null.")
                             }
                         }) {
-                            Text(text = stringResource(R.string.dialog_ok))
+                            Text(text = stringResource(R.string.dialog_dismiss_ok))
                         }
                     }
                 }
@@ -855,38 +879,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    //    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
-    @Composable
-    fun LocationInformationPreview() {
-        BetterThanYesterdayTheme {
-            Surface {
-                LocationInformation(
-                    modifier = Modifier.fillMaxWidth(),
-                    cityName = "서울",
-                    districtName = "종로구",
-                    locatingMethod = LocatingMethod.Auto
-                )
-            }
-        }
-    }
-
-    //    @Preview(showBackground = true)
-//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
-    @Composable
-    fun ManualLocationInformationPreview() {
-        BetterThanYesterdayTheme {
-            Surface {
-                LocationInformation(
-                    modifier = Modifier.fillMaxWidth(),
-                    cityName = stringResource(id = R.string.region_south_jl),
-                    districtName = "남구",
-                    locatingMethod = LocatingMethod.SouthJl
-                )
-            }
-        }
-    }
-
-    //    @Preview(showBackground = true)
+//    @Preview(showBackground = true)
 //    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
     fun ColdCurrentTempPreview() {
@@ -895,13 +888,14 @@ class MainActivity : ComponentActivity() {
                 CurrentTemperature(
                     modifier = Modifier.fillMaxWidth(),
                     hourlyTempDiff = -9,
-                    currentTemp = 23
+                    currentTemp = 23,
+                    isSimplified = false,
                 )
             }
         }
     }
 
-    //    @Preview(showBackground = true)
+//    @Preview(showBackground = true)
 //    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
     fun HotCurrentTempPreview() {
@@ -910,13 +904,14 @@ class MainActivity : ComponentActivity() {
                 CurrentTemperature(
                     modifier = Modifier.fillMaxWidth(),
                     hourlyTempDiff = 9,
-                    currentTemp = 32
+                    currentTemp = 32,
+                    isSimplified = false,
                 )
             }
         }
     }
 
-    //    @Preview(showBackground = true)
+//    @Preview(showBackground = true)
 //    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
     @Composable
     fun SameCurrentTempPreview() {
@@ -925,20 +920,22 @@ class MainActivity : ComponentActivity() {
                 CurrentTemperature(
                     modifier = Modifier.fillMaxWidth(),
                     hourlyTempDiff = 0,
-                    currentTemp = -9
+                    currentTemp = -9,
+                    isSimplified = false,
                 )
             }
         }
     }
 
-    //    @Preview(showBackground = true)
+//    @Preview(showBackground = true)
     @Composable
     fun SunnyPreview() {
         BetterThanYesterdayTheme {
             Surface {
                 RainfallStatus(
                     modifier = Modifier.fillMaxWidth(),
-                    sky = Good
+                    isSimplified = false,
+                    sky = Good,
                 )
             }
         }
@@ -951,7 +948,8 @@ class MainActivity : ComponentActivity() {
             Surface {
                 RainfallStatus(
                     modifier = Modifier.fillMaxWidth(),
-                    sky = Rainy(300, 1200)
+                    isSimplified = false,
+                    sky = Rainy(300, 1200),
                 )
             }
         }
@@ -964,7 +962,8 @@ class MainActivity : ComponentActivity() {
             Surface {
                 RainfallStatus(
                     modifier = Modifier.fillMaxWidth(),
-                    sky = Snowy(2000, 2300)
+                    isSimplified = false,
+                    sky = Snowy(2000, 2300),
                 )
             }
         }
@@ -977,7 +976,8 @@ class MainActivity : ComponentActivity() {
             Surface {
                 RainfallStatus(
                     modifier = Modifier.fillMaxWidth(),
-                    sky = Mixed(100, 800)
+                    isSimplified = false,
+                    sky = Mixed(100, 800),
                 )
             }
         }

@@ -4,7 +4,6 @@ import android.content.Context
 import android.location.Address
 import android.location.Geocoder
 import android.util.Log
-import com.hsseek.betterthanyesterday.util.LOCATION_TAG
 import java.util.*
 
 private const val TAG = "Geocoder"
@@ -30,9 +29,9 @@ class KoreanGeocoder(context: Context) {
     fun getAddresses(position: CoordinatesLatLon, maxResult: Int = 3): List<Address>? {
         return try {
             val addresses = geoCoder.getFromLocation(position.lat, position.lon, maxResult)
-            for (address in addresses) {
-                Log.d(LOCATION_TAG, "Address candidate: ${address.getAddressLine(0)}")
-            }
+//            for (address in addresses) {
+//                Log.d(LOCATION_TAG, "Address candidate: ${address.getAddressLine(0)}")
+//            }
             addresses
         } catch (e: Exception) {
             Log.e(TAG, "$e: Cannot retrieve the corresponding address.", e)

@@ -1,23 +1,42 @@
 package com.hsseek.betterthanyesterday.data
 
+import android.content.Context
 import android.util.Log
-import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
-import com.hsseek.betterthanyesterday.util.LOCATING_METHOD_TAG
+import com.hsseek.betterthanyesterday.App.Companion.dataStore
 import com.hsseek.betterthanyesterday.util.LocatingMethod
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
-class UserPreferencesRepository(
-    private val dataStore: DataStore<Preferences>,
-) {
+
+private const val TAG = "UserPreferencesRepository"
+
+class UserPreferencesRepository(private val context: Context) {
     private object PreferencesKeys {
-        val FORECAST_LOCATION_CODE = intPreferencesKey("forecast_location_code")
+        val LOCATING_METHOD_CODE = intPreferencesKey("locating_method_code")
+        val SIMPLE_VIEW_CODE = booleanPreferencesKey("simple_view_code")
     }
 
-    val locatingMethodFlow: Flow<Int> = dataStore.data
+    val locatingMethodFlow: Flow<Int> = getPrefsFlow(PreferencesKeys.LOCATING_METHOD_CODE, LocatingMethod.Auto.code)
+    val simpleViewFlow: Flow<Boolean> = getPrefsFlow(PreferencesKeys.SIMPLE_VIEW_CODE, false)
+
+    suspend fun updateLocatingMethod(locatingMethod: LocatingMethod) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.LOCATING_METHOD_CODE] = locatingMethod.code
+        }
+    }
+
+    suspend fun updateSimpleViewEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            val status = if (enabled) "enabled" else "disabled"
+            Log.d(TAG, "Simple mode: $status")
+            preferences[PreferencesKeys.SIMPLE_VIEW_CODE] = enabled
+        }
+    }
+
+    private fun <T> getPrefsFlow(key: Preferences.Key<T>, defaultValue: T): Flow<T> = context.dataStore.data
         .catch { e ->
             if (e is IOException) {
                 emit(emptyPreferences())
@@ -25,13 +44,6 @@ class UserPreferencesRepository(
                 throw e
             }
         }.map { preferences ->
-            preferences[PreferencesKeys.FORECAST_LOCATION_CODE] ?: LocatingMethod.Auto.code
+            preferences[key] ?: defaultValue
         }
-
-    suspend fun updateLocatingMethod(locatingMethod: LocatingMethod) {
-        dataStore.edit { preferences ->
-            Log.d(LOCATING_METHOD_TAG, "Editing LocatingMethod preferences to ${locatingMethod.code}")
-            preferences[PreferencesKeys.FORECAST_LOCATION_CODE] = locatingMethod.code
-        }
-    }
 }

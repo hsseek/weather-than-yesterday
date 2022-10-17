@@ -4,6 +4,7 @@ import android.location.Address
 import android.util.Log
 import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
+import kotlinx.coroutines.Job
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
