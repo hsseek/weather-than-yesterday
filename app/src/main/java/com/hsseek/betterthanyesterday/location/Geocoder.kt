@@ -26,12 +26,12 @@ class KoreanGeocoder(context: Context) {
         }
     }
 
-    fun getAddresses(position: CoordinatesLatLon, maxResult: Int = 3): List<Address>? {
+    fun getAddresses(position: CoordinatesLatLon, maxResult: Int = 6): List<Address>? {
         return try {
             val addresses = geoCoder.getFromLocation(position.lat, position.lon, maxResult)
-//            for (address in addresses) {
-//                Log.d(LOCATION_TAG, "Address candidate: ${address.getAddressLine(0)}")
-//            }
+            for (address in addresses) {
+                Log.d(TAG, "Address candidate: ${address.getAddressLine(0)}")
+            }
             addresses
         } catch (e: Exception) {
             Log.e(TAG, "$e: Cannot retrieve the corresponding address.", e)

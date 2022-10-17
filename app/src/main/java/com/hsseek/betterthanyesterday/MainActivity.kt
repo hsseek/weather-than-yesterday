@@ -120,7 +120,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         Log.d(TAG, "onStart() called.")
-        requestRefreshIfValid(viewModel.locatingMethod)
+        requestRefreshImplicitly()
     }
 
     override fun onStop() {
@@ -135,6 +135,16 @@ class MainActivity : ComponentActivity() {
 
         // Now check the validity of the selection.
         requestRefreshIfValid(selectedLocatingMethod)
+    }
+
+    private fun requestRefreshImplicitly() {
+        val minInterval: Long = 10 * 60 * 1000
+        val lastChecked = viewModel.lastCheckedTime
+        if (lastChecked == null || getCurrentKoreanDateTime().timeInMillis - lastChecked.timeInMillis > minInterval) {
+            requestRefreshIfValid(viewModel.locatingMethod)
+        } else {
+            Log.d(TAG, "Too soon, skip refresh. (Last checked at ${lastChecked.get(Calendar.HOUR_OF_DAY)}: ${lastChecked.get(Calendar.MINUTE)})")
+        }
     }
 
     private fun requestRefreshIfValid(selectedLocatingMethod: LocatingMethod) {

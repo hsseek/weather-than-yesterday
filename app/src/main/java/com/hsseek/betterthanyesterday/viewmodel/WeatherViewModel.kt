@@ -76,10 +76,10 @@ class WeatherViewModel(
     val showLandingScreen: Boolean
         get() = _showLandingScreen.value
 
-    private var lastBaseTime: KmaTime? = null
-        set(value) {
-            Log.d(TAG, "lastBaseTime: $value")
+    var lastCheckedTime: Calendar? = null
+        private set(value) {
             field = value
+            Log.d(TAG, "last checked hour: ${value?.get(Calendar.HOUR_OF_DAY)}")
         }
 
     private val _isSimplified = mutableStateOf(false)
@@ -166,7 +166,7 @@ class WeatherViewModel(
             kmaJob = launch(defaultDispatcher) {
                 Log.d(TAG, "kmaJob launched.")
                 _isLoading.value = true
-                lastBaseTime = getKmaBaseTime(roundOff = HOUR)
+                lastCheckedTime = getCurrentKoreanDateTime()
 
                 while (trialCount < NETWORK_MAX_RETRY) {
                     try {
@@ -498,7 +498,7 @@ class WeatherViewModel(
                         } else {  // Maximum count of trials has been reached.
                             Log.e(TAG, "Stop trying after reaching timeout $NETWORK_MAX_RETRY times.\n$e")
                             _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_general)
-                            lastBaseTime = null
+                            lastCheckedTime = null
                             break
                         }
                     } catch (e: Exception) {  // Other exceptions dealt without retrying.
@@ -510,7 +510,7 @@ class WeatherViewModel(
                                 _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_general)
                             }
                         }
-                        lastBaseTime = null
+                        lastCheckedTime = null
                         break
                     } finally {
                         // _isLoading.value = false   Called on every loops, which is not intended.
@@ -804,15 +804,21 @@ class WeatherViewModel(
     private fun updateWeather(coordinates: CoordinatesXy) {
         if (coordinates == baseCoordinatesXy) {
             Log.d(TAG, "The same coordinates.")
-            val kmaTime = getKmaBaseTime(roundOff = HOUR)
-            val lastChecked = lastBaseTime
 
-            if (lastChecked == null || kmaTime.isLaterThan(lastChecked)) {
-                Log.d(TAG, "However, new data are available.")
+            lastCheckedTime?.also {
+                val lastBaseTime = getKmaBaseTime(cal = it.clone() as Calendar, roundOff = HOUR)
+                val currentBaseTime = getKmaBaseTime(roundOff = HOUR)
+
+                if (currentBaseTime.isLaterThan(lastBaseTime)) {
+                    Log.d(TAG, "However, new data are available.(${lastBaseTime.hour} -> ${currentBaseTime.hour})")
+                    requestAllWeatherData()
+                } else {
+                    Log.d(TAG, "The data is up-to-date as well.")
+                    _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
+                }
+            } ?: kotlin.run {
+                Log.d(TAG, "However, the ViewModel doesn't hold any data.")
                 requestAllWeatherData()
-            } else {
-                Log.d(TAG, "The data is up-to-date as well.")
-                _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
             }
         } else {
             Log.d(LOCATION_TAG, "A new coordinates\t: (${coordinates.nx}, ${coordinates.ny})")
@@ -827,9 +833,7 @@ class WeatherViewModel(
         val geocoder = KoreanGeocoder(context)
         val addresses = geocoder.getAddresses(coordinates)
         val locatedCityName = getCityName(addresses)
-        getDistrictName(addresses)?.let {
-            _districtName.value = it
-        }
+        getDistrictName(addresses)?.let { _districtName.value = it }
 
         if (locatedCityName == null) {
             Log.e(LOCATION_TAG, "Error retrieving a city name(${coordinates.lat}, ${coordinates.lon}).")
