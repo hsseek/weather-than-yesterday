@@ -1,7 +1,6 @@
 package com.hsseek.betterthanyesterday
 
 import android.app.Activity
-import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,6 +12,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -25,8 +25,6 @@ import com.hsseek.betterthanyesterday.viewmodel.SettingsViewModel
 import com.hsseek.betterthanyesterday.viewmodel.SettingsViewModelFactory
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-
-private const val TAG = "SettingsActivity"
 
 class SettingsActivity : ComponentActivity() {
     private lateinit var viewModel: SettingsViewModel
@@ -58,8 +56,8 @@ class SettingsActivity : ComponentActivity() {
 
                     if (viewModel.showSimpleViewHelp) {
                         HelpDialog(
-                            titleId = R.string.pref_title_simple_mode,
-                            descId = R.string.pref_desc_simple_help,
+                            title = stringResource(id = R.string.pref_title_simple_mode),
+                            desc = stringResource(id = R.string.pref_desc_simple_help),
                             onDismissRequest = { viewModel.onDismissSimpleViewHelp() }
                         )
                     }
@@ -127,13 +125,14 @@ fun SimpleViewRow(
 
 @Composable
 fun HelpDialog(
-    titleId: Int,
-    descId: Int,
-    imageId: Int? = null,
+    title: String,
+    desc: String,
+    image: Painter? = null,
     onDismissRequest: () -> Unit,
 ) {
-
     val titlePadding = 0.dp
+    val buttonHorizontalPadding = 6.dp
+
     val color = if (isSystemInDarkTheme()) {
         Gray400
     } else {
@@ -144,16 +143,16 @@ fun HelpDialog(
         onDismissRequest = onDismissRequest,
         title = {
             Text(
-                text = stringResource(id = titleId),
+                text = title,
                 modifier = Modifier.padding(titlePadding),
             )
         },
         backgroundColor = color,
         text = {
                Column {
-                   Text(text = stringResource(id = descId))
-                   if (imageId != null) {
-                       Image(painter = painterResource(id = imageId), contentDescription = null)
+                   Text(text = desc)
+                   if (image != null) {
+                       Image(painter = image, contentDescription = null)
                    }
                }
         },
@@ -161,7 +160,9 @@ fun HelpDialog(
             // The Cancel and Ok buttons
             Row(
                 horizontalArrangement = Arrangement.End,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = buttonHorizontalPadding)
             ) {
                 TextButton(onClick = onDismissRequest) {
                     Text(text = stringResource(id = R.string.dialog_dismiss_close))
@@ -323,24 +324,36 @@ fun RadioGroup(
 
 class RadioItem(val code: Int, val titleId: Int, val descId: Int?)
 
+@Preview(showBackground = true)
+@Composable
+fun HelpDialogPreview() {
+    BetterThanYesterdayTheme {
+        HelpDialog(
+            title = "Simple mode",
+            desc = "Hide titles and descriptions to give a neat look. Recommended after the numbers got familiar to you, as it might be hard to interpret information."
+        ) {
+
+        }
+    }
+}
 
 @Preview(showBackground = true, widthDp = 420, heightDp = 180)
-@Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 420, heightDp = 180, showBackground = true)
+//@Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 420, heightDp = 180, showBackground = true)
 @Composable
 fun SettingsRowPreview() {
-    val fillMaxMod = Modifier
+    val modifier = Modifier
 
     BetterThanYesterdayTheme {
         Surface {
             Column {
                 PreferenceDialogRow(
-                    modifier = fillMaxMod,
+                    modifier = modifier,
                     title = "Language",
                     description = "You can set language.",
                     onClickHelp = { }) {
                 }
                 PreferenceToggleRow(
-                    modifier = fillMaxMod,
+                    modifier = modifier,
                     title = "Simple View Mode",
                     description = "Simple is the best.",
                     onClickHelp = { },
@@ -348,7 +361,7 @@ fun SettingsRowPreview() {
                     onCheckedChange = { }
                 )
                 PreferenceDialogRow(
-                    modifier = fillMaxMod,
+                    modifier = modifier,
                     enabled = false,
                     title = "Language",
                     description = "You can set language.",

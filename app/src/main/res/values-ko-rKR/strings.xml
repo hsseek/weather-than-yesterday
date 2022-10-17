@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">어제보다</string>
     <string name="dialog_title_location_permission">위치정보 이용권한 설정</string>
-    <string name="dialog_message_location_permission">현재 위치의 날씨 정보를 얻기 위해 위치정보 이용권한이 필요합니다.\n(권한을 부여하지 않더라도 수동 위치 설정이 가능합니다.)</string>
+    <string name="dialog_message_location_permission">현재 위치의 날씨 정보를 얻기 위해 위치정보 이용권한이 필요합니다(권한을 부여하지 않더라도 수동 위치 설정이 가능합니다.)</string>
     <string name="current_temp_title">온도 정보</string>
     <string name="current_temp_higher">어제보다 기온이 높습니다.</string>
     <string name="current_temp_lower">어제보다 기온이 낮습니다.</string>
@@ -66,6 +66,6 @@
     <string name="desc_back">뒤로 가기</string>
     <string name="pref_title_simple_mode">심플 모드</string>
     <string name="pref_desc_simple_mode">깔끔한 화면 구성을 위해 글자들을 숨깁니다.</string>
-    <string name="pref_desc_simple_help">더 깔끔한 화면 구성을 위해 제목과 일부 설명들을 숨깁니다. 앱에 표시되는 숫자들에 익숙해진 후 사용하는 것을 권장합니다.</string>
+    <string name="pref_desc_simple_help">더 깔끔한 화면 구성을 위해 제목과 일부 설명을 숨깁니다. 앱에 표시되는 숫자들에 익숙해진 후 사용하는 것을 권장합니다.</string>
     <string name="dialog_dismiss_close">닫기</string>
 </resources>

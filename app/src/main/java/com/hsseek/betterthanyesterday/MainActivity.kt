@@ -263,8 +263,8 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun LandingScreen(timeout: Long, onTimeout: () -> Unit) {
-        val letterFraction = .5f
-        val iconFraction = .25f
+        val letterFraction = .4f
+        val iconFraction = .18f
         val space = 30.dp
 
         LaunchedEffect(true) {

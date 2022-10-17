@@ -29,7 +29,9 @@ val Typography = Typography(
         color = Gray000,
     ),
     body1 = TextStyle(
-        fontSize = 16.sp
+        fontSize = 16.sp,
+        textAlign = TextAlign.Justify,
+        lineHeight = 20.sp,
     ),
     caption = TextStyle(
         fontSize = 13.sp,

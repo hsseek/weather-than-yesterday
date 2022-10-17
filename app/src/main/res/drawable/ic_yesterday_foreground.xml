@@ -1,3 +1,14 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="@color/icon_pink" android:pathData="M43.857 73.79q-4.134 0-7.084-2.95t-2.95-7.084q0-2.646 1.323-4.989t3.638-3.776V39.225q0-2.095 1.488-3.583t3.583-1.488q2.095 0 3.583 1.488t1.488 3.583v15.766q2.315 1.433 3.638 3.776t1.323 4.989q0 4.134-2.95 7.084t-7.084 2.95zm-6.725-10.033h13.45q0-1.93-1.047-3.804-1.047-1.874-2.811-2.646l-1.103-0.496V39.226q0-0.772-0.496-1.268t-1.268-0.496-1.268 0.496q-0.496 0.496-0.496 1.268v17.585l-1.103 0.496q-1.93 0.882-2.894 2.701-0.965 1.82-0.965 3.748zm19.46-7.221l8.269-21.223h2.922l8.269 21.223h-3.087l-2.37-6.174h-8.544l-2.37 6.174zm6.34-8.765h6.78l-2.977-8.159h-0.827z"/>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <group android:scaleX="1.215"
+      android:scaleY="1.215"
+      android:translateX="41.85"
+      android:translateY="29.7">
+    <path
+        android:fillColor="@color/icon_pink"
+        android:pathData="M10,40q-4.15,0 -7.075,-2.925T0,30q0,-2.55 1.15,-4.8t3.4,-3.35L4.55,5.45q0,-2.25 1.6,-3.85T10,0q2.25,0 3.85,1.6t1.6,3.85v16.4q2.25,1.1 3.4,3.35T20,30q0,4.15 -2.925,7.075T10,40ZM7.55,18.25h4.9L12.45,15.6L10,15.6v-1.95h2.45L12.45,9.3L10,9.3v-1.95h2.45v-1.9q0,-1.05 -0.7,-1.75T10,3q-1.05,0 -1.75,0.7t-0.7,1.75Z"/>
+  </group>
 </vector>

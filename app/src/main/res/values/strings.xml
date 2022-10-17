@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Better Than Yesterday</string>
     <string name="dialog_title_location_permission">Location Permission Required</string>
-    <string name="dialog_message_location_permission">The permission is required to get the weather conditions of the current location.\n(Otherwise, you can deny the request and set a location manually).</string>
+    <string name="dialog_message_location_permission">The permission is required to get the weather conditions of the current location(Otherwise, you can deny the request and set a location manually).</string>
     <string name="desc_splash_screen">Splash screen</string>
     <string name="current_temp_title">Temperature status</string>
     <string name="current_temp_higher">It\'s higher than yesterday by</string>
