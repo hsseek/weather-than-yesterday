@@ -165,7 +165,6 @@ class WeatherViewModel(
 
             kmaJob = launch(defaultDispatcher) {
                 Log.d(TAG, "kmaJob launched.")
-                _isLoading.value = true
                 lastCheckedTime = getCurrentKoreanDateTime()
 
                 while (trialCount < NETWORK_MAX_RETRY) {
@@ -753,11 +752,10 @@ class WeatherViewModel(
         }
     }
 
-    private fun showLoadingBriefly(milliSec: Long) {
+    private fun delayDismissLoading(milliSec: Long) {
         // Suspend functions will do their own thread confinement properly.
         // So launching on another dispatcher will introduce at least 2 extra thread switches.
         viewModelScope.launch {
-            _isLoading.value = true
             delay(milliSec)
             if (kmaJob.isCompleted) _isLoading.value = false
         }
@@ -772,6 +770,7 @@ class WeatherViewModel(
                 context, Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
+            viewModelScope.launch { _isLoading.value = true }
             if (isUpdatingLocation) stopLocationUpdate()
 
             locationClient.lastLocation.addOnSuccessListener {
@@ -801,7 +800,7 @@ class WeatherViewModel(
     /**
      * Update [_cityName] and [baseCoordinatesXy], then request new weather data based on [baseCoordinatesXy].
      * */
-    private fun updateWeather(coordinates: CoordinatesXy) {
+    private fun updateWeather(coordinates: CoordinatesXy, isImplicit: Boolean = false) {
         if (coordinates == baseCoordinatesXy) {
             Log.d(TAG, "The same coordinates.")
 
@@ -813,8 +812,11 @@ class WeatherViewModel(
                     Log.d(TAG, "However, new data are available.(${lastBaseTime.hour} -> ${currentBaseTime.hour})")
                     requestAllWeatherData()
                 } else {
-                    Log.d(TAG, "The data is up-to-date as well.")
-                    _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
+                    Log.d(TAG, "The data are up-to-date as well.")
+                    if (!isImplicit) {
+                        delayDismissLoading((160..240).random().toLong())
+                        _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
+                    }
                 }
             } ?: kotlin.run {
                 Log.d(TAG, "However, the ViewModel doesn't hold any data.")
@@ -829,7 +831,7 @@ class WeatherViewModel(
         }
     }
 
-    fun updateLocationAndWeather(coordinates: CoordinatesLatLon) {
+    fun updateLocationAndWeather(coordinates: CoordinatesLatLon, isImplicit: Boolean = false) {
         val geocoder = KoreanGeocoder(context)
         val addresses = geocoder.getAddresses(coordinates)
         val locatedCityName = getCityName(addresses)
@@ -840,7 +842,7 @@ class WeatherViewModel(
         } else {
             _cityName.value = locatedCityName
             val xy = convertToXy(coordinates)
-            updateWeather(xy)
+            updateWeather(xy, isImplicit)
         }
     }
 
@@ -849,7 +851,7 @@ class WeatherViewModel(
             super.onLocationResult(locationResult)
             locationResult.lastLocation?.let {
                 Log.d(LOCATION_TAG, "Current location: (${it.latitude}, ${it.longitude})")
-                updateLocationAndWeather(CoordinatesLatLon(it.latitude, it.longitude))
+                updateLocationAndWeather(CoordinatesLatLon(it.latitude, it.longitude), isImplicit = true)
             }
         }
     }
