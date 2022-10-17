@@ -154,7 +154,6 @@ class WeatherViewModel(
         _hourlyTempDiff.value = null
         _dailyTemps.value = getDefaultDailyTemps()
         _rainfallStatus.value = Sky.Undetermined
-        lastBaseTime?.let{ lastBaseTime = null }
     }
 
     private fun requestAllWeatherData() {
@@ -167,6 +166,8 @@ class WeatherViewModel(
             kmaJob = launch(defaultDispatcher) {
                 Log.d(TAG, "kmaJob launched.")
                 _isLoading.value = true
+                lastBaseTime = getKmaBaseTime(roundOff = HOUR)
+
                 while (trialCount < NETWORK_MAX_RETRY) {
                     try {
                         withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
@@ -488,9 +489,8 @@ class WeatherViewModel(
                             adjustCharTemp()
                             buildDailyTemps()
                         }
-                        lastBaseTime = getKmaBaseTime(roundOff = HOUR)
                         break
-                    } catch (e: TimeoutCancellationException) {
+                    } catch (e: TimeoutCancellationException) {  // Retry on timeouts.
                         if (++trialCount < NETWORK_MAX_RETRY) {
                             val timeout: String = e.toString().split("for ").last()
                             Log.w(TAG, "Retrieving weather timeout($timeout)")
@@ -498,18 +498,19 @@ class WeatherViewModel(
                         } else {  // Maximum count of trials has been reached.
                             Log.e(TAG, "Stop trying after reaching timeout $NETWORK_MAX_RETRY times.\n$e")
                             _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_general)
+                            lastBaseTime = null
                             break
                         }
-                    } catch (e: CancellationException) {
-                        Log.d(TAG, "Retrieving weather data cancelled.")
-                        break
-                    } catch (e: UnknownHostException) {
-                        _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_network)
-                        break
-                    }
-                    catch (e: Exception) {
-                        Log.e(TAG, "Cannot retrieve weather data.\n$e")
-                        _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_general)
+                    } catch (e: Exception) {  // Other exceptions dealt without retrying.
+                        when (e) {
+                            is CancellationException -> Log.d(TAG, "Retrieving weather data cancelled.")
+                            is UnknownHostException -> _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_network)
+                            else -> {
+                                Log.e(TAG, "Cannot retrieve weather data.\n$e")
+                                _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_general)
+                            }
+                        }
+                        lastBaseTime = null
                         break
                     } finally {
                         // _isLoading.value = false   Called on every loops, which is not intended.
