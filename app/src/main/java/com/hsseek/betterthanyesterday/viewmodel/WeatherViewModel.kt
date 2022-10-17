@@ -166,6 +166,7 @@ class WeatherViewModel(
 
             kmaJob = launch(defaultDispatcher) {
                 Log.d(TAG, "kmaJob launched.")
+                _isLoading.value = true
                 while (trialCount < NETWORK_MAX_RETRY) {
                     try {
                         withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
@@ -518,6 +519,7 @@ class WeatherViewModel(
             }
 
             kmaJob.invokeOnCompletion {
+                Log.d(TAG, "kmaJob completed.")
                 _isLoading.value = false
                 _showLandingScreen.value = false
             }
@@ -742,7 +744,6 @@ class WeatherViewModel(
     }
 
     fun refreshWeatherData() {
-        showLoadingBriefly((320..480).random().toLong())
         if (locatingMethod != LocatingMethod.Auto) {
             stopLocationUpdate()  // No need to request location.
             updateFixedLocation(locatingMethod)  // Update the location directly.
@@ -756,7 +757,7 @@ class WeatherViewModel(
         // So launching on another dispatcher will introduce at least 2 extra thread switches.
         viewModelScope.launch {
             _isLoading.value = true
-            delay(milliSec)  // FAKE loading for UX
+            delay(milliSec)
             if (kmaJob.isCompleted) _isLoading.value = false
         }
     }
