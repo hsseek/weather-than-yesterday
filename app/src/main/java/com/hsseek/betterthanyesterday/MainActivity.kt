@@ -5,6 +5,7 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Bundle
 import android.util.Log
@@ -27,11 +28,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -286,7 +289,11 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun LandingScreen(timeout: Long, onTimeout: () -> Unit) {
+    private fun LandingScreen(
+        letter: Painter = painterResource(id = R.drawable.landing_letter_01),
+        timeout: Long,
+        onTimeout: () -> Unit,
+    ) {
         val letterFraction = .4f
         val iconFraction = .18f
         val space = 30.dp
@@ -309,7 +316,7 @@ class MainActivity : ComponentActivity() {
             )
             Spacer(modifier = Modifier.height(space))
             Image(
-                painter = painterResource(id = R.drawable.landing_letter_00),
+                painter = letter,
                 contentDescription = null,
                 contentScale = ContentScale.FillWidth,
                 modifier = Modifier
@@ -436,7 +443,9 @@ class MainActivity : ComponentActivity() {
                 },
         ) {
             val modifier = if (viewModel.isRefreshing) {
-                Modifier.fillMaxSize().background(color = background)
+                Modifier
+                    .fillMaxSize()
+                    .background(color = background)
             } else {
                 Modifier.fillMaxWidth()
             }
@@ -939,60 +948,31 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-//    @Preview(showBackground = true)
-//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
-    @Composable
-    fun ColdCurrentTempPreview() {
-        BetterThanYesterdayTheme {
-            Surface {
-                CurrentTemperature(
-                    modifier = Modifier.fillMaxWidth(),
-                    hourlyTempDiff = -9,
-                    currentTemp = 23,
-                    isSimplified = false,
-                )
-            }
-        }
-    }
-
-//    @Preview(showBackground = true)
-//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
-    @Composable
-    fun HotCurrentTempPreview() {
-        BetterThanYesterdayTheme {
-            Surface {
-                CurrentTemperature(
-                    modifier = Modifier.fillMaxWidth(),
-                    hourlyTempDiff = 9,
-                    currentTemp = 32,
-                    isSimplified = false,
-                )
-            }
-        }
-    }
-
-//    @Preview(showBackground = true)
-//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
-    @Composable
-    fun SameCurrentTempPreview() {
-        BetterThanYesterdayTheme {
-            Surface {
-                CurrentTemperature(
-                    modifier = Modifier.fillMaxWidth(),
-                    hourlyTempDiff = 0,
-                    currentTemp = -9,
-                    isSimplified = false,
-                )
-            }
-        }
-    }
-
-//    @Preview(showBackground = true)
+    @Preview(showBackground = true, heightDp = 640)
+    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, heightDp = 640)
     @Composable
     fun LandingScreenPreview() {
         BetterThanYesterdayTheme {
-            Surface {
+            Surface(
+                color = MaterialTheme.colors.background
+            ) {
                 LandingScreen(timeout = 0) {}
+            }
+        }
+    }
+
+    @Preview(showBackground = true, heightDp = 640)
+    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, heightDp = 640)
+    @Composable
+    fun LandingScreen01Preview() {
+        BetterThanYesterdayTheme {
+            Surface(
+                color = MaterialTheme.colors.background
+            ) {
+                LandingScreen(
+                    timeout = 0,
+                    letter = painterResource(id = R.drawable.landing_letter_01)
+                ) {}
             }
         }
     }
