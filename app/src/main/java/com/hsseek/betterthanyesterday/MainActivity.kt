@@ -482,23 +482,27 @@ class MainActivity : ComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // The title
-            if (!isSimplified) {
-                val title = stringResource(R.string.current_temp_title)
-                val currentHour = getCurrentKoreanDateTime().get(Calendar.HOUR_OF_DAY)
-                val hourString = stringResource(id = R.string.current_temp_time) + " " + if (currentHour < 12) {
+            val currentHour = getCurrentKoreanDateTime().get(Calendar.HOUR_OF_DAY)
+            val hourString =
+                if (currentHour < 12) {
                     stringResource(id = R.string.hour_am, currentHour)
                 } else if (currentHour > 12) {
                     stringResource(id = R.string.hour_pm, currentHour - 12)
                 } else {
-                    stringResource(id = R.string.hour_noon)
+                    stringResource(id = R.string.hour_pm, currentHour)  // i.e. 12 PM
                 }
 
-                Text(
-                    text = "$title\n($hourString)",
-                    style = Typography.h6,
-                    modifier = modifier.padding(bottom = titleBottomPadding),
-                )
-            }
+            val title: String = if (!isSimplified) {
+                stringResource(R.string.current_temp_title) + "\n" + stringResource(R.string.current_temp_time) + " " + hourString
+                } else {
+                    hourString
+                }
+
+            Text(
+                text = title,
+                style = Typography.h6,
+                modifier = modifier.padding(bottom = titleBottomPadding),
+            )
 
             // The current temperature
             val currentTempString = if (currentTemp == null) {
