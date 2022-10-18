@@ -30,31 +30,23 @@ class InstrumentedTest {
     @Test
     fun geocoderLatLonTest() {
         val geo = KoreanGeocoder(appContext)
-        val coordinates = geo.getLatLng("서울")
-        Log.d("geocoder", "(lat, lon): (${coordinates?.lat}, ${coordinates?.lon})")
-        assertEquals(37.24293628036336, coordinates!!.lat, 1e-5)
-        assertEquals(131.8668420793528, coordinates.lon, 1e-5)
+        val maxResult = 20
+        val query = "경기도 목동"
+
+        geo.updateLatLng(query, maxResult) {
+//                    assertEquals(37.24293628036336, coordinate.lat, 1e-5)
+//                    assertEquals(131.8668420793528, coordinate.lon, 1e-5)
+        }
     }
 
     @Test
     fun geocoderAddress() {
         val geo = KoreanGeocoder(appContext)
-        val query = "서울대학교 중앙도서관"
-        val ll = geo.getLatLng(query)
-        val tag = "geocoder"
+        val lat = 37.45999322043131
+        val lon = 126.95170256225894
+        val maxResult = 20
 
-        if (ll != null) {
-            val addresses = geo.getAddresses(CoordinatesLatLon(ll.lat, ll.lon), 20)
-            if (addresses != null) {
-                for (i in addresses) {
-                    Log.d(tag, i.getAddressLine(0))
-                }
-            } else {
-                Log.e(tag, "Address null.")
-            }
-        } else {
-            Log.e(tag, "Location null.")
-        }
+        geo.updateAddresses(CoordinatesLatLon(lat, lon), maxResult) { }
     }
 
     @Test

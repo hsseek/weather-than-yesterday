@@ -833,16 +833,17 @@ class WeatherViewModel(
 
     fun updateLocationAndWeather(coordinates: CoordinatesLatLon, isImplicit: Boolean = false) {
         val geocoder = KoreanGeocoder(context)
-        val addresses = geocoder.getAddresses(coordinates)
-        val locatedCityName = getCityName(addresses)
-        getDistrictName(addresses)?.let { _districtName.value = it }
+        geocoder.updateAddresses(coordinates) { addresses ->
+            val locatedCityName = getCityName(addresses)
+            getDistrictName(addresses)?.let { _districtName.value = it }
 
-        if (locatedCityName == null) {
-            Log.e(LOCATION_TAG, "Error retrieving a city name(${coordinates.lat}, ${coordinates.lon}).")
-        } else {
-            _cityName.value = locatedCityName
-            val xy = convertToXy(coordinates)
-            updateWeather(xy, isImplicit)
+            if (locatedCityName == null) {
+                Log.e(LOCATION_TAG, "Error retrieving a city name(${coordinates.lat}, ${coordinates.lon}).")
+            } else {
+                _cityName.value = locatedCityName
+                val xy = convertToXy(coordinates)
+                updateWeather(xy, isImplicit)
+            }
         }
     }
 
