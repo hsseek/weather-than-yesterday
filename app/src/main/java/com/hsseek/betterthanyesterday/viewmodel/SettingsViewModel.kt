@@ -8,6 +8,7 @@ import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRepository): ViewModel() {
+    // Simple View mode
     private val _isSimplified = mutableStateOf(false)
     val isSimplified: Boolean
         get() = _isSimplified.value
@@ -16,10 +17,26 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
     val showSimpleViewHelp: Boolean
         get() = _showSimpleViewHelp.value
 
+    // Auto refresh mode
+    private val _isAutoRefresh = mutableStateOf(false)
+    val isAutoRefresh: Boolean
+        get() = _isAutoRefresh.value
+
+    private val _showAutoRefreshHelp = mutableStateOf(false)
+    val showAutoRefreshHelp: Boolean
+        get() = _showAutoRefreshHelp.value
+
     fun onClickSimpleView(checked: Boolean) {
         _isSimplified.value = checked
         viewModelScope.launch {
             userPreferencesRepository.updateSimpleViewEnabled(checked)
+        }
+    }
+
+    fun onClickAutoRefresh(checked: Boolean) {
+        _isAutoRefresh.value = checked
+        viewModelScope.launch {
+            userPreferencesRepository.updateAutoRefreshEnabled(checked)
         }
     }
 
@@ -29,6 +46,14 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
 
     fun onDismissSimpleViewHelp() {
         _showSimpleViewHelp.value = false
+    }
+
+    fun onClickAutoRefreshHelp() {
+        _showAutoRefreshHelp.value = true
+    }
+
+    fun onDismissAutoRefreshHelp() {
+        _showAutoRefreshHelp.value = false
     }
 }
 

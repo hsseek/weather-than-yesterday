@@ -70,5 +70,8 @@
     <string name="desc_back">Back</string>
     <string name="pref_title_simple_mode">Simple mode</string>
     <string name="pref_desc_simple_mode">Hide letters for a neat look.</string>
-    <string name="pref_desc_simple_help">Hide titles and descriptions to give a neat look. Recommended after the numbers got familiar to you, as it might be hard to interpret information.</string>
+    <string name="pref_help_simple_view">Hide titles and descriptions to give a neat look. Recommended after the numbers got familiar to you, as it might be hard to interpret information.</string>
+    <string name="pref_title_auto_refresh">Auto refresh</string>
+    <string name="pref_desc_auto_refresh">Refresh when returning to app after 1 minute.</string>
+    <string name="pref_help_auto_refresh">By default, the app refreshes when it is terminated(by pressing back) then reopened. Additionally, with auto refresh enabled, the app refreshes when you return to app from Task Switcher or from Home.\nNote that it won\'t auto-refresh within a minute. You can always refresh manually if you want to.</string>
 </resources>

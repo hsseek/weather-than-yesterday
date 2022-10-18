@@ -27,10 +27,10 @@ val Typography = Typography(
         fontSize = 13.sp,
         textAlign = TextAlign.Center,
         color = Gray000,
+        lineHeight = 16.sp,
     ),
     body1 = TextStyle(
         fontSize = 16.sp,
-        textAlign = TextAlign.Justify,
         lineHeight = 20.sp,
     ),
     caption = TextStyle(

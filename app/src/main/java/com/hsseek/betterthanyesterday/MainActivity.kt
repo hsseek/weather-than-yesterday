@@ -30,7 +30,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,6 +46,7 @@ import com.hsseek.betterthanyesterday.viewmodel.Sky.Bad.*
 import com.hsseek.betterthanyesterday.viewmodel.Sky.Good
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModelFactory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -68,10 +68,10 @@ class MainActivity : ComponentActivity() {
         )[WeatherViewModel::class.java]
 
         // Observe to Preferences changes.
-        viewModel.viewModelScope.launch {
-            prefsRepo.simpleViewFlow.collect{ isSimplified ->
-                viewModel.onToggleSimplified(isSimplified)
-            }
+        viewModel.viewModelScope.launch(Dispatchers.Default) {
+            logCoroutineContext("Preferences Flow observed from MainActivity")
+            launch { prefsRepo.simpleViewFlow.collect{ enabled -> viewModel.onToggleSimplified(enabled) } }
+            launch { prefsRepo.autoRefreshFlow.collect{ enabled -> viewModel.onToggleAutoRefresh(enabled) } }
         }
 
         // Toast message listener from ViewModel
@@ -138,12 +138,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestRefreshImplicitly() {
-        val minInterval: Long = 10 * 60 * 1000
+        val minInterval: Long = if (viewModel.isAutoRefresh) 60 * 1000 else 60 * 60 * 1000  // 1 min or 1 hour
         val lastChecked = viewModel.lastCheckedTime
         if (lastChecked == null || getCurrentKoreanDateTime().timeInMillis - lastChecked.timeInMillis > minInterval) {
             requestRefreshIfValid(viewModel.locatingMethod)
         } else {
-            Log.d(TAG, "Too soon, skip refresh. (Last checked at ${lastChecked.get(Calendar.HOUR_OF_DAY)}: ${lastChecked.get(Calendar.MINUTE)})")
+            Log.d(TAG, "Too soon, skip refresh. (Last checked at ${lastChecked.get(Calendar.HOUR_OF_DAY)}:${lastChecked.get(Calendar.MINUTE)}, while interval is ${minInterval / 1000}s)")
         }
     }
 
@@ -948,74 +948,6 @@ class MainActivity : ComponentActivity() {
     }
 
 //    @Preview(showBackground = true)
-    @Composable
-    fun SunnyPreview() {
-        BetterThanYesterdayTheme {
-            Surface {
-                RainfallStatus(
-                    modifier = Modifier.fillMaxWidth(),
-                    isSimplified = false,
-                    sky = Good,
-                )
-            }
-        }
-    }
-
-//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
-    @Composable
-    fun RainyPreview() {
-        BetterThanYesterdayTheme {
-            Surface {
-                RainfallStatus(
-                    modifier = Modifier.fillMaxWidth(),
-                    isSimplified = false,
-                    sky = Rainy(300, 1200),
-                )
-            }
-        }
-    }
-
-//    @Preview(showBackground = true)
-    @Composable
-    fun SnowPreview() {
-        BetterThanYesterdayTheme {
-            Surface {
-                RainfallStatus(
-                    modifier = Modifier.fillMaxWidth(),
-                    isSimplified = false,
-                    sky = Snowy(2000, 2300),
-                )
-            }
-        }
-    }
-
-//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES)
-    @Composable
-    fun MixedPreview() {
-        BetterThanYesterdayTheme {
-            Surface {
-                RainfallStatus(
-                    modifier = Modifier.fillMaxWidth(),
-                    isSimplified = false,
-                    sky = Mixed(100, 800),
-                )
-            }
-        }
-    }
-
-    //    @Preview(showBackground = true)
-    @Composable
-    fun AppBarPreview() {
-        BetterThanYesterdayTheme {
-            WeatherTopAppBar(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-
-            }
-        }
-    }
-
-    @Preview(showBackground = true)
     @Composable
     fun LandingScreenPreview() {
         BetterThanYesterdayTheme {

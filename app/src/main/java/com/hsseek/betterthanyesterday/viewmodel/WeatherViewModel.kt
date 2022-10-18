@@ -82,9 +82,13 @@ class WeatherViewModel(
             Log.d(TAG, "last checked hour: ${value?.get(Calendar.HOUR_OF_DAY)}")
         }
 
+    // Preferences
     private val _isSimplified = mutableStateOf(false)
     val isSimplified: Boolean
         get() = _isSimplified.value
+
+    var isAutoRefresh: Boolean = false
+        private set
 
     private var baseCoordinatesXy = CoordinatesXy(60, 127)
 
@@ -805,7 +809,7 @@ class WeatherViewModel(
             Log.d(TAG, "The same coordinates.")
 
             lastCheckedTime?.also {
-                val lastBaseTime = getKmaBaseTime(cal = it.clone() as Calendar, roundOff = HOUR)
+                val lastBaseTime = getKmaBaseTime(cal = it, roundOff = HOUR)
                 val currentBaseTime = getKmaBaseTime(roundOff = HOUR)
 
                 if (currentBaseTime.isLaterThan(lastBaseTime)) {
@@ -874,7 +878,13 @@ class WeatherViewModel(
     }
 
     fun onToggleSimplified(enabled: Boolean) {
+        Log.d(TAG, "Simple View enabled: $enabled")
         _isSimplified.value = enabled
+    }
+
+    fun onToggleAutoRefresh(enabled: Boolean) {
+        Log.d(TAG, "Auto refresh enabled: $enabled")
+        isAutoRefresh = enabled
     }
 
     companion object {

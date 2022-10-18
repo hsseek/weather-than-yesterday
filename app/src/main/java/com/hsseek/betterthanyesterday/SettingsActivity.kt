@@ -6,15 +6,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
@@ -25,6 +28,8 @@ import com.hsseek.betterthanyesterday.viewmodel.SettingsViewModel
 import com.hsseek.betterthanyesterday.viewmodel.SettingsViewModelFactory
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
+private const val ROW_PADDING = 14
 
 class SettingsActivity : ComponentActivity() {
     private lateinit var viewModel: SettingsViewModel
@@ -41,8 +46,8 @@ class SettingsActivity : ComponentActivity() {
 
         viewModel.viewModelScope.launch {
             // No need to observe the Preferences as the ViewModel processes the user input directly.
-            val isSimplified = userPrefsRepo.simpleViewFlow.first()
-            viewModel.onClickSimpleView(isSimplified)
+            viewModel.onClickSimpleView(userPrefsRepo.simpleViewFlow.first())
+            viewModel.onClickAutoRefresh(userPrefsRepo.autoRefreshFlow.first())
         }
 
         setContent {
@@ -57,8 +62,16 @@ class SettingsActivity : ComponentActivity() {
                     if (viewModel.showSimpleViewHelp) {
                         HelpDialog(
                             title = stringResource(id = R.string.pref_title_simple_mode),
-                            desc = stringResource(id = R.string.pref_desc_simple_help),
+                            desc = stringResource(id = R.string.pref_help_simple_view),
                             onDismissRequest = { viewModel.onDismissSimpleViewHelp() }
+                        )
+                    }
+
+                    if (viewModel.showAutoRefreshHelp) {
+                        HelpDialog(
+                            title = stringResource(id = R.string.pref_title_auto_refresh),
+                            desc = stringResource(id = R.string.pref_help_auto_refresh),
+                            onDismissRequest = { viewModel.onDismissAutoRefreshHelp() }
                         )
                     }
                 }
@@ -72,15 +85,30 @@ private fun MainScreen(
     activity: Activity? = null,
     viewModel: SettingsViewModel,
 ) {
-    val modifier = Modifier
     Scaffold(
         topBar = { SettingsTopAppBar(activity) },
         content = { padding ->
-            SimpleViewRow(modifier, padding,
-                onClickHelp = { viewModel.onClickSimpleViewHelp() },
-                isEnabled = viewModel.isSimplified,
-                onClickSimpleView = { isChecked -> viewModel.onClickSimpleView(isChecked) }
-            )
+            val modifier = Modifier.padding(padding)
+            Column(modifier = modifier) {
+                // Simple View
+                PreferenceToggleRow(
+                    title = stringResource(R.string.pref_title_simple_mode),
+                    description = stringResource(R.string.pref_desc_simple_mode),
+                    onClickHelp = { viewModel.onClickSimpleViewHelp() },
+                    checked = viewModel.isSimplified,
+                    onCheckedChange = { isChecked -> viewModel.onClickSimpleView(isChecked) }
+                )
+
+                // To be released
+                // Auto Refresh
+                PreferenceToggleRow(
+                    title = stringResource(R.string.pref_title_auto_refresh),
+                    description = stringResource(R.string.pref_desc_auto_refresh),
+                    onClickHelp = { viewModel.onClickAutoRefreshHelp() },
+                    checked = viewModel.isAutoRefresh,
+                    onCheckedChange = { isChecked -> viewModel.onClickAutoRefresh(isChecked) },
+                )
+            }
         }
     )
 }
@@ -102,24 +130,6 @@ private fun SettingsTopAppBar(activity: Activity? = null) {
         },
         elevation = topBarElevation,
         backgroundColor = MaterialTheme.colors.background,
-    )
-}
-
-@Composable
-fun SimpleViewRow(
-    modifier: Modifier,
-    padding: PaddingValues,
-    onClickHelp: (() -> Unit),
-    isEnabled: Boolean,
-    onClickSimpleView: (Boolean) -> Unit,
-) {
-    PreferenceToggleRow(
-        modifier = modifier,
-        title = stringResource(R.string.pref_title_simple_mode),
-        description = stringResource(R.string.pref_desc_simple_mode),
-        onClickHelp = onClickHelp,
-        checked = isEnabled,
-        onCheckedChange = onClickSimpleView
     )
 }
 
@@ -181,27 +191,54 @@ private fun SettingsDivider() {
 }
 
 @Composable
+fun HelpButton(
+    onClickHelp: (() -> Unit),
+) {
+    val helpAlpha = 0.6f
+    val size = 27.dp
+    val padding = 2.dp
+    val spacerWidth = 4.dp
+
+    Row {
+        Spacer(modifier = Modifier.width(spacerWidth))
+        Image(
+            modifier = Modifier
+                .size(size)
+                .padding(padding)
+                .padding(2.dp)
+                .clip(CircleShape)
+                .clickable { onClickHelp() }
+            ,
+            painter = painterResource(id = R.drawable.ic_help),
+            contentDescription = stringResource(R.string.help),
+            alpha = helpAlpha,
+        )
+    }
+}
+
+@Composable
 fun PreferenceDialogRow(
-    modifier: Modifier,
     enabled: Boolean = true,
     title: String,
     description: String,
     onClickHelp: (() -> Unit)? = null,
     onClickRow: () -> Unit
 ) {
-    val rowMod = if (enabled) modifier.clickable { onClickRow() } else modifier
+    val rowMod = if (enabled) Modifier.clickable { onClickRow() } else Modifier
 
-    Row(modifier = rowMod) {
-        Column(modifier = modifier) {
-            PreferenceRowHeader(modifier, enabled, title, description, onClickHelp)
-            SettingsDivider()
+    Column {
+        Row(
+            modifier = rowMod.padding(ROW_PADDING.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PreferenceRowHeader(enabled, title, description, onClickHelp)
         }
+        SettingsDivider()
     }
 }
 
 @Composable
 fun PreferenceToggleRow(
-    modifier: Modifier,
     enabled: Boolean = true,
     title: String,
     description: String,
@@ -209,17 +246,18 @@ fun PreferenceToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    val endPadding = 14.dp
-
-    Column(modifier = modifier) {
+    Column {
         Row(
-            modifier = modifier,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(ROW_PADDING.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            PreferenceRowHeader(modifier, enabled, title, description, onClickHelp)
-            Spacer(modifier = Modifier.weight(1f))
+            Row(modifier = Modifier.weight(1f)) {
+                PreferenceRowHeader(enabled, title, description, onClickHelp)
+            }
             Switch(checked = checked, onCheckedChange = onCheckedChange)
-            Spacer(modifier = Modifier.width(endPadding))
         }
         SettingsDivider()
     }
@@ -227,54 +265,42 @@ fun PreferenceToggleRow(
 
 @Composable
 private fun PreferenceRowHeader(
-    modifier: Modifier,
     enabled: Boolean,
     title: String,
     description: String,
-    onClickHelp: (() -> Unit)?,
+    onClickHelp: (() -> Unit)? = null,
 ) {
-    val startPadding = 16.dp
-    val topPadding = 9.dp
-    val bottomPadding = 8.dp
-
-    val helpAlpha = 0.6f
     val disabledAlpha = 0.6f
 
-    Row(
-        modifier = modifier
-            .padding(
-                start = startPadding,
-                top = topPadding,
-                bottom = bottomPadding
-            )
-    ) {
-        Column {
-            val titleStyle = Typography.h4
-            val descStyle = Typography.h6
+    Column {
+        val titleStyle = if (enabled) {
+            Typography.h4
+        } else {
+            Typography.h4.copy(color = Gray000.copy(alpha = disabledAlpha))
+        }
 
-            if (enabled) {
-                Text(text = title, style = titleStyle)
-                Text(text = description, style = descStyle)
-            } else {
-                Text(
-                    text = title,
-                    style = titleStyle.copy(color = Gray000.copy(alpha = disabledAlpha))
-                )
-                Text(
-                    text = description,
-                    style = descStyle.copy(color = Gray000.copy(alpha = disabledAlpha))
-                )
-            }
+        val descStyle = if (enabled) {
+            Typography.h6
+        } else {
+            Typography.h6.copy(color = Gray000.copy(alpha = disabledAlpha))
         }
-        if (onClickHelp != null) {
-            IconButton(onClick = onClickHelp) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_help),
-                    contentDescription = stringResource(R.string.help),
-                    tint = Gray000.copy(alpha = helpAlpha),
-                )
-            }
+
+        val align = TextAlign.Start
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = title,
+                style = titleStyle,
+                textAlign = align,
+            )
+            if (onClickHelp != null) HelpButton(onClickHelp)
         }
+
+        Text(
+            text = description,
+            style = descStyle,
+            textAlign = align,
+        )
     }
 }
 
@@ -312,7 +338,6 @@ fun RadioGroup(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.weight(1f))
                 RadioButton(
                     selected = selected == radioItem.code,
                     onClick = { onSelect(radioItem.code) },
@@ -324,7 +349,7 @@ fun RadioGroup(
 
 class RadioItem(val code: Int, val titleId: Int, val descId: Int?)
 
-@Preview(showBackground = true)
+//@Preview(showBackground = true)
 @Composable
 fun HelpDialogPreview() {
     BetterThanYesterdayTheme {
@@ -337,36 +362,38 @@ fun HelpDialogPreview() {
     }
 }
 
-@Preview(showBackground = true, widthDp = 420, heightDp = 180)
+@Preview(showBackground = true, heightDp = 420)
 //@Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 420, heightDp = 180, showBackground = true)
 @Composable
 fun SettingsRowPreview() {
-    val modifier = Modifier
-
     BetterThanYesterdayTheme {
         Surface {
             Column {
                 PreferenceDialogRow(
-                    modifier = modifier,
                     title = "Language",
                     description = "You can set language.",
                     onClickHelp = { }) {
                 }
+                PreferenceDialogRow(
+                    title = "Language",
+                    description = "Hide titles and descriptions to give a neat look. Recommended after the numbers got familiar to you, as it might be hard to interpret information.",
+                    onClickHelp = { }) {
+                }
                 PreferenceToggleRow(
-                    modifier = modifier,
                     title = "Simple View Mode",
-                    description = "Simple is the best.",
+                    description = "Hide titles and descriptions to give a neat look. Recommended after the numbers got familiar to you, as it might be hard to interpret information.",
                     onClickHelp = { },
                     checked = true,
                     onCheckedChange = { }
                 )
-                PreferenceDialogRow(
-                    modifier = modifier,
+                PreferenceToggleRow(
                     enabled = false,
-                    title = "Language",
-                    description = "You can set language.",
-                    onClickHelp = { }) {
-                }
+                    title = "Simple View Mode",
+                    description = "Hide",
+                    onClickHelp = { },
+                    checked = true,
+                    onCheckedChange = { }
+                )
             }
         }
     }

@@ -4,7 +4,6 @@ import android.location.Address
 import android.util.Log
 import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
-import kotlinx.coroutines.Job
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -48,7 +47,7 @@ fun getCurrentKoreanDateTime(): Calendar {
 
 /**
  * Returns the latest baseTime with offsets, in accordance with the [roundOff] rules.
- * [cal] Object will be passed by reference, which leads to changed [Calendar.time] after the run.
+ * [cal] is cloned because [cal] is passed by reference, which would lead to changed [Calendar.time] after the run.
  * (Therefore, use the default value unless it is intended such as for test purposes.)
  * Note that the returned value may be a future time, at which data are not available yet.
  * */
@@ -59,35 +58,36 @@ fun getKmaBaseTime(
     roundOff: KmaHourRoundOff,
 ): KmaTime
 {
-    if (dayOffset != 0) cal.add(Calendar.DAY_OF_YEAR, dayOffset)
-    if (hourOffset != 0) cal.add(Calendar.HOUR_OF_DAY, hourOffset)
+    val calValues = cal.clone() as Calendar
+    if (dayOffset != 0) calValues.add(Calendar.DAY_OF_YEAR, dayOffset)
+    if (hourOffset != 0) calValues.add(Calendar.HOUR_OF_DAY, hourOffset)
 
-    val isHourAvailable: Boolean = if (roundOff == KmaHourRoundOff.VILLAGE) cal.minute() > 10 else false
+    val isHourAvailable: Boolean = if (roundOff == KmaHourRoundOff.VILLAGE) calValues.minute() > 10 else false
 
     if (!isHourAvailable) {
         // The data for the current hour are not available. Use the previous hour.
-        cal.add(Calendar.HOUR_OF_DAY, -1)
+        calValues.add(Calendar.HOUR_OF_DAY, -1)
     }
 
     when (roundOff) {
         KmaHourRoundOff.HOUR -> { }  // Nothing to do
         KmaHourRoundOff.VILLAGE -> {
             // Only 0200, 0500, ..., 2300 are accepted as query
-            val hour = cal.hour()
+            val hour = calValues.hour()
             val hourAdjustment: Int = when (hour % 3) {
                 0 -> 1
                 1 -> 2
                 else -> 0
             }
             if (hourAdjustment > 0) {
-                cal.add(Calendar.HOUR_OF_DAY, -hourAdjustment)
+                calValues.add(Calendar.HOUR_OF_DAY, -hourAdjustment)
             }
         }
     }
 
     return KmaTime(
-        date = formatToKmaDate(cal),
-        hour = formatToKmaHour(cal)
+        date = formatToKmaDate(calValues),
+        hour = formatToKmaHour(calValues)
     )
 }
 
