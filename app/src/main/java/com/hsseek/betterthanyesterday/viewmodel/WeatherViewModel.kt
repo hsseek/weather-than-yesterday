@@ -126,7 +126,6 @@ class WeatherViewModel(
     private val _hourlyTempToday: MutableState<Int?> = mutableStateOf(null)  // (getUltraSrtFcst) fcstValue: "12"
     val hourlyTempToday: Int?
         get() = _hourlyTempToday.value
-    private var hourlyTempYesterday: Int? = null
 
     private val _rainfallStatus: MutableStateFlow<Sky> = MutableStateFlow(Sky.Undetermined)
     val rainfallStatus = _rainfallStatus.asStateFlow()
@@ -476,20 +475,21 @@ class WeatherViewModel(
                                     logElapsedTime(TAG, "$size items", fetchingStartTime)
                                 }
 
-                                // Refresh the hourly temperature and the difference.
-                                launch { refreshHourlyTemp(todayHourlyData, yesterdayHourlyTempData) }
-
                                 // Refresh the highest/lowest temperatures
-                                launch { refreshCharacteristicTemp(DayOfInterest.Yesterday, yesterdayHighTempData, yesterdayLowTempData) }
                                 launch { refreshTodayCharacteristicTemp(todayHighTempData, todayLowTempData, todayHourlyData, futureTodayData) }
                                 launch { refreshCharacteristicTemp(DayOfInterest.Tomorrow, tomorrowHighTempData, tomorrowLowTempData) }
                                 launch { refreshCharacteristicTemp(DayOfInterest.Day2, d2HighTempData, d2LowTempData) }
+                                launch {
+                                    refreshCharacteristicTemp(DayOfInterest.Yesterday, yesterdayHighTempData, yesterdayLowTempData)
+                                    // Refresh the hourly temperature and the difference(dependant to yesterday's highest/lowest temperature).
+                                    refreshHourlyTemp(todayHourlyData, yesterdayHourlyTempData)
+                                }
 
                                 // Refresh the rainfall status.
                                 launch { refreshRainfall(todayHourlyData, futureTodayData) }
                             }
                             job.join()
-                            adjustCharTemp()
+                            adjustTodayCharTemp()
                             buildDailyTemps()
                         }
                         break
@@ -630,15 +630,15 @@ class WeatherViewModel(
 
     private fun refreshCharacteristicTemp(
         day: DayOfInterest,
-        yesterdayHighTempData: List<ForecastResponse.Item>?,
-        yesterdayLowTempData: List<ForecastResponse.Item>?,
+        highTempCandidates: List<ForecastResponse.Item>?,
+        lowTempCandidates: List<ForecastResponse.Item>?,
     ) {
         val index = day.dayOffset + 1  // Yesterday's data go to [0].
-        highestTemps[index] = yesterdayHighTempData?.filter {
+        highestTemps[index] = highTempCandidates?.filter {
             it.category == HOURLY_TEMPERATURE_TAG || it.category == HIGH_TEMPERATURE_TAG
         }?.maxByOrNull { it.fcstValue.toFloat() }?.fcstValue?.toFloat()?.roundToInt()  // TMN, TMX values are Floats.
 
-        lowestTemps[index] = yesterdayLowTempData?.filter {
+        lowestTemps[index] = lowTempCandidates?.filter {
             it.category == HOURLY_TEMPERATURE_TAG || it.category == LOW_TEMPERATURE_TAG
         }?.minByOrNull { it.fcstValue.toFloat() }?.fcstValue?.toFloat()?.roundToInt()
     }
@@ -712,12 +712,20 @@ class WeatherViewModel(
             }
         }
 
+        // Bound yesterdayTemp to yesterday's former data.
+        lowestTemps[0]?.let { lt ->
+            yesterdayTemp?.let { yt -> if (yt < lt) yesterdayTemp = lt }
+        }
+        highestTemps[0]?.let { lt ->
+            yesterdayTemp?.let { yt -> if (yt > lt) yesterdayTemp = lt }
+        }
+
         Log.d(TAG, "T1H(at ${closestHour / 100}): $yesterdayTemp -> $todayTemp")
 
-        if (todayTemp != null) {
-            _hourlyTempToday.value = todayTemp
-            if (yesterdayTemp != null) {
-                _hourlyTempDiff.value = todayTemp - yesterdayTemp
+        todayTemp?.let { tt ->
+            _hourlyTempToday.value = tt
+            yesterdayTemp?.let { yt ->
+                _hourlyTempDiff.value = tt - yt
             }
         }
     }
@@ -726,24 +734,10 @@ class WeatherViewModel(
      * Often, TMX / TMN values are lower / higher than hourly value.
      * If the shown hourly value is higher than TMX than the user might doubt the reliability: adjust.
      */
-    private fun adjustCharTemp() {
+    private fun adjustTodayCharTemp() {
         hourlyTempToday?.let { tt ->
-            highestTemps[1]?.let {
-                if (tt > it) highestTemps[1] = tt
-            }
-
-            lowestTemps[1]?.let {
-                if (tt < it) lowestTemps[1] = tt
-            }
-        }
-
-        hourlyTempYesterday?.let { ty ->
-            highestTemps[0]?.let {
-                if (ty > it) highestTemps[0] = ty
-            }
-            lowestTemps[0]?.let {
-                if (ty < it) lowestTemps[0] = ty
-            }
+            highestTemps[1]?.let { if (tt > it) highestTemps[1] = tt }
+            lowestTemps[1]?.let { if (tt < it) lowestTemps[1] = tt }
         }
     }
 
