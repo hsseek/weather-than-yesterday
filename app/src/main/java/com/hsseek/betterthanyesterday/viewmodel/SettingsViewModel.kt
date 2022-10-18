@@ -26,14 +26,14 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
     val showAutoRefreshHelp: Boolean
         get() = _showAutoRefreshHelp.value
 
-    fun onClickSimpleView(checked: Boolean) {
+    fun updateSimpleViewEnabled(checked: Boolean) {
         _isSimplified.value = checked
         viewModelScope.launch {
             userPreferencesRepository.updateSimpleViewEnabled(checked)
         }
     }
 
-    fun onClickAutoRefresh(checked: Boolean) {
+    fun updateAutoRefreshEnabled(checked: Boolean) {
         _isAutoRefresh.value = checked
         viewModelScope.launch {
             userPreferencesRepository.updateAutoRefreshEnabled(checked)

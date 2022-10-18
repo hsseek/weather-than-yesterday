@@ -20,9 +20,24 @@ class UserPreferencesRepository(private val context: Context) {
         val AUTO_REFRESH_CODE = booleanPreferencesKey("auto_refresh_code")
     }
 
-    val locatingMethodFlow: Flow<Int> = getPrefsFlow(PreferencesKeys.LOCATING_METHOD_CODE, LocatingMethod.Auto.code)
-    val simpleViewFlow: Flow<Boolean> = getPrefsFlow(PreferencesKeys.SIMPLE_VIEW_CODE, false)
-    val autoRefreshFlow: Flow<Boolean> = getPrefsFlow(PreferencesKeys.AUTO_REFRESH_CODE, false)
+    val preferencesFlow: Flow<UserPreferences> = context.dataStore.data
+        .catch { e ->
+            if (e is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw e
+            }
+        }.map { preferences ->
+            val locatingMethodCode = preferences[PreferencesKeys.LOCATING_METHOD_CODE] ?: LocatingMethod.Auto.code
+            val isSimplified = preferences[PreferencesKeys.SIMPLE_VIEW_CODE] ?: false
+            val isAutoRefresh = preferences[PreferencesKeys.AUTO_REFRESH_CODE] ?: false
+
+            UserPreferences(
+                locatingMethodCode,
+                isSimplified,
+                isAutoRefresh
+            )
+        }
 
     suspend fun updateLocatingMethod(locatingMethod: LocatingMethod) {
         context.dataStore.edit { preferences ->
@@ -45,15 +60,10 @@ class UserPreferencesRepository(private val context: Context) {
             preferences[PreferencesKeys.AUTO_REFRESH_CODE] = enabled
         }
     }
-
-    private fun <T> getPrefsFlow(key: Preferences.Key<T>, defaultValue: T): Flow<T> = context.dataStore.data
-        .catch { e ->
-            if (e is IOException) {
-                emit(emptyPreferences())
-            } else {
-                throw e
-            }
-        }.map { preferences ->
-            preferences[key] ?: defaultValue
-        }
 }
+
+data class UserPreferences(
+    val locatingMethodCode: Int,
+    val isSimplified: Boolean,
+    val isAutoRefresh: Boolean,
+)

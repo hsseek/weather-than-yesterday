@@ -26,6 +26,7 @@ import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.ui.theme.*
 import com.hsseek.betterthanyesterday.viewmodel.SettingsViewModel
 import com.hsseek.betterthanyesterday.viewmodel.SettingsViewModelFactory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -44,10 +45,11 @@ class SettingsActivity : ComponentActivity() {
             SettingsViewModelFactory(userPrefsRepo)
         )[SettingsViewModel::class.java]
 
-        viewModel.viewModelScope.launch {
+        viewModel.viewModelScope.launch(Dispatchers.Default) {
             // No need to observe the Preferences as the ViewModel processes the user input directly.
-            viewModel.onClickSimpleView(userPrefsRepo.simpleViewFlow.first())
-            viewModel.onClickAutoRefresh(userPrefsRepo.autoRefreshFlow.first())
+            val prefs = userPrefsRepo.preferencesFlow.first()
+            viewModel.updateSimpleViewEnabled(prefs.isSimplified)
+            viewModel.updateAutoRefreshEnabled(prefs.isAutoRefresh)
         }
 
         setContent {
@@ -96,7 +98,7 @@ private fun MainScreen(
                     description = stringResource(R.string.pref_desc_simple_mode),
                     onClickHelp = { viewModel.onClickSimpleViewHelp() },
                     checked = viewModel.isSimplified,
-                    onCheckedChange = { isChecked -> viewModel.onClickSimpleView(isChecked) }
+                    onCheckedChange = { isChecked -> viewModel.updateSimpleViewEnabled(isChecked) }
                 )
 
                 // To be released
@@ -106,7 +108,7 @@ private fun MainScreen(
                     description = stringResource(R.string.pref_desc_auto_refresh),
                     onClickHelp = { viewModel.onClickAutoRefreshHelp() },
                     checked = viewModel.isAutoRefresh,
-                    onCheckedChange = { isChecked -> viewModel.onClickAutoRefresh(isChecked) },
+                    onCheckedChange = { isChecked -> viewModel.updateAutoRefreshEnabled(isChecked) },
                 )
             }
         }

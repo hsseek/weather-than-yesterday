@@ -54,7 +54,7 @@ class WeatherViewModel(
 ) : AndroidViewModel(application) {
     init {
         runBlocking {
-            val storedCode = userPrefsRepo.locatingMethodFlow.first()
+            val storedCode = userPrefsRepo.preferencesFlow.first().locatingMethodCode
             enumValues<LocatingMethod>().forEach { storedLocatingMethod ->
                 if (storedLocatingMethod.code == storedCode) {
                     this@WeatherViewModel.locatingMethod = storedLocatingMethod
@@ -877,12 +877,12 @@ class WeatherViewModel(
         _showLandingScreen.value = false
     }
 
-    fun onToggleSimplified(enabled: Boolean) {
+    fun updateSimplifiedEnabled(enabled: Boolean) {
         Log.d(TAG, "Simple View enabled: $enabled")
         _isSimplified.value = enabled
     }
 
-    fun onToggleAutoRefresh(enabled: Boolean) {
+    fun updateAutoRefreshEnabled(enabled: Boolean) {
         Log.d(TAG, "Auto refresh enabled: $enabled")
         isAutoRefresh = enabled
     }

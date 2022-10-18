@@ -69,9 +69,11 @@ class MainActivity : ComponentActivity() {
 
         // Observe to Preferences changes.
         viewModel.viewModelScope.launch(Dispatchers.Default) {
-            logCoroutineContext("Preferences Flow observed from MainActivity")
-            launch { prefsRepo.simpleViewFlow.collect{ enabled -> viewModel.onToggleSimplified(enabled) } }
-            launch { prefsRepo.autoRefreshFlow.collect{ enabled -> viewModel.onToggleAutoRefresh(enabled) } }
+            logCoroutineContext("Preferences Flow observation from MainActivity")
+            prefsRepo.preferencesFlow.collect { userPrefs ->
+                viewModel.updateSimplifiedEnabled(userPrefs.isSimplified)
+                viewModel.updateAutoRefreshEnabled(userPrefs.isAutoRefresh)
+            }
         }
 
         // Toast message listener from ViewModel
