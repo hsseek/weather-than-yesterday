@@ -13,6 +13,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -24,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -35,6 +37,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.*
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.SwipeRefreshIndicator
+import com.google.accompanist.swiperefresh.SwipeRefreshState
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.ui.theme.*
@@ -136,20 +142,20 @@ class MainActivity : ComponentActivity() {
         viewModel.updateLocatingMethod(selectedLocatingMethod)
 
         // Now check the validity of the selection.
-        requestRefreshIfValid(selectedLocatingMethod)
+        requestRefresh(selectedLocatingMethod)
     }
 
     private fun requestRefreshImplicitly() {
         val minInterval: Long = if (viewModel.isAutoRefresh) 60 * 1000 else 60 * 60 * 1000  // 1 min or 1 hour
         val lastChecked = viewModel.lastCheckedTime
         if (lastChecked == null || getCurrentKoreanDateTime().timeInMillis - lastChecked.timeInMillis > minInterval) {
-            requestRefreshIfValid(viewModel.locatingMethod)
+            requestRefresh()
         } else {
             Log.d(TAG, "Too soon, skip refresh. (Last checked at ${lastChecked.get(Calendar.HOUR_OF_DAY)}:${lastChecked.get(Calendar.MINUTE)}, while interval is ${minInterval / 1000}s)")
         }
     }
 
-    private fun requestRefreshIfValid(selectedLocatingMethod: LocatingMethod) {
+    private fun requestRefresh(selectedLocatingMethod: LocatingMethod = viewModel.locatingMethod) {
         if (isLocatingMethodValid(selectedLocatingMethod)) {
             Log.d(TAG, "LocatingMethod valid.")
             viewModel.refreshWeatherData()
@@ -220,9 +226,7 @@ class MainActivity : ComponentActivity() {
     private fun MainScreen(modifier: Modifier) {
         // Make the status bar transparent.
         val systemUiController = rememberSystemUiController()
-        systemUiController.setSystemBarsColor(
-            color = MaterialTheme.colors.background
-        )
+        systemUiController.setSystemBarsColor(color = MaterialTheme.colors.background)
 
         Scaffold(
             topBar = { WeatherTopAppBar(
@@ -230,7 +234,17 @@ class MainActivity : ComponentActivity() {
                 onClickChangeLocation = { viewModel.toShowLocatingDialog.value = true }
             ) },
         ) { padding ->
-            Box(modifier = Modifier.fillMaxSize()) {
+            SwipeRefresh(
+                modifier = Modifier.fillMaxSize(),
+                state = rememberSwipeRefreshState(isRefreshing = viewModel.isRefreshing),
+                onRefresh = { requestRefresh() },
+                indicator = { state, trigger ->
+                    InProgressIndicator(
+                        refreshState = state,
+                        refreshTriggerDistance = trigger,
+                    )
+                }
+            ) {
                 Column(
                     modifier = modifier
                         .padding(padding)
@@ -245,8 +259,6 @@ class MainActivity : ComponentActivity() {
                     RainfallStatus(modifier, viewModel.isSimplified, sky)
                     CustomScreen(modifier)
                 }
-
-                LoadingScreen(isLoading = viewModel.isLoading)
             }
         }
     }
@@ -325,7 +337,7 @@ class MainActivity : ComponentActivity() {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // Refresh button
-                IconButton(onClick = { requestRefreshIfValid(viewModel.locatingMethod) }) {
+                IconButton(onClick = { requestRefresh() }) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = stringResource(R.string.desc_refresh),
@@ -399,26 +411,48 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // https://google.github.io/accompanist/swiperefresh/
     @Composable
-    private fun LoadingScreen(isLoading: Boolean) {
-        if (isLoading) {
-            val width = 6.dp
-            val alpha = 0.85f
-            val size = 40.dp
-            val offset = (-160).dp
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colors.background.copy(alpha = alpha),
+    private fun InProgressIndicator(
+        refreshState: SwipeRefreshState,
+        refreshTriggerDistance: Dp,
+        color: Color = MaterialTheme.colors.primary,
+        background: Color = MaterialTheme.colors.background.copy(alpha = 0.85f),
+    ) {
+        val elevation = 1.dp
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .drawWithCache {
+                    onDrawBehind {
+                        val distance = refreshTriggerDistance.toPx()
+                        val progress = (refreshState.indicatorOffset / distance).coerceIn(0f, 1f)
+                        drawRect(
+                            color = background,
+                            alpha = FastOutSlowInEasing.transform(progress)
+                        )
+                    }
+                },
+        ) {
+            val modifier = if (viewModel.isRefreshing) {
+                Modifier.fillMaxSize().background(color = background)
+            } else {
+                Modifier.fillMaxWidth()
+            }
+
+            Column(
+                modifier = modifier,
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Box {
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .size(size)
-                            .align(Alignment.Center)
-                            .offset(y = offset),
-                        strokeWidth = width,
-                    )
-                }
+                SwipeRefreshIndicator(
+                    state = refreshState,
+                    refreshTriggerDistance = refreshTriggerDistance,
+                    contentColor = color,
+                    largeIndication = true,
+                    elevation = elevation,
+                    arrowEnabled = false,
+                )
             }
         }
     }

@@ -69,9 +69,11 @@ class WeatherViewModel(
     private val retrofitDispatcher = Dispatchers.IO
     private val defaultDispatcher = Dispatchers.Default
     private var kmaJob: Job = Job()
-    private val _isLoading = mutableStateOf(false)
-    val isLoading: Boolean
-        get() = _isLoading.value
+
+    private val _isRefreshing = mutableStateOf(false)
+    val isRefreshing: Boolean
+        get() = _isRefreshing.value
+
     private val _showLandingScreen = mutableStateOf(true)
     val showLandingScreen: Boolean
         get() = _showLandingScreen.value
@@ -524,7 +526,7 @@ class WeatherViewModel(
 
             kmaJob.invokeOnCompletion {
                 Log.d(TAG, "kmaJob completed.")
-                _isLoading.value = false
+                _isRefreshing.value = false
                 _showLandingScreen.value = false
             }
         }
@@ -742,6 +744,7 @@ class WeatherViewModel(
     }
 
     fun refreshWeatherData() {
+        viewModelScope.launch { _isRefreshing.value = true }
         if (locatingMethod != LocatingMethod.Auto) {
             stopLocationUpdate()  // No need to request location.
             updateFixedLocation(locatingMethod)  // Update the location directly.
@@ -755,7 +758,7 @@ class WeatherViewModel(
         // So launching on another dispatcher will introduce at least 2 extra thread switches.
         viewModelScope.launch {
             delay(milliSec)
-            if (kmaJob.isCompleted) _isLoading.value = false
+            if (kmaJob.isCompleted) _isRefreshing.value = false
         }
     }
 
@@ -768,7 +771,6 @@ class WeatherViewModel(
                 context, Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            viewModelScope.launch { _isLoading.value = true }
             if (isUpdatingLocation) stopLocationUpdate()
 
             locationClient.lastLocation.addOnSuccessListener {
