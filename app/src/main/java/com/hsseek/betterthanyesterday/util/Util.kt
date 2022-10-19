@@ -74,7 +74,7 @@ fun getKmaBaseTime(
         KmaHourRoundOff.VILLAGE -> {
             // Only 0200, 0500, ..., 2300 are accepted as query
             val hour = calValues.hour()
-            val hourAdjustment: Int = when (hour % 3) {
+            val hourAdjustment: Int = when (hour % VILLAGE_HOUR_INTERVAL) {
                 0 -> 1
                 1 -> 2
                 else -> 0
@@ -93,6 +93,17 @@ fun getKmaBaseTime(
 
 fun formatToKmaDate(cal: Calendar = getCurrentKoreanDateTime()): String = SimpleDateFormat(DATE_FORMAT, Locale.KOREA).format(cal.time)
 fun formatToKmaHour(cal: Calendar = getCurrentKoreanDateTime()): String = SimpleDateFormat(HOUR_FORMAT, Locale.KOREA).format(cal.time)
+
+fun getYesterdayVillageCalendar(cal: Calendar = getCurrentKoreanDateTime()): Calendar {
+    val calValue = cal.clone() as Calendar
+    calValue.add(Calendar.DAY_OF_YEAR, -1)  // Yesterday
+
+    val hour = calValue.hour()
+    if (hour % 3 == 2) {
+        calValue.add(Calendar.HOUR_OF_DAY, -VILLAGE_HOUR_INTERVAL)  // 5:?? -> 2:?? -> 2:00
+    }
+    return calValue
+}
 
 fun logElapsedTime(tag: String, task: String, startTime: Long) {
     val elapsedSec = (System.currentTimeMillis() - startTime) / 1000.0

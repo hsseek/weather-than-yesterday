@@ -183,7 +183,6 @@ class WeatherViewModel(
                                 val cal = getCurrentKoreanDateTime()
                                 cal.add(Calendar.DAY_OF_YEAR, -1)
                                 val yesterday: String = formatToKmaDate(cal)
-                                val yesterdayHourlyBaseTime = getKmaBaseTime(dayOffset = -1, roundOff = HOUR)
 
                                 val t1hPageNo = 5
                                 val rowCountShort = 6
@@ -349,6 +348,8 @@ class WeatherViewModel(
                                 }
 
                                 val yesterdayHourlyTempResponse = async(retrofitDispatcher) {
+                                    val yesterdayHourlyBaseTime = getKmaBaseTime(dayOffset = -1, roundOff = HOUR)
+
                                     WeatherApi.service.getShortTermWeather(
                                         baseDate = yesterdayHourlyBaseTime.date,
                                         baseTime = yesterdayHourlyBaseTime.hour,  // 14:50 -> 13:00, 15:00 -> 14:00
@@ -357,9 +358,30 @@ class WeatherViewModel(
                                         nx = baseCoordinatesXy.nx,
                                         ny = baseCoordinatesXy.ny,
                                     )
+                                }
 
-                                    /* KMA often emits the data earlier, at which expires the oldest observed data which is the following lines try to retrieve.
-                                    delay(briefDelayMilliSec)
+                                // Occasionally, short-term temperatures are not available for the hour. A backup data for that such cases.
+                                val yesterdayHourlyTempBackupResponse = async(retrofitDispatcher) {
+                                    val yesterdayCal = getYesterdayVillageCalendar()
+                                    val yesterdayVillageBaseTime = getKmaBaseTime(cal = yesterdayCal, roundOff = VILLAGE)
+
+                                    // At 3:00, the latest data start from fcstTime of 3:00, of which data are on the 1st page.
+                                    // At 4:00, the latest data start from fcstTime of 3:00, of which data are on the 2nd page.
+                                    val pageNo: Int = getCurrentKoreanDateTime().hour() % VILLAGE_HOUR_INTERVAL + 1
+
+                                    WeatherApi.service.getVillageWeather(
+                                        baseDate = yesterdayVillageBaseTime.date,
+                                        baseTime = yesterdayVillageBaseTime.hour,
+                                        numOfRows = VILLAGE_ROWS_PER_HOUR,
+                                        pageNo = pageNo,
+                                        nx = baseCoordinatesXy.nx,
+                                        ny = baseCoordinatesXy.ny,
+                                    )
+                                }
+
+                                /*
+                                KMA often emits the data earlier, at which expires the oldest observed data which is the following lines try to retrieve.
+                                val yesterdayHourlyTempBackupResponse = async(retrofitDispatcher) {
                                     val observedCal = getCurrentKoreanDateTime()
                                     observedCal.add(Calendar.DAY_OF_YEAR, -1)
                                     observedCal.add(Calendar.HOUR_OF_DAY, 1)
@@ -375,8 +397,8 @@ class WeatherViewModel(
                                         nx = baseCoordinatesXy.nx,
                                         ny = baseCoordinatesXy.ny,
                                     )
-                                    */
                                 }
+                                */
 
                                 val yesterdayLowTempResponse = async(retrofitDispatcher) {
                                     WeatherApi.service.getShortTermWeather(
@@ -400,6 +422,27 @@ class WeatherViewModel(
                                     )
                                 }
 
+                                // Occasionally, short-term temperatures are not available for the hour. A backup data for that such cases.
+                                val yesterdayLowTempBackupResponse = async(retrofitDispatcher) {
+                                    WeatherApi.service.getVillageWeather(
+                                        baseDate = yesterday,
+                                        baseTime = lowTempBaseTime,  // fsctTime starts from 03:00 AM
+                                        numOfRows = getRowCount(characteristicTempHourSpan),  // Full span: 3:00, ..., 7:00
+                                        nx = baseCoordinatesXy.nx,
+                                        ny = baseCoordinatesXy.ny,
+                                    )
+                                }
+
+                                val yesterdayHighTempBackupResponse = async(retrofitDispatcher) {
+                                    WeatherApi.service.getVillageWeather(
+                                        baseDate = yesterday,
+                                        baseTime = highTempBaseTime,  // fsctTime starts from the noon
+                                        numOfRows = getRowCount(characteristicTempHourSpan),  // Full span: 3:00, ..., 7:00
+                                        nx = baseCoordinatesXy.nx,
+                                        ny = baseCoordinatesXy.ny,
+                                    )
+                                }
+
                                 // Gather the data.
                                 val futureTodayData: List<ForecastResponse.Item> = futureTodayResponse.await().body()?.response?.body?.items?.item ?: emptyList()
                                 val tomorrowHighTempData = tomorrowHighTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
@@ -413,68 +456,180 @@ class WeatherViewModel(
                                 val todayHighTempData = todayHighTempResponse?.await()?.body()?.response?.body?.items?.item ?: emptyList()
                                 val todayLowTempData = todayLowTempResponse?.await()?.body()?.response?.body?.items?.item ?: emptyList()
 
+                                // Sometimes, short-term responses are empty(expired earlier than expected).
+                                val yesterdayHourlyTempBackupData = if (yesterdayHourlyTempData.isEmpty()) {
+                                        yesterdayHourlyTempBackupResponse.await().body()?.response?.body?.items?.item ?: emptyList()
+                                } else emptyList()
+
+                                val yesterdayHighTempBackupData = if (yesterdayHighTempData.isEmpty()) {
+                                    yesterdayHighTempBackupResponse.await().body()?.response?.body?.items?.item ?: emptyList()
+                                } else emptyList()
+
+                                val yesterdayLowTempBackupData = if (yesterdayLowTempData.isEmpty()) {
+                                    yesterdayLowTempBackupResponse.await().body()?.response?.body?.items?.item ?: emptyList()
+                                } else emptyList()
+
                                 // Log for debugging.
-                                launch {
+                                launch(defaultDispatcher) {
                                     var size = 0
-                                    for (i in yesterdayHighTempData) {
-                                        size += 1
-                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
-                                    }
-                                    for (i in yesterdayLowTempData) {
-                                        size += 1
-                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
-                                    }
-                                    for (i in yesterdayHourlyTempData) {
-                                        size += 1
-                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
-                                    }
-                                    for (i in todayHourlyData) {
-                                        size += 1
-                                        Log.d("D${DayOfInterest.Today.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
-                                    }
-                                    for (i in todayHighTempData) {
-                                        size += 1
-                                        if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
-                                            Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                    var hasEmptyList = false
+
+                                    if (yesterdayHighTempData.isEmpty()) {
+                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "List empty.")
+                                        if (yesterdayHighTempBackupData.isEmpty()) {
+                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}-B", "List empty.")
+                                            hasEmptyList = true
+                                        } else {
+                                            for (i in yesterdayHighTempBackupData) {
+                                                size += 1
+                                                if (i.category == VILLAGE_TEMPERATURE_TAG) {
+                                                    Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        for (i in yesterdayHighTempData) {
+                                            size += 1
+                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
                                         }
                                     }
-                                    for (i in todayLowTempData) {
-                                        size += 1
-                                        if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
-                                            Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+
+                                    if (yesterdayLowTempData.isEmpty()) {
+                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "List empty.")
+                                        if (yesterdayLowTempBackupData.isEmpty()) {
+                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}-B", "List empty.")
+                                            hasEmptyList = true
+                                        } else {
+                                            for (i in yesterdayLowTempBackupData) {
+                                                size += 1
+                                                if (i.category == VILLAGE_TEMPERATURE_TAG) {
+                                                    Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}-B", "$i")
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        for (i in yesterdayLowTempData) {
+                                            size += 1
+                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
                                         }
                                     }
-                                    for (i in futureTodayData) {
-                                        size += 1
-                                        if (i.category == VILLAGE_TEMPERATURE_TAG) {
-                                            Log.d("D${DayOfInterest.Today.dayOffset}", "$i")
+
+                                    if (yesterdayHourlyTempData.isEmpty()) {
+                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG", "List empty.")
+                                        if (yesterdayHourlyTempBackupData.isEmpty()) {
+                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG-B", "List empty.")
+                                            hasEmptyList = true
+                                        } else {
+                                            for (i in yesterdayHourlyTempBackupData) {
+                                                size += 1
+                                                if (i.category == VILLAGE_TEMPERATURE_TAG) {
+                                                    Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG-B", "$i")
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        for (i in yesterdayHourlyTempData) {
+                                            size += 1
+                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
                                         }
                                     }
-                                    for (i in tomorrowHighTempData) {
-                                        size += 1
-                                        if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
-                                            Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+
+                                    if (todayHourlyData.isEmpty()) {
+                                        Log.d("D${DayOfInterest.Today.dayOffset}-$HOURLY_TEMPERATURE_TAG", "List empty.")
+                                        hasEmptyList = true
+                                    } else {
+                                        for (i in todayHourlyData) {
+                                            size += 1
+                                            Log.d("D${DayOfInterest.Today.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
                                         }
                                     }
-                                    for (i in tomorrowLowTempData) {
-                                        size += 1
-                                        if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
-                                            Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+
+                                    if (todayHighTempData.isEmpty()) {
+                                        Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "List empty.")
+                                        hasEmptyList = true
+                                    } else {
+                                        for (i in todayHighTempData) {
+                                            size += 1
+                                            if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
+                                                Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                            }
                                         }
                                     }
-                                    for (i in d2HighTempData) {
-                                        size += 1
-                                        if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
-                                            Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+
+                                    if (todayLowTempData.isEmpty()) {
+                                        Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "List empty.")
+                                        hasEmptyList = true
+                                    } else {
+                                        for (i in todayLowTempData) {
+                                            size += 1
+                                            if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
+                                                Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+                                            }
                                         }
                                     }
-                                    for (i in d2LowTempData) {
-                                        size += 1
-                                        if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
-                                            Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+
+                                    if (futureTodayData.isEmpty()) {
+                                        Log.d("D${DayOfInterest.Today.dayOffset}", "List empty.")
+                                        hasEmptyList = true
+                                    } else {
+                                        for (i in futureTodayData) {
+                                            size += 1
+                                            if (i.category == VILLAGE_TEMPERATURE_TAG) {
+                                                Log.d("D${DayOfInterest.Today.dayOffset}", "$i")
+                                            }
                                         }
                                     }
+
+                                    if (tomorrowHighTempData.isEmpty()) {
+                                        Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "List empty.")
+                                        hasEmptyList = true
+                                    } else {
+                                        for (i in tomorrowHighTempData) {
+                                            size += 1
+                                            if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
+                                                Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                            }
+                                        }
+                                    }
+
+                                    if (tomorrowLowTempData.isEmpty()) {
+                                        Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "List empty.")
+                                        hasEmptyList = true
+                                    } else {
+                                        for (i in tomorrowLowTempData) {
+                                            size += 1
+                                            if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
+                                                Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+                                            }
+                                        }
+                                    }
+
+                                    if (d2HighTempData.isEmpty()) {
+                                        Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "List empty.")
+                                        hasEmptyList = true
+                                    } else {
+                                        for (i in d2HighTempData) {
+                                            size += 1
+                                            if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
+                                                Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                            }
+                                        }
+                                    }
+
+                                    if (d2LowTempData.isEmpty()) {
+                                        Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "List empty.")
+                                        hasEmptyList = true
+                                    } else {
+                                        for (i in d2LowTempData) {
+                                            size += 1
+                                            if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
+                                                Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+                                            }
+                                        }
+                                    }
+
                                     logElapsedTime(TAG, "$size items", fetchingStartTime)
+                                    if (hasEmptyList) _toastMessage.value = OneShotEvent(R.string.toast_kma_na)
                                 }
 
                                 // Refresh the highest/lowest temperatures
@@ -484,7 +639,7 @@ class WeatherViewModel(
                                 launch {
                                     refreshCharacteristicTemp(DayOfInterest.Yesterday, yesterdayHighTempData, yesterdayLowTempData)
                                     // Refresh the hourly temperature and the difference(dependant to yesterday's highest/lowest temperature).
-                                    refreshHourlyTemp(todayHourlyData, yesterdayHourlyTempData)
+                                    refreshHourlyTemp(todayHourlyData, yesterdayHourlyTempData, yesterdayHourlyTempBackupData)
                                 }
 
                                 // Refresh the rainfall status.
@@ -694,7 +849,8 @@ class WeatherViewModel(
 
     private fun refreshHourlyTemp(
         todayHourlyData: List<ForecastResponse.Item>,
-        yesterdayHourlyTempData: List<ForecastResponse.Item>
+        yesterdayHourlyTempData: List<ForecastResponse.Item>,
+        yesterdayHourlyTempBackupData: List<ForecastResponse.Item>,
     ) {
         val closestHour = todayHourlyData.minOf { it.fcstTime }
         var todayTemp: Int? = null
@@ -707,8 +863,10 @@ class WeatherViewModel(
             }
         }
 
-        for (i in yesterdayHourlyTempData) {
-            if (i.fcstTime == closestHour && i.category == HOURLY_TEMPERATURE_TAG) {
+        for (i in yesterdayHourlyTempData + yesterdayHourlyTempBackupData) {
+            if (i.fcstTime == closestHour &&
+                (i.category == HOURLY_TEMPERATURE_TAG || i.category == VILLAGE_TEMPERATURE_TAG)
+            ) {
                 yesterdayTemp = i.fcstValue.toInt()
                 break
             }

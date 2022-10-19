@@ -59,6 +59,16 @@ class UnitTest {
     }
 
     @Test
+    fun yesterdayBaseTime() {
+        val cal = Calendar.getInstance()
+        cal.set(2022, 9, 19, 2, 20)
+        val yesterdayCal = getYesterdayVillageCalendar(cal = cal)
+        val yesterdayVillageBaseTime = getKmaBaseTime(cal = yesterdayCal, roundOff = VILLAGE)
+        assertEquals(yesterdayVillageBaseTime.date, "20221017")
+        assertEquals(yesterdayVillageBaseTime.hour, "2300")
+    }
+
+    @Test
     fun is_raining() {
         val RAIN_TAG = "PTY"
         val todayHourlyData = DUMMY_SHORT_TERM_FORECAST_SNOWY
