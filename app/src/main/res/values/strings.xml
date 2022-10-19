@@ -81,4 +81,9 @@
     <string name="pref_help_daybreak_mode">During a day, the lowest temperature occurs first(e.g. 5 AM) then the highest temperature comes after(e.g. 2 PM). Therefore, it might be more reasonable to represent the lowest temperature first then the highest temperature.\nWith this mode enabled, the \"Daybreak temperature\"(the lowest) is shown at the top and the \"Heat built-up\"(the highest) is shown at the bottom.</string>
     <string name="daily_daybreak">Daybreak</string>
     <string name="daily_heat">Heat built-up</string>
+    <string name="pref_title_language">Language</string>
+    <string name="pref_desc_language">언어</string>
+    <string name="radio_lang_system">System language</string>
+    <string name="radio_lang_en" translatable="false">English</string>
+    <string name="radio_lang_kr" translatable="false">한국어</string>
 </resources>

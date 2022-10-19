@@ -6,8 +6,17 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRepository): ViewModel() {
+    // Language
+    var languageCode = 0
+        private set
+
+    private val _showLanguageDialog = mutableStateOf(false)
+    val showLanguageDialog: Boolean
+        get() = _showLanguageDialog.value
+
     // Simple View mode
     private val _isSimplified = mutableStateOf(false)
     val isSimplified: Boolean
@@ -35,24 +44,49 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
     val showDaybreakHelp: Boolean
         get() = _showDaybreakHelp.value
 
-    fun updateSimpleViewEnabled(enabled: Boolean) {
+    fun onClickLanguage() {
+        _showLanguageDialog.value = true
+    }
+
+    fun onDismissLanguage() {
+        _showLanguageDialog.value = false
+    }
+
+    fun updateLanguageCode(selectedCode: Int, isExplicit: Boolean = true) {
+        languageCode = selectedCode
+        if (isExplicit) {
+            runBlocking {
+                // The stored value is drawn during recreate().
+                // Therefore, wait to be stored.
+                userPreferencesRepository.updateLanguage(selectedCode)
+            }
+        }
+    }
+
+    fun updateSimpleViewEnabled(enabled: Boolean, isExplicit: Boolean = true) {
         _isSimplified.value = enabled
-        viewModelScope.launch {
-            userPreferencesRepository.updateSimpleViewEnabled(enabled)
+        if (isExplicit) {
+            viewModelScope.launch {
+                userPreferencesRepository.updateSimpleViewEnabled(enabled)
+            }
         }
     }
 
-    fun updateAutoRefreshEnabled(enabled: Boolean) {
+    fun updateAutoRefreshEnabled(enabled: Boolean, isExplicit: Boolean = true) {
         _isAutoRefresh.value = enabled
-        viewModelScope.launch {
-            userPreferencesRepository.updateAutoRefreshEnabled(enabled)
+        if (isExplicit) {
+            viewModelScope.launch {
+                userPreferencesRepository.updateAutoRefreshEnabled(enabled)
+            }
         }
     }
 
-    fun updateDaybreakEnabled(enabled: Boolean) {
+    fun updateDaybreakEnabled(enabled: Boolean, isExplicit: Boolean = true) {
         _isDaybreak.value = enabled
-        viewModelScope.launch {
-            userPreferencesRepository.updateDaybreakEnabled(enabled)
+        if (isExplicit) {
+            viewModelScope.launch {
+                userPreferencesRepository.updateDaybreakEnabled(enabled)
+            }
         }
     }
 

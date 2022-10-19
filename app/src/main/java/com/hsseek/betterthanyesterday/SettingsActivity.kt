@@ -1,7 +1,9 @@
 package com.hsseek.betterthanyesterday
 
 import android.app.Activity
+import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.*
@@ -11,26 +13,33 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.hsseek.betterthanyesterday.data.Language
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.ui.theme.*
+import com.hsseek.betterthanyesterday.util.createConfigurationWithStoredLocale
 import com.hsseek.betterthanyesterday.viewmodel.SettingsViewModel
 import com.hsseek.betterthanyesterday.viewmodel.SettingsViewModelFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 private const val ROW_PADDING = 14
+private const val TAG = "SettingsActivity"
 
 class SettingsActivity : ComponentActivity() {
     private lateinit var viewModel: SettingsViewModel
@@ -48,9 +57,10 @@ class SettingsActivity : ComponentActivity() {
         viewModel.viewModelScope.launch(Dispatchers.Default) {
             // No need to observe the Preferences as the ViewModel processes the user input directly.
             val prefs = userPrefsRepo.preferencesFlow.first()
-            viewModel.updateSimpleViewEnabled(prefs.isSimplified)
-            viewModel.updateAutoRefreshEnabled(prefs.isAutoRefresh)
-            viewModel.updateDaybreakEnabled(prefs.isDaybreak)
+            viewModel.updateSimpleViewEnabled(prefs.isSimplified, false)
+            viewModel.updateAutoRefreshEnabled(prefs.isAutoRefresh, false)
+            viewModel.updateDaybreakEnabled(prefs.isDaybreak, false)
+            viewModel.updateLanguageCode(prefs.languageCode, false)
         }
 
         setContent {
@@ -61,6 +71,33 @@ class SettingsActivity : ComponentActivity() {
                     color = MaterialTheme.colors.background
                 ) {
                     MainScreen(this@SettingsActivity, viewModel)
+
+                    // Preferences dialog
+                    // Language
+                    if (viewModel.showLanguageDialog) {
+                        val items = mutableListOf<RadioItem>()
+                        enumValues<Language>().forEach {
+                            val id: Int = when (it) {
+                                Language.System -> R.string.radio_lang_system
+                                Language.English -> R.string.radio_lang_en
+                                Language.Korean -> R.string.radio_lang_kr
+                            }
+                            items.add(it.code, RadioItem(it.code, id))
+                        }
+                        RadioSelectDialog(
+                            desc = stringResource(id = R.string.pref_desc_language),
+                            selectedItemIndex = viewModel.languageCode,
+                            onClickNegative = { viewModel.onDismissLanguage() },
+                            onClickPositive = { selectedCode ->
+                                viewModel.onDismissLanguage()
+                                if (selectedCode != viewModel.languageCode) {
+                                    viewModel.updateLanguageCode(selectedCode)
+                                    this@SettingsActivity.recreate()
+                                }
+                            },
+                            items = items
+                        )
+                    }
 
                     // Help dialogs
                     if (viewModel.showSimpleViewHelp) {
@@ -90,6 +127,18 @@ class SettingsActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun attachBaseContext(newBase: Context?) {
+        newBase?.also { context ->
+            runBlocking {
+                val config = createConfigurationWithStoredLocale(context)
+                super.attachBaseContext(context.createConfigurationContext(config))
+            }
+        } ?: kotlin.run {
+            Log.w(TAG, "newBase is null.")
+            super.attachBaseContext(null)
+        }
+    }
 }
 
 @Composable
@@ -102,6 +151,14 @@ private fun MainScreen(
         content = { padding ->
             val modifier = Modifier.padding(padding)
             Column(modifier = modifier) {
+                // Language
+                PreferenceDialogRow(
+                    title = stringResource(R.string.pref_title_language),
+                    description = stringResource(R.string.pref_desc_language),
+                    onClickHelp = null,
+                    onClickRow = { viewModel.onClickLanguage() }
+                )
+
                 // Disabled
                 // Simple View
                 PreferenceToggleRow(
@@ -335,44 +392,95 @@ fun RadioGroup(
     items: List<RadioItem>,
     selected: Int,
     onSelect: (Int) -> Unit,
-    titleStyle: androidx.compose.ui.text.TextStyle = Typography.body1,
-    descStyle: androidx.compose.ui.text.TextStyle = Typography.h6,
+    titleStyle: TextStyle = Typography.body1,
+    descStyle: TextStyle = Typography.h6,
 ) {
-    val radioTextStartPadding = 4.dp
-
     Column(
-        modifier = Modifier
-            .verticalScroll(rememberScrollState()),
+        Modifier
+            .heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.85).dp)
+            .verticalScroll(rememberScrollState())
     ) {
         items.forEach { radioItem ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { onSelect(radioItem.code) }
-            ) {
-                Column(
-                    modifier = Modifier.padding(start = radioTextStartPadding)
-                ) {
-                    Text(
-                        text = stringResource(id = radioItem.titleId),
-                        style = titleStyle
-                    )
-                    if (radioItem.descId != null) {
-                        Text(
-                            text = stringResource(id = radioItem.descId),
-                            style = descStyle
-                        )
-                    }
-                }
-                RadioButton(
-                    selected = selected == radioItem.code,
-                    onClick = { onSelect(radioItem.code) },
-                )
-            }
+            RadioRow(onSelect, radioItem, titleStyle, descStyle, selected)
         }
     }
 }
 
-class RadioItem(val code: Int, val titleId: Int, val descId: Int?)
+@Composable
+private fun RadioRow(
+    onSelect: (Int) -> Unit,
+    radioItem: RadioItem,
+    titleStyle: TextStyle,
+    descStyle: TextStyle,
+    selected: Int
+) {
+    val radioTextStartPadding = 4.dp
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clickable { onSelect(radioItem.code) }
+    ) {
+        Column(
+            modifier = Modifier.padding(start = radioTextStartPadding)
+        ) {
+            Text(
+                text = stringResource(id = radioItem.titleId),
+                style = titleStyle
+            )
+            if (radioItem.descId != null) {
+                Text(
+                    text = stringResource(id = radioItem.descId),
+                    style = descStyle
+                )
+            }
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        RadioButton(
+            selected = selected == radioItem.code,
+            onClick = { onSelect(radioItem.code) },
+        )
+    }
+}
+
+@Composable
+fun RadioSelectDialog(
+    desc: String,
+    items: List<RadioItem>,
+    selectedItemIndex: Int = 0,
+    onClickNegative: () -> Unit,
+    onClickPositive: (Int) -> Unit,
+) {
+    val backgroundColor = if (isSystemInDarkTheme()) Gray400 else MaterialTheme.colors.surface
+
+    AlertDialog(
+        onDismissRequest = onClickNegative,
+        backgroundColor = backgroundColor,
+        buttons = {
+            val selected = rememberSaveable { mutableStateOf(selectedItemIndex) }
+
+            RadioGroup(
+                items = items,
+                selected = selected.value,
+                onSelect = { selected.value = it },
+            )
+
+            // The Cancel and Ok buttons
+            Row(
+                horizontalArrangement = Arrangement.End,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                TextButton(onClick = onClickNegative) {
+                    Text(text = stringResource(R.string.dialog_dismiss_cancel))
+                }
+                TextButton(onClick = { onClickPositive(selected.value) }) {
+                    Text(text = stringResource(R.string.dialog_dismiss_ok))
+                }
+            }
+        }
+    )
+}
+
+class RadioItem(val code: Int, val titleId: Int, val descId: Int? = null)
 
 //@Preview(showBackground = true)
 @Composable

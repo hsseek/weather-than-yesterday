@@ -10,12 +10,12 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
-
 private const val TAG = "UserPreferencesRepository"
 
 class UserPreferencesRepository(private val context: Context) {
     private object PreferencesKeys {
         val LOCATING_METHOD_CODE = intPreferencesKey("locating_method_code")
+        val LANGUAGE_CODE = intPreferencesKey("language_code")
         val SIMPLE_VIEW_CODE = booleanPreferencesKey("simple_view_code")
         val AUTO_REFRESH_CODE = booleanPreferencesKey("auto_refresh_code")
         val DAYBREAK_CODE = booleanPreferencesKey("daybreak_code")
@@ -23,19 +23,17 @@ class UserPreferencesRepository(private val context: Context) {
 
     val preferencesFlow: Flow<UserPreferences> = context.dataStore.data
         .catch { e ->
-            if (e is IOException) {
-                emit(emptyPreferences())
-            } else {
-                throw e
-            }
+            if (e is IOException) emit(emptyPreferences()) else throw e
         }.map { preferences ->
             val locatingMethodCode = preferences[PreferencesKeys.LOCATING_METHOD_CODE] ?: LocatingMethod.Auto.code
+            val languageCode = preferences[PreferencesKeys.LANGUAGE_CODE] ?: Language.System.code
             val isSimplified = preferences[PreferencesKeys.SIMPLE_VIEW_CODE] ?: false
             val isAutoRefresh = preferences[PreferencesKeys.AUTO_REFRESH_CODE] ?: false
             val isDaybreak = preferences[PreferencesKeys.DAYBREAK_CODE] ?: false
 
             UserPreferences(
                 locatingMethodCode,
+                languageCode,
                 isSimplified,
                 isAutoRefresh,
                 isDaybreak,
@@ -45,6 +43,13 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun updateLocatingMethod(locatingMethod: LocatingMethod) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.LOCATING_METHOD_CODE] = locatingMethod.code
+        }
+    }
+
+    suspend fun updateLanguage(selectedCode: Int) {
+        context.dataStore.edit { preferences ->
+            Log.d(TAG, "Language selected: $selectedCode")
+            preferences[PreferencesKeys.LANGUAGE_CODE] = selectedCode
         }
     }
 
@@ -74,7 +79,12 @@ class UserPreferencesRepository(private val context: Context) {
 
 data class UserPreferences(
     val locatingMethodCode: Int,
+    val languageCode: Int,
     val isSimplified: Boolean,
     val isAutoRefresh: Boolean,
     val isDaybreak: Boolean,
 )
+
+enum class Language(val code: Int, val iso: String) {
+    System(0, "en"), English(1, "en"), Korean(2, "ko")
+}

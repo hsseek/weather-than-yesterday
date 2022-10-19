@@ -57,10 +57,12 @@ import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModel
 import com.hsseek.betterthanyesterday.viewmodel.WeatherViewModelFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.Calendar
+import kotlinx.coroutines.runBlocking
+import java.util.*
 
-private const val TAG = "MainActivityLog"
+private const val TAG = "WeatherActivityLog"
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: WeatherViewModel
@@ -76,6 +78,12 @@ class MainActivity : ComponentActivity() {
             WeatherViewModelFactory(application, prefsRepo)
         )[WeatherViewModel::class.java]
 
+        // Set the language first, to avoid recreating the Activity.
+        runBlocking {
+            val prefs = prefsRepo.preferencesFlow.first()
+            viewModel.updateLanguage(prefs.languageCode, false)
+        }
+
         // Observe to Preferences changes.
         viewModel.viewModelScope.launch(Dispatchers.Default) {
             logCoroutineContext("Preferences Flow observation from MainActivity")
@@ -83,6 +91,7 @@ class MainActivity : ComponentActivity() {
                 viewModel.updateSimplifiedEnabled(userPrefs.isSimplified)
                 viewModel.updateAutoRefreshEnabled(userPrefs.isAutoRefresh)
                 viewModel.updateDaybreakEnabled(userPrefs.isDaybreak)
+                viewModel.updateLanguage(userPrefs.languageCode)
             }
         }
 
@@ -115,15 +124,16 @@ class MainActivity : ComponentActivity() {
                     }
 
                     // A dialog to select locating method.
-                    LocationSelectDialog(
-                        isShowing = viewModel.toShowLocatingDialog.value,
-                        selectedLocatingMethod = viewModel.locatingMethod,
-                        onClickNegative = { viewModel.toShowLocatingDialog.value = false },
-                        onClickPositive = { selectedLocation ->
-                            viewModel.toShowLocatingDialog.value = false  // Dismiss the dialog anyway.
-                            onSelectLocatingMethod(selectedLocation)
-                        }
-                    )
+                    if (viewModel.toShowLocatingDialog.value) {
+                        LocationSelectDialog(
+                            selectedLocatingMethod = viewModel.locatingMethod,
+                            onClickNegative = { viewModel.toShowLocatingDialog.value = false },
+                            onClickPositive = { selectedLocation ->
+                                viewModel.toShowLocatingDialog.value = false  // Dismiss the dialog anyway.
+                                onSelectLocatingMethod(selectedLocation)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -132,12 +142,31 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         Log.d(TAG, "onStart() called.")
-        requestRefreshImplicitly()
+        if (viewModel.isLanguageChanged) {  // Restart activity
+            Log.d(TAG, "Language changed, recreate the Activity.")
+            viewModel.isLanguageChanged = false
+            recreate()
+        } else {  // Do regular tasks
+            requestRefreshImplicitly()
+        }
     }
 
     override fun onStop() {
         super.onStop()
         viewModel.stopLocationUpdate()
+    }
+
+    override fun attachBaseContext(newBase: Context?) {
+        Log.d(TAG, "attachBaseContext(Context) called.")
+        newBase?.also { context ->
+            runBlocking {
+                val config = createConfigurationWithStoredLocale(context)
+                super.attachBaseContext(context.createConfigurationContext(config))
+            }
+        } ?: kotlin.run {
+            Log.w(TAG, "newBase is null.")
+            super.attachBaseContext(null)
+        }
     }
 
     private fun onSelectLocatingMethod(selectedLocatingMethod: LocatingMethod) {
@@ -829,63 +858,58 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun LocationSelectDialog(
-        isShowing: Boolean,
         selectedLocatingMethod: LocatingMethod?,
         onClickNegative: () -> Unit,
         onClickPositive: (LocatingMethod) -> Unit,
     ) {
-        if (isShowing) {
+        val bodyPadding = 15.dp
+        val titlePadding = 0.dp
+        val color = if (isSystemInDarkTheme()) {
+            Gray400
+        } else {
+            MaterialTheme.colors.surface
+        }
 
-            val bodyPadding = 15.dp
-            val titlePadding = 0.dp
-            val color = if (isSystemInDarkTheme()) {
-                Gray400
-            } else {
-                MaterialTheme.colors.surface
-            }
+        AlertDialog(
+            onDismissRequest = onClickNegative,
+            title = {
+                Text(
+                    text = stringResource(R.string.dialog_location_title),
+                    modifier = Modifier.padding(titlePadding),
+                )
+            },
+            backgroundColor = color,
+            buttons = {
+                val selected = rememberSaveable { mutableStateOf(selectedLocatingMethod) }
 
-            AlertDialog(
-                onDismissRequest = onClickNegative,
-                title = {
-                    Text(
-                        text = stringResource(R.string.dialog_location_title),
-                        modifier = Modifier.padding(titlePadding),
-                    )
-                },
-                backgroundColor = color,
-                buttons = {
-                    val selected = rememberSaveable { mutableStateOf(selectedLocatingMethod) }
+                // RadioGroups
+                RegionsRadioGroup(
+                    padding = bodyPadding,
+                    selected = selected.value,
+                    onSelect = { selected.value = it },
+                )
 
-                    // TODO: Make it scrollable.
-                    // RadioGroups
-                    RegionsRadioGroup(
-                        padding = bodyPadding,
-                        selected = selected.value,
-                        onSelect = { selected.value = it },
-                    )
-
-                    // The Cancel and Ok buttons
-                    Row(
-                        horizontalArrangement = Arrangement.End,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        TextButton(onClick = onClickNegative) {
-                            Text(text = stringResource(R.string.dialog_dismiss_cancel))
+                // The Cancel and Ok buttons
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    TextButton(onClick = onClickNegative) {
+                        Text(text = stringResource(R.string.dialog_dismiss_cancel))
+                    }
+                    TextButton(onClick = {
+                        val selectedLocation: LocatingMethod? = selected.value
+                        if (selectedLocation != null) {
+                            onClickPositive(selectedLocation)
+                        } else {
+                            Log.e(TAG, "The selected LocatingMethod is null.")
                         }
-                        TextButton(onClick = {
-                            val selectedLocation: LocatingMethod? = selected.value
-                            if (selectedLocation != null) {
-                                onClickPositive(selectedLocation)
-                            } else {
-                                Log.e(TAG, "The selected LocatingMethod is null.")
-                            }
-                        }) {
-                            Text(text = stringResource(R.string.dialog_dismiss_ok))
-                        }
+                    }) {
+                        Text(text = stringResource(R.string.dialog_dismiss_ok))
                     }
                 }
-            )
-        }
+            }
+        )
     }
 
     @Composable

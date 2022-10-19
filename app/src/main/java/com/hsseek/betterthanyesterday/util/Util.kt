@@ -1,9 +1,14 @@
 package com.hsseek.betterthanyesterday.util
 
+import android.content.Context
+import android.content.res.Configuration
 import android.location.Address
 import android.util.Log
 import com.hsseek.betterthanyesterday.R
+import com.hsseek.betterthanyesterday.data.Language
+import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
+import kotlinx.coroutines.flow.first
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -147,6 +152,19 @@ fun getDistrictName(addresses: List<Address>?): String? {
         if (street != null) return street
     }
     return null
+}
+
+suspend fun createConfigurationWithStoredLocale(context: Context): Configuration {
+    val userPrefsRepo = UserPreferencesRepository(context)
+    val prefs = userPrefsRepo.preferencesFlow.first()
+    val isoCode: String = when (prefs.languageCode) {
+        Language.English.code -> Language.English.iso
+        Language.Korean.code -> Language.Korean.iso
+        else -> Locale.getDefault().language
+    }
+    val config = Configuration(context.resources.configuration)
+    config.setLocale(Locale(isoCode))
+    return config
 }
 
 enum class KmaHourRoundOff {

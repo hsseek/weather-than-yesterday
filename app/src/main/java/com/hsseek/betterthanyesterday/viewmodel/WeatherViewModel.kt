@@ -5,7 +5,6 @@ import android.app.Application
 import android.content.pm.PackageManager
 import android.os.Looper
 import android.util.Log
-import android.util.MalformedJsonException
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.ActivityCompat
@@ -18,6 +17,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.hsseek.betterthanyesterday.R
+import com.hsseek.betterthanyesterday.data.Language
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
@@ -86,6 +86,9 @@ class WeatherViewModel(
         }
 
     // Preferences
+    private var languageCode: Int = Language.System.code
+    var isLanguageChanged = false
+
     private val _isSimplified = mutableStateOf(false)
     val isSimplified: Boolean
         get() = _isSimplified.value
@@ -673,7 +676,7 @@ class WeatherViewModel(
                         when (e) {
                             is CancellationException -> Log.d(TAG, "Retrieving weather data cancelled.")
                             is UnknownHostException -> _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_network)
-                            is MalformedJsonException -> {
+                            is com.google.gson.stream.MalformedJsonException -> {
                                 Log.e(TAG, "Cannot process weather data.", e)
                                 _toastMessage.value = OneShotEvent(R.string.toast_error_json)
                             }
@@ -1073,6 +1076,13 @@ class WeatherViewModel(
     fun updateDaybreakEnabled(enabled: Boolean) {
         Log.d(TAG, "Daybreak mode enabled: $enabled")
         _isDaybreakMode.value = enabled
+    }
+
+    fun updateLanguage(selectedCode: Int, isExplicit: Boolean = true) {
+        if (languageCode != selectedCode) {
+            languageCode = selectedCode
+            if (isExplicit) isLanguageChanged = true
+        }
     }
 
     companion object {
