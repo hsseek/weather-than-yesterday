@@ -21,7 +21,7 @@ val Typography = Typography(
         fontSize = 24.sp,
     ),
     h4 = TextStyle(
-        fontSize = 20.sp,
+        fontSize = 18.sp,
     ),
     h6 = TextStyle(
         fontSize = 13.sp,

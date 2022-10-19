@@ -498,9 +498,17 @@ class MainActivity : ComponentActivity() {
         ) {
             DropdownMenuItem(onClick = {
                 onDismissRequest()
+                val intent = Intent(this@MainActivity, SettingsActivity::class.java)
+                this@MainActivity.startActivity(intent)
+            }) {
+                Text(text = stringResource(R.string.title_activity_settings))
+            }
+
+            DropdownMenuItem(onClick = {
+                onDismissRequest()
                 val messageCandidates = listOf(
                     R.string.share_app_message_0,
-
+                    R.string.share_app_message_1,
                 )
                 val intent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
@@ -511,14 +519,6 @@ class MainActivity : ComponentActivity() {
 
             }) {
                 Text(text = stringResource(R.string.topbar_share_app))
-            }
-
-            DropdownMenuItem(onClick = {
-                onDismissRequest()
-                val intent = Intent(this@MainActivity, SettingsActivity::class.java)
-                this@MainActivity.startActivity(intent)
-            }) {
-                Text(text = stringResource(R.string.title_activity_settings))
             }
 
             DropdownMenuItem(onClick = {

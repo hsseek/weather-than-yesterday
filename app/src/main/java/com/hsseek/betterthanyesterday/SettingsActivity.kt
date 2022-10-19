@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -77,14 +78,15 @@ class SettingsActivity : ComponentActivity() {
                     if (viewModel.showLanguageDialog) {
                         val items = mutableListOf<RadioItem>()
                         enumValues<Language>().forEach {
-                            val id: Int = when (it) {
-                                Language.System -> R.string.radio_lang_system
-                                Language.English -> R.string.radio_lang_en
-                                Language.Korean -> R.string.radio_lang_kr
+                            val title = when (it) {
+                                Language.System -> getString(R.string.radio_lang_system)
+                                Language.English -> getString(R.string.radio_lang_en)
+                                Language.Korean -> getString(R.string.radio_lang_kr)
                             }
-                            items.add(it.code, RadioItem(it.code, id))
+                            items.add(it.code, RadioItem(it.code, title))
                         }
                         RadioSelectDialog(
+                            title = getString(R.string.dialog_title_language),
                             desc = stringResource(id = R.string.pref_desc_language),
                             selectedItemIndex = viewModel.languageCode,
                             onClickNegative = { viewModel.onDismissLanguage() },
@@ -303,11 +305,11 @@ fun PreferenceDialogRow(
     onClickHelp: (() -> Unit)? = null,
     onClickRow: () -> Unit
 ) {
-    val rowMod = if (enabled) Modifier.clickable { onClickRow() } else Modifier
+    val clickableMod = if (enabled) Modifier.clickable { onClickRow() } else Modifier
 
-    Column {
+    Column(modifier = clickableMod) {
         Row(
-            modifier = rowMod.padding(ROW_PADDING.dp),
+            modifier = Modifier.padding(ROW_PADDING.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             PreferenceRowHeader(enabled, title, description, onClickHelp)
@@ -350,6 +352,7 @@ private fun PreferenceRowHeader(
     onClickHelp: (() -> Unit)? = null,
 ) {
     val disabledAlpha = 0.6f
+    val titleMaxFraction = 0.85
 
     Column {
         val titleStyle = if (enabled) {
@@ -373,7 +376,7 @@ private fun PreferenceRowHeader(
                 text = title,
                 style = titleStyle,
                 textAlign = align,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.widthIn(max = (LocalConfiguration.current.screenWidthDp * titleMaxFraction).dp)
             )
             if (onClickHelp != null) HelpButton(onClickHelp)
         }
@@ -414,27 +417,29 @@ private fun RadioRow(
     descStyle: TextStyle,
     selected: Int
 ) {
-    val radioTextStartPadding = 4.dp
+    val radioTextStartPadding = 15.dp
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.clickable { onSelect(radioItem.code) }
     ) {
         Column(
-            modifier = Modifier.padding(start = radioTextStartPadding)
+            modifier = Modifier
+                .padding(start = radioTextStartPadding)
+                .weight(1f)
         ) {
             Text(
-                text = stringResource(id = radioItem.titleId),
+                text = radioItem.title,
                 style = titleStyle
             )
-            if (radioItem.descId != null) {
+            if (radioItem.desc != null) {
                 Text(
-                    text = stringResource(id = radioItem.descId),
-                    style = descStyle
+                    text = radioItem.desc,
+                    style = descStyle,
+                    textAlign = TextAlign.Start,
                 )
             }
         }
-        Spacer(modifier = Modifier.weight(1f))
         RadioButton(
             selected = selected == radioItem.code,
             onClick = { onSelect(radioItem.code) },
@@ -444,6 +449,7 @@ private fun RadioRow(
 
 @Composable
 fun RadioSelectDialog(
+    title: String,
     desc: String,
     items: List<RadioItem>,
     selectedItemIndex: Int = 0,
@@ -451,8 +457,14 @@ fun RadioSelectDialog(
     onClickPositive: (Int) -> Unit,
 ) {
     val backgroundColor = if (isSystemInDarkTheme()) Gray400 else MaterialTheme.colors.surface
+    val titleBottomPadding = 7.dp
 
     AlertDialog(
+        title = { Text(
+            text = title,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = titleBottomPadding)
+        ) },
         onDismissRequest = onClickNegative,
         backgroundColor = backgroundColor,
         buttons = {
@@ -480,18 +492,23 @@ fun RadioSelectDialog(
     )
 }
 
-class RadioItem(val code: Int, val titleId: Int, val descId: Int? = null)
+class RadioItem(val code: Int, val title: String, val desc: String? = null)
 
-//@Preview(showBackground = true)
+@Preview(showBackground = true)
 @Composable
-fun HelpDialogPreview() {
+fun RadioDialogPreview() {
     BetterThanYesterdayTheme {
-        HelpDialog(
-            title = "Simple mode",
-            desc = "Hide titles and descriptions to give a neat look. Recommended after the numbers got familiar to you, as it might be hard to interpret information."
-        ) {
-
-        }
+        RadioSelectDialog(
+            title = "구매 도서 목록",
+            desc = "Choose language",
+            items = listOf(
+                RadioItem(0, "트리니티", null),
+                RadioItem(0, "통합 민사소송법", "이창한 저"),
+                RadioItem(0, "Hide titles and descriptions to give a neat look", "Hide titles and descriptions to give a neat look. Recommended after the numbers got familiar to you, as it might be hard to interpret information."),
+            ),
+            onClickNegative = {  },
+            onClickPositive = {  }
+        )
     }
 }
 

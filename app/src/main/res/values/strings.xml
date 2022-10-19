@@ -73,12 +73,12 @@
     <string name="pref_help_simple_view">Hide titles and descriptions to give a neat look. Recommended after the numbers got familiar to you, as it might be hard to interpret information.</string>
     <string name="pref_title_auto_refresh">Auto refresh</string>
     <string name="pref_desc_auto_refresh">Refresh when returning to app after 1 minute.</string>
-    <string name="pref_help_auto_refresh">By default, the app refreshes when it is terminated(by pressing back) then reopened. Additionally, with auto refresh enabled, the app refreshes when you return to app from Task Switcher or from Home.\nNote that it won\'t auto-refresh within a minute. You can always refresh manually if you want to.\nAlso note that refreshing is to check new data, not to create new data. If KMA has not released new data yet(which is done every hour), information won\'t change.</string>
+    <string name="pref_help_auto_refresh">By default, the app refreshes when it is terminated(by pressing back) then reopened. Additionally, with auto refresh enabled, the app refreshes when you return to app from Task Switcher or from Home.\n\nNote that it won\'t auto-refresh within a minute.You can always refresh manually if you want to.\n\nAlso note that refreshing is to check new data, not to create new data. If KMA has not released new data yet(which is done every hour), information won\'t change.</string>
     <string name="toast_kma_na">KMA data not available, which is uploaded every hour.</string>
     <string name="toast_error_json">An error occurred while processing KMA data.</string>
-    <string name="pref_title_daybreak_mode">Daybreak-Daytime representation</string>
+    <string name="pref_title_daybreak_mode">Daybreak mode</string>
     <string name="pref_desc_daybreak_mode">Show daily temperatures in the lowest to the highest order.</string>
-    <string name="pref_help_daybreak_mode">During a day, the lowest temperature occurs first(e.g. 5 AM) then the highest temperature comes after(e.g. 2 PM). Therefore, it might be more reasonable to represent the lowest temperature first then the highest temperature.\nWith this mode enabled, the \"Daybreak temperature\"(the lowest) is shown at the top and the \"Heat built-up\"(the highest) is shown at the bottom.</string>
+    <string name="pref_help_daybreak_mode">During a day, the lowest temperature occurs first(e.g. 5 AM) then the highest temperature comes after(e.g. 2 PM). Therefore, it might be more reasonable to represent the lowest temperature first then the highest temperature.\n\nWith this mode enabled, the \"Daybreak temperature\"(the lowest) is shown at the top and the \"Heat built-up\"(the highest) is shown at the bottom.</string>
     <string name="daily_daybreak">Daybreak</string>
     <string name="daily_heat">Heat built-up</string>
     <string name="pref_title_language">Language</string>
@@ -87,6 +87,7 @@
     <string name="radio_lang_en" translatable="false">English</string>
     <string name="radio_lang_kr" translatable="false">한국어</string>
     <string name="share_app_message_0">\nCompare today\'s weather with yesterday\'s.&#129488;</string>
-    <string name="share_app_message_1">\n&#127774;&#127777;Compare today\'s weather with yesterday\'s.</string>
+    <string name="share_app_message_1">\nCompare today\'s weather with yesterday\'s.&#127774;&#127777;</string>
     <string name="share_app_guide">Choose an app</string>
+    <string name="dialog_title_language">Choose language</string>
 </resources>
