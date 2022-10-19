@@ -175,7 +175,7 @@ class WeatherViewModel(
                 while (trialCount < NETWORK_MAX_RETRY) {
                     try {
                         withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
-                            val job = launch(defaultDispatcher) {
+                            val networkJob = launch(defaultDispatcher) {
                                 val today: String = formatToKmaDate(getCurrentKoreanDateTime())
                                 val latestVillageBaseTime = getKmaBaseTime(roundOff = VILLAGE)  // 2:00 for 2:11 ~ 5:10
                                 val latestHourlyBaseTime = getKmaBaseTime(roundOff = HOUR)  // 2:00 for 3:00 ~ 3:59
@@ -195,6 +195,16 @@ class WeatherViewModel(
                                 var todayHighTempResponse: Deferred<Response<ForecastResponse>>? = null
 
                                 val fetchingStartTime = System.currentTimeMillis()
+
+                                withContext(retrofitDispatcher) {
+                                    WeatherApi.service.getVillageWeather(
+                                        baseDate = latestVillageBaseTime.date,
+                                        baseTime = latestVillageBaseTime.hour,
+                                        numOfRows = 1000,
+                                        nx = baseCoordinatesXy.nx,
+                                        ny = baseCoordinatesXy.ny,
+                                    )
+                                }  // testtest
 
                                 // Useful for causing timeout(with multiple requests and awaits.
                                 // The largest chunk, at most 290 + 290 + (290 - 72) + 2 * 3, which is about 800.
@@ -645,7 +655,7 @@ class WeatherViewModel(
                                 // Refresh the rainfall status.
                                 launch { refreshRainfall(todayHourlyData, futureTodayData) }
                             }
-                            job.join()
+                            networkJob.join()
                             adjustTodayCharTemp()
                             buildDailyTemps()
                         }
@@ -680,9 +690,11 @@ class WeatherViewModel(
             }
 
             kmaJob.invokeOnCompletion {
-                Log.d(TAG, "kmaJob completed.")
-                _isRefreshing.value = false
-                _showLandingScreen.value = false
+                if (!kmaJob.isCancelled) {
+                    Log.d(TAG, "kmaJob completed without cancelled.")
+                    _isRefreshing.value = false
+                    _showLandingScreen.value = false
+                }
             }
         }
     }
@@ -975,6 +987,7 @@ class WeatherViewModel(
                         delayDismissLoading((160..240).random().toLong())
                         _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
                     }
+                    requestAllWeatherData()  // testtest
                 }
             } ?: kotlin.run {
                 Log.d(TAG, "However, the ViewModel doesn't hold any data.")
