@@ -104,7 +104,7 @@ class MainActivity : ComponentActivity() {
                     ) { showLandingScreenState ->
                         if (showLandingScreenState) {
                             LandingScreen(
-                                timeout = 2400L,
+                                timeout = 3200L,
                                 onTimeout = { viewModel.onLandingScreenTimeout() },
                             )
                         } else {
@@ -201,7 +201,7 @@ class MainActivity : ComponentActivity() {
         if (id > 0) {
             try {
                 runOnUiThread {
-                    Toast.makeText(this, getString(id), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(id), Toast.LENGTH_LONG).show()
                 }
             } catch (e: Resources.NotFoundException) {
                 Log.e(TAG, "Toast res id invalid.")

@@ -75,4 +75,5 @@
     <string name="pref_desc_auto_refresh">Refresh when returning to app after 1 minute.</string>
     <string name="pref_help_auto_refresh">By default, the app refreshes when it is terminated(by pressing back) then reopened. Additionally, with auto refresh enabled, the app refreshes when you return to app from Task Switcher or from Home.\nNote that it won\'t auto-refresh within a minute. You can always refresh manually if you want to.\nAlso note that refreshing is to check new data, not to create new data. If KMA has not released new data yet(which is done every hour), information won\'t change.</string>
     <string name="toast_kma_na">KMA data not available, which is uploaded every hour.</string>
+    <string name="toast_error_json">An error occurred while processing KMA data.</string>
 </resources>

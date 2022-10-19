@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.pm.PackageManager
 import android.os.Looper
 import android.util.Log
+import android.util.MalformedJsonException
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.ActivityCompat
@@ -195,16 +196,6 @@ class WeatherViewModel(
                                 var todayHighTempResponse: Deferred<Response<ForecastResponse>>? = null
 
                                 val fetchingStartTime = System.currentTimeMillis()
-
-                                withContext(retrofitDispatcher) {
-                                    WeatherApi.service.getVillageWeather(
-                                        baseDate = latestVillageBaseTime.date,
-                                        baseTime = latestVillageBaseTime.hour,
-                                        numOfRows = 1000,
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
-                                    )
-                                }  // testtest
 
                                 // Useful for causing timeout(with multiple requests and awaits.
                                 // The largest chunk, at most 290 + 290 + (290 - 72) + 2 * 3, which is about 800.
@@ -554,7 +545,7 @@ class WeatherViewModel(
                                         }
                                     }
 
-                                    if (todayHighTempData.isEmpty()) {
+                                    if (todayHighTempData.isEmpty() && (latestVillageBaseTime.hour.toInt() >= highTempBaseTime.toInt())) {
                                         Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "List empty.")
                                         hasEmptyList = true
                                     } else {
@@ -566,7 +557,7 @@ class WeatherViewModel(
                                         }
                                     }
 
-                                    if (todayLowTempData.isEmpty()) {
+                                    if (todayLowTempData.isEmpty() && (latestVillageBaseTime.hour.toInt() >= lowTempBaseTime.toInt())) {
                                         Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "List empty.")
                                         hasEmptyList = true
                                     } else {
@@ -675,8 +666,12 @@ class WeatherViewModel(
                         when (e) {
                             is CancellationException -> Log.d(TAG, "Retrieving weather data cancelled.")
                             is UnknownHostException -> _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_network)
+                            is MalformedJsonException -> {
+                                Log.e(TAG, "Cannot process weather data.", e)
+                                _toastMessage.value = OneShotEvent(R.string.toast_error_json)
+                            }
                             else -> {
-                                Log.e(TAG, "Cannot retrieve weather data.\n$e")
+                                Log.e(TAG, "Cannot retrieve weather data.", e)
                                 _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_general)
                             }
                         }
@@ -923,15 +918,6 @@ class WeatherViewModel(
         }
     }
 
-    private fun delayDismissLoading(milliSec: Long) {
-        // Suspend functions will do their own thread confinement properly.
-        // So launching on another dispatcher will introduce at least 2 extra thread switches.
-        viewModelScope.launch {
-            delay(milliSec)
-            if (kmaJob.isCompleted) _isRefreshing.value = false
-        }
-    }
-
     /**
      * Start location update and eventually retrieve new weather data based on the location.
      * */
@@ -984,10 +970,9 @@ class WeatherViewModel(
                 } else {
                     Log.d(TAG, "The data are up-to-date as well.")
                     if (!isImplicit) {
-                        delayDismissLoading((160..240).random().toLong())
+                        if (kmaJob.isCompleted) _isRefreshing.value = false
                         _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
                     }
-                    requestAllWeatherData()  // testtest
                 }
             } ?: kotlin.run {
                 Log.d(TAG, "However, the ViewModel doesn't hold any data.")
