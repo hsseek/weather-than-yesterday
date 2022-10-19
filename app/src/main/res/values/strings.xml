@@ -86,4 +86,7 @@
     <string name="radio_lang_system">System language</string>
     <string name="radio_lang_en" translatable="false">English</string>
     <string name="radio_lang_kr" translatable="false">한국어</string>
+    <string name="share_app_message_0">\nCompare today\'s weather with yesterday\'s.&#129488;</string>
+    <string name="share_app_message_1">\n&#127774;&#127777;Compare today\'s weather with yesterday\'s.</string>
+    <string name="share_app_guide">Choose an app</string>
 </resources>

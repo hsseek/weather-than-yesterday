@@ -254,7 +254,6 @@ class MainActivity : ComponentActivity() {
         // Regardless of the result, the launcher dialog has been dismissed.
     }
 
-    // TODO: SEPARATE
     @Composable
     private fun MainScreen(modifier: Modifier) {
         // Make the status bar transparent.
@@ -424,11 +423,22 @@ class MainActivity : ComponentActivity() {
             expanded = expanded,
             onDismissRequest = { onDismissRequest() }
         ) {
-            /*DropdownMenuItem(onClick = {
+            DropdownMenuItem(onClick = {
                 onDismissRequest()
-            }) {  // TODO: Use an implicit intent with extras.
+                val messageCandidates = listOf(
+                    R.string.share_app_message_0,
+
+                )
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, getString(R.string.app_name))
+                    putExtra(Intent.EXTRA_TEXT, getString(messageCandidates.random()))
+                }
+                startActivity(Intent.createChooser(intent, getString(R.string.share_app_guide)))
+
+            }) {
                 Text(text = stringResource(R.string.topbar_share_app))
-            }*/
+            }
 
             DropdownMenuItem(onClick = {
                 onDismissRequest()

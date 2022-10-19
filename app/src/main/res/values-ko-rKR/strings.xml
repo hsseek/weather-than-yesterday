@@ -82,4 +82,7 @@
     <string name="pref_title_language">언어</string>
     <string name="pref_desc_language">Language</string>
     <string name="radio_lang_system">시스템 설정 언어</string>
+    <string name="share_app_guide">공유할 앱 선택</string>
+    <string name="share_app_message_0">\n오늘 날씨를 어제 날씨와 비교!&#129488;</string>
+    <string name="share_app_message_1">\n&#127774;&#127777;오늘 날씨를 어제 날씨와 비교!</string>
 </resources>
