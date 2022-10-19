@@ -30,12 +30,14 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
@@ -277,19 +279,62 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             ) {
-                Column(
-                    modifier = modifier
-                        .padding(padding)
-                        .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    val sky: Sky by viewModel.rainfallStatus.collectAsState()
+                val enlargedFontSize = 178.sp
 
-                    LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.locatingMethod)
-                    CurrentTemperature(modifier, viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
-                    DailyTemperatures(modifier, viewModel.isSimplified, viewModel.dailyTemps)
-                    RainfallStatus(modifier, viewModel.isSimplified, sky)
-                    CustomScreen(modifier)
+                when (LocalConfiguration.current.orientation) {
+                    Configuration.ORIENTATION_LANDSCAPE -> {
+                        Column(
+                            modifier = modifier
+                                .padding(padding)
+                                .verticalScroll(rememberScrollState()),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                            val spacerCenter = 70.dp
+                            val spacer12 = 25.dp
+                            val spacer23 = 40.dp
+                            val leftHalfVerticalOffset = (-8).dp
+
+                            Row (
+                                horizontalArrangement = Arrangement.SpaceAround
+                            ) {
+                                val mod = Modifier.fillMaxWidth(.5f)
+                                CurrentTemperature(modifier.offset(y = leftHalfVerticalOffset), viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday, enlargedFontSize)
+                                Spacer(modifier = Modifier.width(spacerCenter))
+                                Column(
+                                    modifier = mod,
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.locatingMethod)
+                                    Spacer(modifier = Modifier.height(spacer12))
+                                    RainfallStatus(modifier, viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
+                                    Spacer(modifier = Modifier.height(spacer23))
+                                    DailyTemperatures(modifier, viewModel.isSimplified, viewModel.dailyTemps)
+                                }
+                            }
+                            CustomScreen(modifier)
+                        }
+                    }
+                    else -> {
+                        Column(
+                            modifier = modifier
+                                .padding(padding)
+                                .verticalScroll(rememberScrollState()),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            val gapFromContent = 30.dp
+
+                            LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.locatingMethod)
+                            if (viewModel.isSimplified) {
+                                CurrentTemperature(modifier, viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday, enlargedFontSize)
+                            } else {
+                                CurrentTemperature(modifier, viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
+                            }
+                            DailyTemperatures(modifier, viewModel.isSimplified, viewModel.dailyTemps)
+                            RainfallStatus(modifier, viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
+                            Spacer(modifier = modifier.height(gapFromContent))
+                            CustomScreen(modifier)
+                        }
+                    }
                 }
             }
         }
@@ -303,8 +348,6 @@ class MainActivity : ComponentActivity() {
             modifier = modifier,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            val gapFromContent = 30.dp
-            Spacer(modifier = modifier.height(gapFromContent))
             Box(
                 modifier = modifier
                     .fillMaxWidth()
@@ -325,32 +368,62 @@ class MainActivity : ComponentActivity() {
     ) {
         val letterFraction = .4f
         val iconFraction = .18f
-        val space = 30.dp
 
         LaunchedEffect(true) {
             delay(timeout)
             onTimeout()
         }
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.ic_thermostat),
-                contentDescription = null,
-                contentScale = ContentScale.FillWidth,
-                modifier = Modifier
-                    .fillMaxWidth(iconFraction),
-            )
-            Spacer(modifier = Modifier.height(space))
-            Image(
-                painter = letter,
-                contentDescription = null,
-                contentScale = ContentScale.FillWidth,
-                modifier = Modifier
-                    .fillMaxWidth(letterFraction),
-            )
+        when (LocalConfiguration.current.orientation) {
+            Configuration.ORIENTATION_LANDSCAPE -> {
+                val space = 60.dp
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_thermostat),
+                        contentDescription = null,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier
+                            .fillMaxWidth(iconFraction),
+                    )
+                    Spacer(modifier = Modifier.width(space))
+                    Image(
+                        painter = letter,
+                        contentDescription = null,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier
+                            .fillMaxWidth(letterFraction),
+                    )
+                }
+            }
+            else -> {
+                val space = 30.dp
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_thermostat),
+                        contentDescription = null,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier
+                            .fillMaxWidth(iconFraction),
+                    )
+                    Spacer(modifier = Modifier.height(space))
+                    Image(
+                        painter = letter,
+                        contentDescription = null,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier
+                            .fillMaxWidth(letterFraction),
+                    )
+                }
+            }
         }
     }
 
@@ -556,6 +629,7 @@ class MainActivity : ComponentActivity() {
         isSimplified: Boolean,
         hourlyTempDiff: Int?,
         currentTemp: Int?,
+        hugeFontSize: TextUnit = Typography.h1.fontSize,
     ) {
         val columnTopPadding = 16.dp
         val titleBottomPadding = 4.dp
@@ -615,12 +689,12 @@ class MainActivity : ComponentActivity() {
             }
 
             // The temperature difference(HUGE)
-            TemperatureDifference(hourlyTempDiff)
+            TemperatureDifference(hourlyTempDiff, hugeFontSize)
         }
     }
 
     @Composable
-    private fun TemperatureDifference(hourlyTempDiff: Int?) {
+    private fun TemperatureDifference(hourlyTempDiff: Int?, hugeFontSize: TextUnit) {
         val tempDiffVerticalOffset = (-20).dp
         val degreeUnitTopPadding = 46.dp
         val degreeUnitStartPadding = 8.dp
@@ -643,6 +717,7 @@ class MainActivity : ComponentActivity() {
                 Text(
                     text = diffString,
                     style = Typography.h1,
+                    fontSize = hugeFontSize,
                     color = color,
                 )
                 if (hourlyTempDiff != 0) {
