@@ -18,6 +18,7 @@ class UserPreferencesRepository(private val context: Context) {
         val LOCATING_METHOD_CODE = intPreferencesKey("locating_method_code")
         val SIMPLE_VIEW_CODE = booleanPreferencesKey("simple_view_code")
         val AUTO_REFRESH_CODE = booleanPreferencesKey("auto_refresh_code")
+        val DAYBREAK_CODE = booleanPreferencesKey("daybreak_code")
     }
 
     val preferencesFlow: Flow<UserPreferences> = context.dataStore.data
@@ -31,11 +32,13 @@ class UserPreferencesRepository(private val context: Context) {
             val locatingMethodCode = preferences[PreferencesKeys.LOCATING_METHOD_CODE] ?: LocatingMethod.Auto.code
             val isSimplified = preferences[PreferencesKeys.SIMPLE_VIEW_CODE] ?: false
             val isAutoRefresh = preferences[PreferencesKeys.AUTO_REFRESH_CODE] ?: false
+            val isDaybreak = preferences[PreferencesKeys.DAYBREAK_CODE] ?: false
 
             UserPreferences(
                 locatingMethodCode,
                 isSimplified,
-                isAutoRefresh
+                isAutoRefresh,
+                isDaybreak,
             )
         }
 
@@ -47,8 +50,7 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateSimpleViewEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
-            val status = if (enabled) "enabled" else "disabled"
-            Log.d(TAG, "Simple mode: $status")
+            Log.d(TAG, "Simple mode enabled: $enabled")
             preferences[PreferencesKeys.SIMPLE_VIEW_CODE] = enabled
         }
     }
@@ -60,10 +62,19 @@ class UserPreferencesRepository(private val context: Context) {
             preferences[PreferencesKeys.AUTO_REFRESH_CODE] = enabled
         }
     }
+
+    suspend fun updateDaybreakEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            val status = if (enabled) "enabled" else "disabled"
+            Log.d(TAG, "Daybreak mode: $status")
+            preferences[PreferencesKeys.DAYBREAK_CODE] = enabled
+        }
+    }
 }
 
 data class UserPreferences(
     val locatingMethodCode: Int,
     val isSimplified: Boolean,
     val isAutoRefresh: Boolean,
+    val isDaybreak: Boolean,
 )

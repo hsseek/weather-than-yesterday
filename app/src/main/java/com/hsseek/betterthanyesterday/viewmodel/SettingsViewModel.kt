@@ -26,17 +26,33 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
     val showAutoRefreshHelp: Boolean
         get() = _showAutoRefreshHelp.value
 
-    fun updateSimpleViewEnabled(checked: Boolean) {
-        _isSimplified.value = checked
+    // Daybreak mode
+    private val _isDaybreak = mutableStateOf(false)
+    val isDaybreak: Boolean
+        get() = _isDaybreak.value
+
+    private val _showDaybreakHelp = mutableStateOf(false)
+    val showDaybreakHelp: Boolean
+        get() = _showDaybreakHelp.value
+
+    fun updateSimpleViewEnabled(enabled: Boolean) {
+        _isSimplified.value = enabled
         viewModelScope.launch {
-            userPreferencesRepository.updateSimpleViewEnabled(checked)
+            userPreferencesRepository.updateSimpleViewEnabled(enabled)
         }
     }
 
-    fun updateAutoRefreshEnabled(checked: Boolean) {
-        _isAutoRefresh.value = checked
+    fun updateAutoRefreshEnabled(enabled: Boolean) {
+        _isAutoRefresh.value = enabled
         viewModelScope.launch {
-            userPreferencesRepository.updateAutoRefreshEnabled(checked)
+            userPreferencesRepository.updateAutoRefreshEnabled(enabled)
+        }
+    }
+
+    fun updateDaybreakEnabled(enabled: Boolean) {
+        _isDaybreak.value = enabled
+        viewModelScope.launch {
+            userPreferencesRepository.updateDaybreakEnabled(enabled)
         }
     }
 
@@ -54,6 +70,14 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
 
     fun onDismissAutoRefreshHelp() {
         _showAutoRefreshHelp.value = false
+    }
+
+    fun onClickDaybreakHelp() {
+        _showDaybreakHelp.value = true
+    }
+
+    fun onDismissDaybreakHelp() {
+        _showDaybreakHelp.value = false
     }
 }
 

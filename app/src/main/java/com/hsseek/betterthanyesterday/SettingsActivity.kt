@@ -50,6 +50,7 @@ class SettingsActivity : ComponentActivity() {
             val prefs = userPrefsRepo.preferencesFlow.first()
             viewModel.updateSimpleViewEnabled(prefs.isSimplified)
             viewModel.updateAutoRefreshEnabled(prefs.isAutoRefresh)
+            viewModel.updateDaybreakEnabled(prefs.isDaybreak)
         }
 
         setContent {
@@ -61,6 +62,7 @@ class SettingsActivity : ComponentActivity() {
                 ) {
                     MainScreen(this@SettingsActivity, viewModel)
 
+                    // Help dialogs
                     if (viewModel.showSimpleViewHelp) {
                         HelpDialog(
                             title = stringResource(id = R.string.pref_title_simple_mode),
@@ -74,6 +76,14 @@ class SettingsActivity : ComponentActivity() {
                             title = stringResource(id = R.string.pref_title_auto_refresh),
                             desc = stringResource(id = R.string.pref_help_auto_refresh),
                             onDismissRequest = { viewModel.onDismissAutoRefreshHelp() }
+                        )
+                    }
+
+                    if (viewModel.showDaybreakHelp) {
+                        HelpDialog(
+                            title = stringResource(id = R.string.pref_title_daybreak_mode),
+                            desc = stringResource(id = R.string.pref_help_daybreak_mode),
+                            onDismissRequest = { viewModel.onDismissDaybreakHelp() }
                         )
                     }
                 }
@@ -92,6 +102,7 @@ private fun MainScreen(
         content = { padding ->
             val modifier = Modifier.padding(padding)
             Column(modifier = modifier) {
+                // Disabled
                 // Simple View
                 PreferenceToggleRow(
                     title = stringResource(R.string.pref_title_simple_mode),
@@ -109,6 +120,15 @@ private fun MainScreen(
                     onClickHelp = { viewModel.onClickAutoRefreshHelp() },
                     checked = viewModel.isAutoRefresh,
                     onCheckedChange = { isChecked -> viewModel.updateAutoRefreshEnabled(isChecked) },
+                )
+
+                // Daybreak mode
+                PreferenceToggleRow(
+                    title = stringResource(R.string.pref_title_daybreak_mode),
+                    description = stringResource(R.string.pref_desc_daybreak_mode),
+                    onClickHelp = { viewModel.onClickDaybreakHelp() },
+                    checked = viewModel.isDaybreak,
+                    onCheckedChange = { isChecked -> viewModel.updateDaybreakEnabled(isChecked) },
                 )
             }
         }
@@ -289,11 +309,14 @@ private fun PreferenceRowHeader(
 
         val align = TextAlign.Start
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
                 text = title,
                 style = titleStyle,
                 textAlign = align,
+                modifier = Modifier.weight(1f),
             )
             if (onClickHelp != null) HelpButton(onClickHelp)
         }
@@ -364,7 +387,7 @@ fun HelpDialogPreview() {
     }
 }
 
-@Preview(showBackground = true, heightDp = 420)
+@Preview(showBackground = true)
 //@Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 420, heightDp = 180, showBackground = true)
 @Composable
 fun SettingsRowPreview() {
@@ -372,7 +395,7 @@ fun SettingsRowPreview() {
         Surface {
             Column {
                 PreferenceDialogRow(
-                    title = "Language",
+                    title = "Hide titles and descriptions to give a neat look",
                     description = "You can set language.",
                     onClickHelp = { }) {
                 }
@@ -382,7 +405,7 @@ fun SettingsRowPreview() {
                     onClickHelp = { }) {
                 }
                 PreferenceToggleRow(
-                    title = "Simple View Mode",
+                    title = "Hide titles and descriptions to give a neat look",
                     description = "Hide titles and descriptions to give a neat look. Recommended after the numbers got familiar to you, as it might be hard to interpret information.",
                     onClickHelp = { },
                     checked = true,

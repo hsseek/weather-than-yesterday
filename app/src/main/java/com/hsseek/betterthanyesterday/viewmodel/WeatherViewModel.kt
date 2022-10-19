@@ -93,6 +93,11 @@ class WeatherViewModel(
     var isAutoRefresh: Boolean = false
         private set
 
+    private val _isDaybreakMode = mutableStateOf(false)
+    val isDaybreakMode: Boolean
+        get() = _isDaybreakMode.value
+
+    // Coordinates for forecast
     private var baseCoordinatesXy = CoordinatesXy(60, 127)
 
     // Variables regarding location.
@@ -809,8 +814,6 @@ class WeatherViewModel(
             it.category == HOURLY_TEMPERATURE_TAG || it.category == LOW_TEMPERATURE_TAG
         }?.minByOrNull { it.fcstValue.toFloat() }?.fcstValue?.toFloat()?.roundToInt()
         lowestTemps[index] = lowest
-
-        Log.d(TAG, "D${day.dayOffset} ${CharacteristicTempType.Highest.descriptor} ${CharacteristicTempType.Lowest.descriptor}: $highest, $lowest")
     }
 
     private fun refreshTodayCharacteristicTemp(
@@ -842,7 +845,6 @@ class WeatherViewModel(
                 }
             }
         }
-        Log.i(TAG, "D0 ${CharacteristicTempType.Highest.descriptor} ${CharacteristicTempType.Lowest.descriptor}: ${highestTemps[1]}, ${lowestTemps[1]}")
     }
 
     private fun compareAndUpdateFormerDailyTemp(
@@ -1066,6 +1068,11 @@ class WeatherViewModel(
     fun updateAutoRefreshEnabled(enabled: Boolean) {
         Log.d(TAG, "Auto refresh enabled: $enabled")
         isAutoRefresh = enabled
+    }
+
+    fun updateDaybreakEnabled(enabled: Boolean) {
+        Log.d(TAG, "Daybreak mode enabled: $enabled")
+        _isDaybreakMode.value = enabled
     }
 
     companion object {

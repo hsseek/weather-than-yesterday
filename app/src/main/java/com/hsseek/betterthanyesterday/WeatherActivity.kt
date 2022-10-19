@@ -82,6 +82,7 @@ class MainActivity : ComponentActivity() {
             prefsRepo.preferencesFlow.collect { userPrefs ->
                 viewModel.updateSimplifiedEnabled(userPrefs.isSimplified)
                 viewModel.updateAutoRefreshEnabled(userPrefs.isAutoRefresh)
+                viewModel.updateDaybreakEnabled(userPrefs.isDaybreak)
             }
         }
 
@@ -642,7 +643,6 @@ class MainActivity : ComponentActivity() {
                 .padding(horizontal = columnPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-
             // Font colors for highest temperatures
             val warmColor: Color = if (isSystemInDarkTheme()) RedTint700 else RedShade200
             val hotColor: Color = if (isSystemInDarkTheme()) RedTint400 else Red000
@@ -654,6 +654,7 @@ class MainActivity : ComponentActivity() {
             // Values for today
             val todayMark: String
             val fontWeight: FontWeight
+            val plainColor = MaterialTheme.colors.onBackground
             val highTempColor: Color
             val lowTempColor: Color
 
@@ -685,19 +686,33 @@ class MainActivity : ComponentActivity() {
                 Text(text = dailyTemp?.day ?: "", fontWeight = fontWeight)
             }
 
-            // Highest temperatures
-            Text(
-                text = dailyTemp?.highest ?: stringResource(id = R.string.daily_highest),
-                fontWeight = fontWeight,
-                color = if (dailyTemp != null) highTempColor else MaterialTheme.colors.onBackground,
-            )
-
-            // Lowest temperatures
-            Text(
-                text = dailyTemp?.lowest ?: stringResource(id = R.string.daily_lowest),
-                fontWeight = fontWeight,
-                color = if (dailyTemp != null) lowTempColor else MaterialTheme.colors.onBackground,
-            )
+            if (!viewModel.isDaybreakMode) {
+                // Highest temperatures
+                Text(
+                    text = dailyTemp?.highest ?: stringResource(id = R.string.daily_highest),
+                    fontWeight = fontWeight,
+                    color = if (dailyTemp != null) highTempColor else plainColor,
+                )
+                // Lowest temperatures
+                Text(
+                    text = dailyTemp?.lowest ?: stringResource(id = R.string.daily_lowest),
+                    fontWeight = fontWeight,
+                    color = if (dailyTemp != null) lowTempColor else plainColor,
+                )
+            } else {
+                // Lowest temperatures
+                Text(
+                    text = dailyTemp?.lowest ?: stringResource(id = R.string.daily_daybreak),
+                    fontWeight = fontWeight,
+                    color = if (dailyTemp != null) lowTempColor else plainColor,
+                )
+                // Highest temperatures
+                Text(
+                    text = dailyTemp?.highest ?: stringResource(id = R.string.daily_heat),
+                    fontWeight = fontWeight,
+                    color = if (dailyTemp != null) highTempColor else plainColor,
+                )
+            }
         }
     }
 
