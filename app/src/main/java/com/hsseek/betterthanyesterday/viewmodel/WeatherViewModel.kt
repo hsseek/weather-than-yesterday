@@ -541,7 +541,9 @@ class WeatherViewModel(
                                     } else {
                                         for (i in todayHourlyData) {
                                             size += 1
-                                            Log.d("D${DayOfInterest.Today.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
+                                            if (i.category == HOURLY_TEMPERATURE_TAG || i.category == RAIN_TAG) {
+                                                Log.d("D${DayOfInterest.Today.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
+                                            }
                                         }
                                     }
 
@@ -798,13 +800,17 @@ class WeatherViewModel(
         lowTempCandidates: List<ForecastResponse.Item>?,
     ) {
         val index = day.dayOffset + 1  // Yesterday's data go to [0].
-        highestTemps[index] = highTempCandidates?.filter {
+        val highest = highTempCandidates?.filter {
             it.category == HOURLY_TEMPERATURE_TAG || it.category == HIGH_TEMPERATURE_TAG
         }?.maxByOrNull { it.fcstValue.toFloat() }?.fcstValue?.toFloat()?.roundToInt()  // TMN, TMX values are Floats.
+        highestTemps[index] = highest
 
-        lowestTemps[index] = lowTempCandidates?.filter {
+        val lowest = lowTempCandidates?.filter {
             it.category == HOURLY_TEMPERATURE_TAG || it.category == LOW_TEMPERATURE_TAG
         }?.minByOrNull { it.fcstValue.toFloat() }?.fcstValue?.toFloat()?.roundToInt()
+        lowestTemps[index] = lowest
+
+        Log.d(TAG, "D${day.dayOffset} ${CharacteristicTempType.Highest.descriptor} ${CharacteristicTempType.Lowest.descriptor}: $highest, $lowest")
     }
 
     private fun refreshTodayCharacteristicTemp(
@@ -814,18 +820,29 @@ class WeatherViewModel(
         futureTodayData: List<ForecastResponse.Item>,
     ) {
         val data = todayHighTempData + todayLowTempData + todayHourlyData + futureTodayData
+        var isPrimed = false
 
-        for (item in data) {
+        // Using minOf(...) or maxOf(...) requires iterate each time, which is inefficient.
+        data.forEach { item ->
             if (item.category == VILLAGE_TEMPERATURE_TAG
                 || item.category == HOURLY_TEMPERATURE_TAG
                 || item.category == HIGH_TEMPERATURE_TAG
                 || item.category == LOW_TEMPERATURE_TAG
             ) {
-                // fcstValues of TMX, TMN are Float, so round to Integer.
-                compareAndUpdateFormerDailyTemp(DayOfInterest.Today, CharacteristicTempType.Highest, item.fcstValue.toFloat().roundToInt())
-                compareAndUpdateFormerDailyTemp(DayOfInterest.Today, CharacteristicTempType.Lowest, item.fcstValue.toFloat().roundToInt())
+                val temperature = item.fcstValue.toFloat().roundToInt()
+
+                if (!isPrimed) {
+                    lowestTemps[1] = temperature
+                    highestTemps[1] = temperature
+                    isPrimed = true
+                } else {
+                    // fcstValues of TMX, TMN are Float, so round to Integer.
+                    compareAndUpdateFormerDailyTemp(DayOfInterest.Today, CharacteristicTempType.Highest, temperature)
+                    compareAndUpdateFormerDailyTemp(DayOfInterest.Today, CharacteristicTempType.Lowest, temperature)
+                }
             }
         }
+        Log.i(TAG, "D0 ${CharacteristicTempType.Highest.descriptor} ${CharacteristicTempType.Lowest.descriptor}: ${highestTemps[1]}, ${lowestTemps[1]}")
     }
 
     private fun compareAndUpdateFormerDailyTemp(
@@ -903,8 +920,19 @@ class WeatherViewModel(
      */
     private fun adjustTodayCharTemp() {
         hourlyTempToday?.let { tt ->
-            highestTemps[1]?.let { if (tt > it) highestTemps[1] = tt }
-            lowestTemps[1]?.let { if (tt < it) lowestTemps[1] = tt }
+            highestTemps[1]?.let { ht ->
+                if (tt > ht) {
+                    highestTemps[1] = tt
+                    Log.d(TAG, "Overridden by $HOURLY_TEMPERATURE_TAG: $ht -> $tt")
+                }
+
+            }
+            lowestTemps[1]?.let { lt ->
+                if (tt < lt) {
+                    lowestTemps[1] = tt
+                    Log.d(TAG, "Overridden by $HOURLY_TEMPERATURE_TAG: $lt -> $tt")
+                }
+            }
         }
     }
 
