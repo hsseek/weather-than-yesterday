@@ -1093,6 +1093,13 @@ class WeatherViewModel(
         }
     }
 
+    fun stopRefreshing() {
+        kmaJob.cancel()
+        // The progress indicator should be explicitly reassigned,
+        // as the loading indicator won't be dismissed when the Job is cancelled programmatically,
+        _isRefreshing.value = false
+    }
+
     companion object {
         private const val REQUEST_INTERVAL: Long = 60 * 60 * 1000
         val currentLocationRequest: LocationRequest = LocationRequest.create().apply {

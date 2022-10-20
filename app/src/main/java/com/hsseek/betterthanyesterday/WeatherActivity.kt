@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
@@ -66,7 +67,7 @@ import java.util.*
 
 private const val TAG = "WeatherActivity"
 
-class MainActivity : ComponentActivity() {
+class WeatherActivity : ComponentActivity() {
     private lateinit var viewModel: WeatherViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -136,6 +137,9 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
+                }
+                if (viewModel.isRefreshing) {
+                    BackHandler { viewModel.stopRefreshing() }
                 }
             }
         }
@@ -511,8 +515,8 @@ class MainActivity : ComponentActivity() {
         ) {
             DropdownMenuItem(onClick = {
                 onDismissRequest()
-                val intent = Intent(this@MainActivity, SettingsActivity::class.java)
-                this@MainActivity.startActivity(intent)
+                val intent = Intent(this@WeatherActivity, SettingsActivity::class.java)
+                this@WeatherActivity.startActivity(intent)
             }) {
                 Text(text = stringResource(R.string.title_activity_settings))
             }
@@ -527,8 +531,8 @@ class MainActivity : ComponentActivity() {
 
             DropdownMenuItem(onClick = {
                 onDismissRequest()
-                val intent = Intent(this@MainActivity, FaqActivity::class.java)
-                this@MainActivity.startActivity(intent)
+                val intent = Intent(this@WeatherActivity, FaqActivity::class.java)
+                this@WeatherActivity.startActivity(intent)
             }) {
                 Text(text = stringResource(R.string.topbar_help))
             }
@@ -956,7 +960,7 @@ class MainActivity : ComponentActivity() {
                             hourDescription = ""
                         } else {
                             hourDescription =
-                                getRainfallHourDescription(this@MainActivity, sky.startingHour, sky.endingHour)
+                                getRainfallHourDescription(this@WeatherActivity, sky.startingHour, sky.endingHour)
                             qualitative = when (sky) {
                                 is Rainy -> stringResource(R.string.today_rainy)
                                 is Snowy -> stringResource(R.string.today_snowy)
