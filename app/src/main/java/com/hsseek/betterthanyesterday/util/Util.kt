@@ -167,6 +167,8 @@ suspend fun createConfigurationWithStoredLocale(context: Context): Configuration
     return config
 }
 
+fun Int.toEmojiString(): String = String(Character.toChars(this))
+
 enum class KmaHourRoundOff {
     HOUR, VILLAGE
 }

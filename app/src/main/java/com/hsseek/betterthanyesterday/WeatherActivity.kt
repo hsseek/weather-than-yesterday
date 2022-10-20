@@ -305,7 +305,13 @@ class MainActivity : ComponentActivity() {
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
                                 val mod = Modifier.fillMaxWidth(.5f)
-                                CurrentTemperature(modifier.offset(y = leftHalfVerticalOffset), viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday, enlargedFontSize)
+                                CurrentTemperature(
+                                    modifier = modifier.offset(y = leftHalfVerticalOffset),
+                                    isSimplified = viewModel.isSimplified,
+                                    hourlyTempDiff = viewModel.hourlyTempDiff,
+                                    currentTemp = viewModel.hourlyTempToday,
+                                    hugeFontSize = enlargedFontSize,
+                                )
                                 Spacer(modifier = Modifier.width(spacerCenter))
                                 Column(
                                     modifier = mod,
@@ -513,17 +519,8 @@ class MainActivity : ComponentActivity() {
 
             DropdownMenuItem(onClick = {
                 onDismissRequest()
-                val messageCandidates = listOf(
-                    R.string.share_app_message_0,
-                    R.string.share_app_message_1,
-                )
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, getString(R.string.app_name))
-                    putExtra(Intent.EXTRA_TEXT, getString(messageCandidates.random()))
-                }
+                val intent = getSharingIntent()
                 startActivity(Intent.createChooser(intent, getString(R.string.share_app_guide)))
-
             }) {
                 Text(text = stringResource(R.string.topbar_share_app))
             }
@@ -537,6 +534,53 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun getSharingIntent(): Intent {
+        val tempDiff = viewModel.hourlyTempDiff
+        val currentTemp = viewModel.hourlyTempToday
+
+        val negativeEmojiCodes = listOf(
+            0x1F914,  // Thinking face 🤔
+            0x1F9D0,  // Monocle 🧐
+            0x1F615,  // Confused 😕
+        )
+        val positiveEmojiCodes = listOf(
+            0x1F609,  // Wink 😉
+        )
+
+        val negativeEmoji = negativeEmojiCodes.random().toEmojiString()
+        val thenDescription = "\"${getString(R.string.share_app_bad_before, currentTemp ?: 18)}\" $negativeEmoji"
+
+        val positiveEmoji = positiveEmojiCodes.random().toEmojiString()
+        val nowDescription = if (tempDiff != null && tempDiff != 0) {
+            "\"${getString(getTempDiffDescription(tempDiff), tempDiff)}\" $positiveEmoji"
+        } else {
+            "\"${getString(R.string.share_app_now_good_higher, 1)}\" $positiveEmoji"
+        }
+        val downloadLink = "https://blog.naver.com/seoulworkshop/222898712063"
+
+        val opening = getString(R.string.share_app_message_opening)
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, getString(R.string.app_name))
+            putExtra(
+                Intent.EXTRA_TEXT, "$opening\n\n" +
+                        "$thenDescription\n" +
+                        "$nowDescription\n\n" +
+                        downloadLink
+            )
+        }
+        return intent
+    }
+
+    private fun getTempDiffDescription(tempDiff: Int): Int =
+        if (tempDiff < 0) {
+            R.string.share_app_now_good_lower
+        } else {
+            R.string.share_app_now_good_higher
+            // R.string.current_temp_same: Don't. It's not showing the essence of the app.
+        }
 
     // https://google.github.io/accompanist/swiperefresh/
     @Composable

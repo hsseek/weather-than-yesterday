@@ -5,6 +5,7 @@
     <string name="desc_splash_screen">Splash screen</string>
     <string name="current_temp_title">Temperature status</string>
     <string name="current_temp_time">Forecast time:</string>
+    <string name="current_temp_value">Currently:</string>
     <string name="current_temp_higher">It\'s higher than yesterday by</string>
     <string name="current_temp_lower">It\'s lower than yesterday by</string>
     <string name="current_temp_same">It\'s the same as yesterday.</string>
@@ -60,7 +61,6 @@
     <string name="desc_overflow_menu">More menu</string>
     <string name="daily_highest">Highest</string>
     <string name="daily_lowest">Lowest</string>
-    <string name="current_temp_value">Currently:</string>
     <string name="refresh_up_to_date">Weather information is up-to-date.</string>
     <string name="weather_retrieving_failure_general">Cannot retrieve weather data.</string>
     <string name="weather_retrieving_failure_network">Please check your network status.</string>
@@ -86,8 +86,10 @@
     <string name="radio_lang_system">System language</string>
     <string name="radio_lang_en" translatable="false">English</string>
     <string name="radio_lang_kr" translatable="false">한국어</string>
-    <string name="share_app_message_0">\nCompare today\'s weather with yesterday\'s.&#129488;</string>
-    <string name="share_app_message_1">\nCompare today\'s weather with yesterday\'s.&#127774;&#127777;</string>
+    <string name="share_app_message_opening">Compare today\'s weather with yesterday\s.</string>
+    <string name="share_app_bad_before">The current temperature is %1$d degrees.</string>
+    <string name="share_app_now_good_higher">It\'s higher than yesterday by %1$d.</string>
+    <string name="share_app_now_good_lower">It\'s lower than yesterday by %1$d.</string>
     <string name="share_app_guide">Choose an app</string>
     <string name="dialog_title_language">Choose language</string>
 </resources>

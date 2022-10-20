@@ -29,15 +29,15 @@
     <string name="dialog_dismiss_ok">확인</string>
     <string name="region_auto">현재 위치</string>
     <string name="cities_auto">자동 설정</string>
-    <string name="region_captial">서울\u00B7인천\u00B7경기</string>
-    <string name="region_gangwon">강원</string>
-    <string name="region_south_gs">부산\u00B7울산\u00B7경남</string>
-    <string name="region_north_gs">대구\u00B7경북</string>
-    <string name="region_south_jl">광주\u00B7전남</string>
-    <string name="region_north_jl">전북</string>
-    <string name="region_jeju">제주도</string>
-    <string name="region_south_ch">대전\u00B7충남</string>
-    <string name="region_north_ch">충북</string>
+    <string name="region_captial">서울\u00B7경기\u00B7인천 지역</string>
+    <string name="region_gangwon">강원 지역</string>
+    <string name="region_south_gs">부산\u00B7울산\u00B7경남 지역</string>
+    <string name="region_north_gs">대구\u00B7경북 지역</string>
+    <string name="region_south_jl">광주\u00B7전남 지역</string>
+    <string name="region_north_jl">전북 지역</string>
+    <string name="region_jeju">제주도 지역</string>
+    <string name="region_south_ch">대전\u00B7충남 지역</string>
+    <string name="region_north_ch">충북 지역</string>
     <string name="region_dokdo">독도 지역</string>
     <string name="cities_captial">수원, 고양, 용인 등</string>
     <string name="cities_gangwon">원주, 춘천, 강릉 등</string>
@@ -83,7 +83,9 @@
     <string name="pref_desc_language">Language</string>
     <string name="radio_lang_system">시스템 설정 언어</string>
     <string name="share_app_guide">공유할 앱 선택</string>
-    <string name="share_app_message_0">\n오늘 날씨를 어제 날씨와 비교!&#129488;</string>
-    <string name="share_app_message_1">\n오늘 날씨를 어제 날씨와 비교!&#127774;&#127777;</string>
+    <string name="share_app_message_opening">\n어제 날씨와 비교해주는 날씨앱</string>
+    <string name="share_app_bad_before">현재 기온은 %1$d 도입니다.</string>
+    <string name="share_app_now_good_higher">어제보다 %1$d도 높습니다.</string>
+    <string name="share_app_now_good_lower">어제보다 %1$d도 낮습니다.</string>
     <string name="dialog_title_language">앱 표시 언어</string>
 </resources>
