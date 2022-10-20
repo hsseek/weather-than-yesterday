@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.datastore.preferences.core.*
 import com.hsseek.betterthanyesterday.App.Companion.dataStore
 import com.hsseek.betterthanyesterday.util.LocatingMethod
+import com.hsseek.betterthanyesterday.util.toEnablementString
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -42,36 +43,35 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateLocatingMethod(locatingMethod: LocatingMethod) {
         context.dataStore.edit { preferences ->
+            Log.d(TAG, "Locating method stored: ${locatingMethod.code}")
             preferences[PreferencesKeys.LOCATING_METHOD_CODE] = locatingMethod.code
         }
     }
 
     suspend fun updateLanguage(selectedCode: Int) {
         context.dataStore.edit { preferences ->
-            Log.d(TAG, "Language selected: $selectedCode")
+            Log.d(TAG, "Language stored: $selectedCode")
             preferences[PreferencesKeys.LANGUAGE_CODE] = selectedCode
         }
     }
 
     suspend fun updateSimpleViewEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
-            Log.d(TAG, "Simple mode enabled: $enabled")
+            Log.d(TAG, "Simple mode stored: ${enabled.toEnablementString()}")
             preferences[PreferencesKeys.SIMPLE_VIEW_CODE] = enabled
         }
     }
 
     suspend fun updateAutoRefreshEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
-            val status = if (enabled) "enabled" else "disabled"
-            Log.d(TAG, "Auto refresh: $status")
+            Log.d(TAG, "Auto refresh stored: ${enabled.toEnablementString()}")
             preferences[PreferencesKeys.AUTO_REFRESH_CODE] = enabled
         }
     }
 
     suspend fun updateDaybreakEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
-            val status = if (enabled) "enabled" else "disabled"
-            Log.d(TAG, "Daybreak mode: $status")
+            Log.d(TAG, "Daybreak mode stored: ${enabled.toEnablementString()}")
             preferences[PreferencesKeys.DAYBREAK_CODE] = enabled
         }
     }

@@ -173,6 +173,15 @@ enum class KmaHourRoundOff {
     HOUR, VILLAGE
 }
 
+fun getLocatingMethod(code: Int): LocatingMethod {
+    enumValues<LocatingMethod>().forEach {
+        if (code == it.code) return it
+    }
+    return LocatingMethod.Auto  // The default
+}
+
+fun Boolean.toEnablementString(): String = if (this) "enabled" else "disabled"
+
 enum class LocatingMethod(val code: Int, val regionId: Int, val citiesId: Int, val coordinates: CoordinatesXy?) {
     Auto(0, R.string.region_auto, R.string.cities_auto, null),
     Capital(1, R.string.region_captial, R.string.cities_captial, CoordinatesXy(60, 127)),

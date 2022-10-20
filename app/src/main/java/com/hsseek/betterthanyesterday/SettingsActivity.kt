@@ -87,7 +87,6 @@ class SettingsActivity : ComponentActivity() {
                         }
                         RadioSelectDialog(
                             title = getString(R.string.dialog_title_language),
-                            desc = stringResource(id = R.string.pref_desc_language),
                             selectedItemIndex = viewModel.languageCode,
                             onClickNegative = { viewModel.onDismissLanguage() },
                             onClickPositive = { selectedCode ->
@@ -450,9 +449,8 @@ private fun RadioRow(
 @Composable
 fun RadioSelectDialog(
     title: String,
-    desc: String,
     items: List<RadioItem>,
-    selectedItemIndex: Int = 0,
+    selectedItemIndex: Int,
     onClickNegative: () -> Unit,
     onClickPositive: (Int) -> Unit,
 ) {
@@ -500,7 +498,7 @@ fun RadioDialogPreview() {
     BetterThanYesterdayTheme {
         RadioSelectDialog(
             title = "구매 도서 목록",
-            desc = "Choose language",
+            selectedItemIndex = 1,
             items = listOf(
                 RadioItem(0, "트리니티", null),
                 RadioItem(0, "통합 민사소송법", "이창한 저"),

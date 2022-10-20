@@ -128,12 +128,25 @@ class WeatherActivity : ComponentActivity() {
 
                     // A dialog to select locating method.
                     if (viewModel.toShowLocatingDialog.value) {
-                        LocationSelectDialog(
-                            selectedLocatingMethod = viewModel.locatingMethod,
+                        val locationCandidates: MutableList<RadioItem> = mutableListOf()
+                        enumValues<LocatingMethod>().forEach {
+                            locationCandidates.add(
+                                RadioItem(
+                                    code = it.code,
+                                    title = stringResource(id = it.regionId),
+                                    desc = stringResource(id = it.citiesId)
+                                )
+                            )
+                        }
+
+                        RadioSelectDialog(
+                            title = stringResource(R.string.dialog_location_title),
+                            items = locationCandidates,
+                            selectedItemIndex = viewModel.locatingMethod.code,
                             onClickNegative = { viewModel.toShowLocatingDialog.value = false },
-                            onClickPositive = { selectedLocation ->
+                            onClickPositive = { selectedCode ->
                                 viewModel.toShowLocatingDialog.value = false  // Dismiss the dialog anyway.
-                                onSelectLocatingMethod(selectedLocation)
+                                onSelectLocatingMethod(getLocatingMethod(selectedCode))
                             }
                         )
                     }
@@ -991,94 +1004,6 @@ class WeatherActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.size(imageSpacerSize))
                         Text(text = hourDescription)
                     }
-                }
-            }
-        }
-    }
-
-    @Composable
-    fun LocationSelectDialog(
-        selectedLocatingMethod: LocatingMethod?,
-        onClickNegative: () -> Unit,
-        onClickPositive: (LocatingMethod) -> Unit,
-    ) {
-        val bodyPadding = 15.dp
-        val titlePadding = 0.dp
-        val color = if (isSystemInDarkTheme()) {
-            Gray400
-        } else {
-            MaterialTheme.colors.surface
-        }
-
-        AlertDialog(
-            onDismissRequest = onClickNegative,
-            title = {
-                Text(
-                    text = stringResource(R.string.dialog_location_title),
-                    modifier = Modifier.padding(titlePadding),
-                )
-            },
-            backgroundColor = color,
-            buttons = {
-                val selected = rememberSaveable { mutableStateOf(selectedLocatingMethod) }
-
-                // RadioGroups
-                RegionsRadioGroup(
-                    padding = bodyPadding,
-                    selected = selected.value,
-                    onSelect = { selected.value = it },
-                )
-
-                // The Cancel and Ok buttons
-                Row(
-                    horizontalArrangement = Arrangement.End,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    TextButton(onClick = onClickNegative) {
-                        Text(text = stringResource(R.string.dialog_dismiss_cancel))
-                    }
-                    TextButton(onClick = {
-                        val selectedLocation: LocatingMethod? = selected.value
-                        if (selectedLocation != null) {
-                            onClickPositive(selectedLocation)
-                        } else {
-                            Log.e(TAG, "The selected LocatingMethod is null.")
-                        }
-                    }) {
-                        Text(text = stringResource(R.string.dialog_dismiss_ok))
-                    }
-                }
-            }
-        )
-    }
-
-    @Composable
-    fun RegionsRadioGroup(
-        padding: Dp,
-        selected: LocatingMethod?,
-        onSelect: (LocatingMethod) -> Unit
-    ) {
-        val radioTextStartPadding = 4.dp
-
-        Column(
-            modifier = Modifier.padding(padding)
-        ) {
-            enumValues<LocatingMethod>().forEach { locating ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { onSelect(locating) }
-                ) {
-                    Column(
-                        modifier = Modifier.padding(start = radioTextStartPadding)
-                    ) {
-                        Text(text = stringResource(id = locating.regionId))
-                        Text(text = stringResource(id = locating.citiesId), style = Typography.h6)
-                    }
-                    Spacer(modifier = Modifier.weight(1f))
-                    RadioButton(
-                        selected = selected == locating,
-                        onClick = { onSelect(locating) },
-                    )
                 }
             }
         }

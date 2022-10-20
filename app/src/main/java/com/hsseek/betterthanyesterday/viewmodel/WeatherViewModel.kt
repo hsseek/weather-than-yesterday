@@ -56,11 +56,7 @@ class WeatherViewModel(
     init {
         runBlocking {
             val storedCode = userPrefsRepo.preferencesFlow.first().locatingMethodCode
-            enumValues<LocatingMethod>().forEach { storedLocatingMethod ->
-                if (storedLocatingMethod.code == storedCode) {
-                    this@WeatherViewModel.locatingMethod = storedLocatingMethod
-                }
-            }
+            this@WeatherViewModel.locatingMethod = getLocatingMethod(storedCode)
         }
     }
 
@@ -110,7 +106,7 @@ class WeatherViewModel(
     private var isUpdatingLocation: Boolean = false
 
     // The forecast location is an input from UI.
-    lateinit var locatingMethod: LocatingMethod
+    var locatingMethod: LocatingMethod
         private set
 
     private val _cityName: MutableState<String> = mutableStateOf(stringForNull)
