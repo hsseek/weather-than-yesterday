@@ -64,7 +64,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.*
 
-private const val TAG = "WeatherActivityLog"
+private const val TAG = "WeatherActivity"
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: WeatherViewModel
@@ -146,6 +146,13 @@ class MainActivity : ComponentActivity() {
         Log.d(TAG, "onStart() called.")
         if (viewModel.isLanguageChanged) {  // Restart activity
             Log.d(TAG, "Language changed, recreate the Activity.")
+            if (viewModel.locatingMethod != LocatingMethod.Auto) {
+                // Fixed location names are context dependant. So, recreate them.
+                // As the base location is not changing, new data won't be requested.
+                viewModel.refreshWeatherData()
+            }
+
+            // Turn of the flag and recreate the Activity.
             viewModel.isLanguageChanged = false
             recreate()
         } else {  // Do regular tasks

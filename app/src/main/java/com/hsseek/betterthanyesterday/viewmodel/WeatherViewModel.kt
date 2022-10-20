@@ -158,8 +158,16 @@ class WeatherViewModel(
      * and triggers retrieving weather data eventually.
      * */
     private fun updateFixedLocation(lm: LocatingMethod) {
-        _cityName.value = context.getString(lm.regionId)
-        _districtName.value = context.getString(R.string.location_manually)
+        // Update the city name.
+        viewModelScope.launch {
+            val config = createConfigurationWithStoredLocale(context)
+            val modifiedContext = context.createConfigurationContext(config)
+
+            // Set the names with the modified Context with modified Locale.
+            _cityName.value = modifiedContext.getString(lm.regionId)
+            _districtName.value = modifiedContext.getString(R.string.location_manually)
+        }
+        // Update weather based on the coordinates.
         updateWeather(lm.coordinates!!)
     }
 
@@ -943,11 +951,11 @@ class WeatherViewModel(
 
     fun refreshWeatherData() {
         viewModelScope.launch { _isRefreshing.value = true }
-        if (locatingMethod != LocatingMethod.Auto) {
+        if (locatingMethod == LocatingMethod.Auto) {
+            startLocationUpdate()
+        } else {
             stopLocationUpdate()  // No need to request location.
             updateFixedLocation(locatingMethod)  // Update the location directly.
-        } else {
-            startLocationUpdate()
         }
     }
 
