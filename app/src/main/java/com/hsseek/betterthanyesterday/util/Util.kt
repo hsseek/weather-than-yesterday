@@ -4,8 +4,9 @@ import android.content.Context
 import android.content.res.Configuration
 import android.location.Address
 import android.util.Log
-import com.hsseek.betterthanyesterday.R
+import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.Language
+import com.hsseek.betterthanyesterday.data.LocatingMethod
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
 import kotlinx.coroutines.flow.first
@@ -22,6 +23,7 @@ const val LOCATION_TAG = "Location"
 const val VILLAGE_ROWS_PER_HOUR = 12
 const val VILLAGE_EXTRA_ROWS = 2
 const val VILLAGE_HOUR_INTERVAL = 3
+val SEOUL = CoordinatesXy(60, 127)
 
 data class KmaTime(val date: String, val hour: String){
     fun isLaterThan(time: KmaTime): Boolean {
@@ -180,18 +182,6 @@ fun getLocatingMethod(code: Int): LocatingMethod {
     return LocatingMethod.Auto  // The default
 }
 
-fun Boolean.toEnablementString(): String = if (this) "enabled" else "disabled"
+fun ForecastRegion.toRegionString(): String = "${this.cityName}, ${this.districtName} (${this.nx}, ${this.ny})"
 
-enum class LocatingMethod(val code: Int, val regionId: Int, val citiesId: Int, val coordinates: CoordinatesXy?) {
-    Auto(0, R.string.region_auto, R.string.cities_auto, null),
-    Capital(1, R.string.region_captial, R.string.cities_captial, CoordinatesXy(60, 127)),
-    Gangwon(2, R.string.region_gangwon, R.string.cities_gangwon, CoordinatesXy(73, 134)),
-    SouthGs(3, R.string.region_south_gs, R.string.cities_south_gs, CoordinatesXy(98, 76)),
-    NorthGs(4, R.string.region_north_gs, R.string.cities_north_gs, CoordinatesXy(89, 90)),
-    SouthJl(5, R.string.region_south_jl, R.string.cities_south_jl, CoordinatesXy(58, 74)),
-    NorthJl(6, R.string.region_north_jl, R.string.cities_north_jl, CoordinatesXy(63, 89)),
-    Jeju(7, R.string.region_jeju, R.string.cities_jeju, CoordinatesXy(52, 38)),
-    SouthCh(8, R.string.region_south_ch, R.string.cities_south_ch, CoordinatesXy(67, 100)),
-    NorthCh(9, R.string.region_north_ch, R.string.cities_north_ch, CoordinatesXy(69, 107)),
-    Dokdo(10, R.string.region_dokdo, R.string.cities_dokdo, CoordinatesXy(144, 123))
-}
+fun Boolean.toEnablementString(): String = if (this) "enabled" else "disabled"

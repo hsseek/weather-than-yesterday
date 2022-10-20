@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -48,6 +49,8 @@ import com.google.accompanist.swiperefresh.SwipeRefreshIndicator
 import com.google.accompanist.swiperefresh.SwipeRefreshState
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import com.hsseek.betterthanyesterday.data.ForecastRegion
+import com.hsseek.betterthanyesterday.data.LocatingMethod
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.ui.theme.*
 import com.hsseek.betterthanyesterday.util.*
@@ -65,7 +68,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.*
 
-private const val TAG = "WeatherActivity"
+private const val TAG = "WeatherActivityLog"
 
 class WeatherActivity : ComponentActivity() {
     private lateinit var viewModel: WeatherViewModel
@@ -128,21 +131,31 @@ class WeatherActivity : ComponentActivity() {
 
                     // A dialog to select locating method.
                     if (viewModel.toShowLocatingDialog.value) {
-                        val locationCandidates: MutableList<RadioItem> = mutableListOf()
+                        val presetLocations: MutableList<RadioItem> = mutableListOf()
                         enumValues<LocatingMethod>().forEach {
-                            locationCandidates.add(
+                            presetLocations.add(
                                 RadioItem(
                                     code = it.code,
                                     title = stringResource(id = it.regionId),
-                                    desc = stringResource(id = it.citiesId)
+                                    desc = stringResource(id = it.examplesId)
                                 )
                             )
                         }
 
+                        val selectedPreset = presetLocations.filter {
+                            it.title == viewModel.cityName
+                        }
+
+                        val selectedIndex = if (selectedPreset.isNotEmpty()) {
+                            selectedPreset[0].code
+                        } else {
+                            0
+                        }
+
                         RadioSelectDialog(
                             title = stringResource(R.string.dialog_location_title),
-                            items = locationCandidates,
-                            selectedItemIndex = viewModel.locatingMethod.code,
+                            items = presetLocations,
+                            selectedItemIndex = selectedIndex,
                             onClickNegative = { viewModel.toShowLocatingDialog.value = false },
                             onClickPositive = { selectedCode ->
                                 viewModel.toShowLocatingDialog.value = false  // Dismiss the dialog anyway.
@@ -163,12 +176,6 @@ class WeatherActivity : ComponentActivity() {
         Log.d(TAG, "onStart() called.")
         if (viewModel.isLanguageChanged) {  // Restart activity
             Log.d(TAG, "Language changed, recreate the Activity.")
-            if (viewModel.locatingMethod != LocatingMethod.Auto) {
-                // Fixed location names are context dependant. So, recreate them.
-                // As the base location is not changing, new data won't be requested.
-                viewModel.refreshWeatherData()
-            }
-
             // Turn of the flag and recreate the Activity.
             viewModel.isLanguageChanged = false
             recreate()
@@ -198,10 +205,21 @@ class WeatherActivity : ComponentActivity() {
     private fun onSelectLocatingMethod(selectedLocatingMethod: LocatingMethod) {
         Log.d(TAG, "Selected LocatingMethod: ${selectedLocatingMethod.code}")
         // Weather it is permitted or not, the user intended to use the locating method. Respect the selection.
-        viewModel.updateLocatingMethod(selectedLocatingMethod)
+        if (selectedLocatingMethod == LocatingMethod.Auto) {
+            viewModel.updateAutoRegionEnabled(true)
+        } else {
+            val region = ForecastRegion(
+                cityName = getString(selectedLocatingMethod.regionId),
+                districtName = "",  // Not stored to prefs. They were defined to be represented on RadioItem only
+                nx = selectedLocatingMethod.coordinates.nx,
+                ny = selectedLocatingMethod.coordinates.ny
+            )
+            viewModel.updateAutoRegionEnabled(false)
+            viewModel.updateFixedRegion(region)
+        }
 
-        // Now check the validity of the selection.
-        requestRefresh(selectedLocatingMethod)
+        // Then check the validity of the selection.
+        requestRefresh()
     }
 
     private fun requestRefreshImplicitly() {
@@ -214,8 +232,8 @@ class WeatherActivity : ComponentActivity() {
         }
     }
 
-    private fun requestRefresh(selectedLocatingMethod: LocatingMethod = viewModel.locatingMethod) {
-        if (isLocatingMethodValid(selectedLocatingMethod)) {
+    private fun requestRefresh() {
+        if (isLocatingMethodValid(viewModel.isForecastRegionAuto)) {
             Log.d(TAG, "LocatingMethod valid.")
             viewModel.refreshWeatherData()
         } else {
@@ -224,8 +242,8 @@ class WeatherActivity : ComponentActivity() {
         }
     }
 
-    private fun isLocatingMethodValid(locatingMethod: LocatingMethod): Boolean {
-        return if (locatingMethod == LocatingMethod.Auto) {
+    private fun isLocatingMethodValid(isAuto: Boolean): Boolean {
+        return if (isAuto) {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 return true
             } else {
@@ -334,7 +352,7 @@ class WeatherActivity : ComponentActivity() {
                                     modifier = mod,
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                 ) {
-                                    LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.locatingMethod)
+                                    LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.isForecastRegionAuto)
                                     Spacer(modifier = Modifier.height(spacer12))
                                     RainfallStatus(modifier, viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
                                     Spacer(modifier = Modifier.height(spacer23))
@@ -353,7 +371,7 @@ class WeatherActivity : ComponentActivity() {
                         ) {
                             val gapFromContent = 30.dp
 
-                            LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.locatingMethod)
+                            LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.isForecastRegionAuto)
                             if (viewModel.isSimplified) {
                                 CurrentTemperature(modifier, viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday, enlargedFontSize)
                             } else {
@@ -647,17 +665,13 @@ class WeatherActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * If [locatingMethod] is automatic, request data depending on the [cityName].
-     * If [locatingMethod] is not automatic, [cityName] does not matter.
-     * */
     @Composable
     private fun LocationInformation(
         modifier: Modifier,
         isSimplified: Boolean,
         cityName: String,
         districtName: String,
-        locatingMethod: LocatingMethod?,
+        isForecastRegionAuto: Boolean,
     ) {
         val titleBottomPadding = 2.dp
         val longNameHorizontalPadding = 12.dp
@@ -683,11 +697,16 @@ class WeatherActivity : ComponentActivity() {
                 overflow = TextOverflow.Ellipsis,
             )
 
-            if (locatingMethod == LocatingMethod.Auto) {
-                Text(text = districtName, style = Typography.caption)
+            val districtText = if (isForecastRegionAuto) {
+                districtName
             } else {  // "Warn" the user if the location has been manually set.
-                Text(text = stringResource(R.string.location_manually), style = Typography.caption)
+                getString(R.string.location_manually)
             }
+            Text(
+                text = districtText,
+                style = Typography.caption,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 

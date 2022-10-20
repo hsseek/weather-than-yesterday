@@ -17,6 +17,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.hsseek.betterthanyesterday.R
+import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.Language
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
@@ -54,9 +55,19 @@ class WeatherViewModel(
     private val userPrefsRepo: UserPreferencesRepository,
 ) : AndroidViewModel(application) {
     init {
-        runBlocking {
-            val storedCode = userPrefsRepo.preferencesFlow.first().locatingMethodCode
-            this@WeatherViewModel.locatingMethod = getLocatingMethod(storedCode)
+        // Retrieve the stored forecast region settings, without which weather data are random.
+        runBlocking {  // Hence, wait for the values to be set.
+            val prefs = userPrefsRepo.preferencesFlow.first()
+            this@WeatherViewModel.isForecastRegionAuto = prefs.isForecastRegionAuto
+
+            val region = ForecastRegion(
+                prefs.forecastRegionCity,
+                prefs.forecastRegionDistrict,
+                prefs.forecastRegionNx,
+                prefs.forecastRegionNy,
+            )
+            Log.d(TAG, region.toRegionString())
+            this@WeatherViewModel.forecastRegion = region
         }
     }
 
@@ -97,7 +108,7 @@ class WeatherViewModel(
         get() = _isDaybreakMode.value
 
     // Coordinates for forecast
-    private var baseCoordinatesXy = CoordinatesXy(60, 127)
+    private var baseCoordinatesXy = SEOUL
 
     // Variables regarding location.
     private val locationClient = LocationServices.getFusedLocationProviderClient(context)
@@ -105,9 +116,10 @@ class WeatherViewModel(
         private set
     private var isUpdatingLocation: Boolean = false
 
-    // The forecast location is an input from UI.
-    var locatingMethod: LocatingMethod
+    // Information of the forecast region
+    var isForecastRegionAuto: Boolean
         private set
+    private var forecastRegion: ForecastRegion
 
     private val _cityName: MutableState<String> = mutableStateOf(stringForNull)
     val cityName: String
@@ -140,31 +152,17 @@ class WeatherViewModel(
     private val _toastMessage = MutableStateFlow(OneShotEvent(0))
     val toastMessage = _toastMessage.asStateFlow()
 
-    fun updateLocatingMethod(selectedLocatingMethod: LocatingMethod) {
-        locatingMethod = selectedLocatingMethod
-
-        // Store the selected LocatingMethod.
-        viewModelScope.launch {
-            userPrefsRepo.updateLocatingMethod(selectedLocatingMethod)
-        }
-    }
-
     /**
      * Update location information determined by fixed LocatingMethod,
      * and triggers retrieving weather data eventually.
      * */
-    private fun updateFixedLocation(lm: LocatingMethod) {
+    private fun updateFixedLocation(region: ForecastRegion) {
         // Update the city name.
-        viewModelScope.launch {
-            val config = createConfigurationWithStoredLocale(context)
-            val modifiedContext = context.createConfigurationContext(config)
+        _cityName.value = region.cityName
+        _districtName.value = region.districtName
 
-            // Set the names with the modified Context with modified Locale.
-            _cityName.value = modifiedContext.getString(lm.regionId)
-            _districtName.value = modifiedContext.getString(R.string.location_manually)
-        }
         // Update weather based on the coordinates.
-        updateWeather(lm.coordinates!!)
+        updateWeather(CoordinatesXy(region.nx, region.ny))
     }
 
     private fun nullifyWeatherInfo() {
@@ -947,11 +945,11 @@ class WeatherViewModel(
 
     fun refreshWeatherData() {
         viewModelScope.launch { _isRefreshing.value = true }
-        if (locatingMethod == LocatingMethod.Auto) {
+        if (isForecastRegionAuto) {
             startLocationUpdate()
         } else {
             stopLocationUpdate()  // No need to request location.
-            updateFixedLocation(locatingMethod)  // Update the location directly.
+            updateFixedLocation(forecastRegion)  // Update the location directly.
         }
     }
 
@@ -990,9 +988,6 @@ class WeatherViewModel(
         isUpdatingLocation = false
     }
 
-    /**
-     * Update [_cityName] and [baseCoordinatesXy], then request new weather data based on [baseCoordinatesXy].
-     * */
     private fun updateWeather(coordinates: CoordinatesXy, isImplicit: Boolean = false) {
         if (coordinates == baseCoordinatesXy) {
             Log.d(TAG, "The same coordinates.")
@@ -1086,6 +1081,20 @@ class WeatherViewModel(
         if (languageCode != selectedCode) {
             languageCode = selectedCode
             if (isExplicit) isLanguageChanged = true
+        }
+    }
+
+    fun updateFixedRegion(region: ForecastRegion) {
+        forecastRegion = region
+        viewModelScope.launch {
+            userPrefsRepo.updateForecastRegion(region)
+        }
+    }
+
+    fun updateAutoRegionEnabled(enabled: Boolean) {
+        isForecastRegionAuto = enabled
+        viewModelScope.launch {
+            userPrefsRepo.updateAutoRegionEnabled(enabled)
         }
     }
 

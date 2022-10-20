@@ -44,17 +44,17 @@
     <string name="region_north_ch">North Chungcheong region</string>
     <string name="region_dokdo">Dokdo region</string>
 
-    <string name="cities_auto">Automatically set</string>
-    <string name="cities_captial">Seoul, Incheon, Suwon, etc.</string>
-    <string name="cities_gangwon">Wonju, Choucheon, Gangneung, etc.</string>
-    <string name="cities_south_gs">Busan, Ulsan, Changwon, etc.</string>
-    <string name="cities_north_gs">Daegu, Pohang, Gumi, etc.</string>
-    <string name="cities_south_jl">Gwangju, Yeosu, Suncheon, etc.</string>
-    <string name="cities_north_jl">Jeonju, Iksan, Gunsan, etc.</string>
-    <string name="cities_jeju">Jeju, Seogwipo</string>
-    <string name="cities_south_ch">Daejeon, Cheonan, Sejong, etc.</string>
-    <string name="cities_north_ch">Cheongju, Chungju, Jechoen, etc.</string>
-    <string name="cities_dokdo">Ulleungdo, Dokdo</string>
+    <string name="examples_auto">Automatically set</string>
+    <string name="examples_captial">Seoul, Incheon, Suwon, etc.</string>
+    <string name="examples_gangwon">Wonju, Choucheon, Gangneung, etc.</string>
+    <string name="examples_south_gs">Busan, Ulsan, Changwon, etc.</string>
+    <string name="examples_north_gs">Daegu, Pohang, Gumi, etc.</string>
+    <string name="examples_south_jl">Gwangju, Yeosu, Suncheon, etc.</string>
+    <string name="examples_north_jl">Jeonju, Iksan, Gunsan, etc.</string>
+    <string name="examples_jeju">Jeju, Seogwipo</string>
+    <string name="examples_south_ch">Daejeon, Cheonan, Sejong, etc.</string>
+    <string name="examples_north_ch">Cheongju, Chungju, Jechoen, etc.</string>
+    <string name="examples_dokdo">Ulleungdo, Dokdo</string>
     <string name="desc_refresh">Refresh weather information</string>
     <string name="topbar_share_app">Share this app</string>
     <string name="topbar_help">Help</string>
@@ -92,4 +92,5 @@
     <string name="share_app_now_good_lower">It\'s lower than yesterday by %1$d.</string>
     <string name="share_app_guide">Choose an app</string>
     <string name="dialog_title_language">Choose language</string>
+    <string name="dialog_title_search_region">Search forecast region</string>
 </resources>
