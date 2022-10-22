@@ -394,12 +394,13 @@ fun RadioGroup(
     items: List<RadioItem>,
     selected: Int,
     onSelect: (Int) -> Unit,
+    maxHeightFraction: Float,
     titleStyle: TextStyle = Typography.body1,
     descStyle: TextStyle = Typography.h6,
 ) {
     Column(
         Modifier
-            .heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.85).dp)
+            .heightIn(max = (LocalConfiguration.current.screenHeightDp * maxHeightFraction).dp)
             .verticalScroll(rememberScrollState())
     ) {
         items.forEach { radioItem ->
@@ -456,6 +457,7 @@ fun RadioSelectDialog(
 ) {
     val backgroundColor = if (isSystemInDarkTheme()) Gray400 else MaterialTheme.colors.surface
     val titleBottomPadding = 7.dp
+    val maxHeightFraction = 0.85f
 
     AlertDialog(
         title = { Text(
@@ -470,6 +472,7 @@ fun RadioSelectDialog(
 
             RadioGroup(
                 items = items,
+                maxHeightFraction = maxHeightFraction,
                 selected = selected.value,
                 onSelect = { selected.value = it },
             )

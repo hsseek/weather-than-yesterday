@@ -3,11 +3,11 @@ package com.hsseek.betterthanyesterday.viewmodel
 import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
+import android.location.Address
 import android.os.Looper
 import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
-import androidx.core.app.ActivityCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -32,8 +32,8 @@ import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.VILLAGE
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import retrofit2.Response
+import java.io.IOException
 import java.net.UnknownHostException
 import java.util.*
 import kotlin.math.roundToInt
@@ -54,29 +54,14 @@ class WeatherViewModel(
     application: Application,
     private val userPrefsRepo: UserPreferencesRepository,
 ) : AndroidViewModel(application) {
-    init {
-        // Retrieve the stored forecast region settings, without which weather data are random.
-        runBlocking {  // Hence, wait for the values to be set.
-            val prefs = userPrefsRepo.preferencesFlow.first()
-            this@WeatherViewModel.isForecastRegionAuto = prefs.isForecastRegionAuto
-
-            val region = ForecastRegion(
-                prefs.forecastRegionCity,
-                prefs.forecastRegionDistrict,
-                prefs.forecastRegionNx,
-                prefs.forecastRegionNy,
-            )
-            Log.d(TAG, region.toRegionString())
-            this@WeatherViewModel.forecastRegion = region
-        }
-    }
-
+    val autoRegionCoordinate: CoordinatesXy = CoordinatesXy(0, 0)  // Impossible values
     private val context = application
     private val stringForNull = context.getString(R.string.null_value)
 
     private val retrofitDispatcher = Dispatchers.IO
     private val defaultDispatcher = Dispatchers.Default
     private var kmaJob: Job = Job()
+    private var searchRegionJob: Job = Job()
 
     private val _isRefreshing = mutableStateOf(false)
     val isRefreshing: Boolean
@@ -107,20 +92,34 @@ class WeatherViewModel(
     val isDaybreakMode: Boolean
         get() = _isDaybreakMode.value
 
-    // Coordinates for forecast
-    private var baseCoordinatesXy = SEOUL
-
     // Variables regarding location.
     private val locationClient = LocationServices.getFusedLocationProviderClient(context)
-    var toShowLocatingDialog = mutableStateOf(false)
+    var toShowLocatingMethodDialog = mutableStateOf(false)
         private set
     private var isUpdatingLocation: Boolean = false
 
-    // Information of the forecast region
-    var isForecastRegionAuto: Boolean
+    // Information of the ForecastRegion
+    var isForecastRegionAuto: Boolean = true
         private set
-    private var forecastRegion: ForecastRegion
+    lateinit var forecastRegion: ForecastRegion
+        private set
+    private lateinit var defaultRegionCandidates: Array<ForecastRegion>
 
+    // Variables regarding ForecastRegion Dialog
+    private val _toShowSearchRegionDialog = mutableStateOf(false)
+    val toShowSearchRegionDialog: Boolean
+        get() = _toShowSearchRegionDialog.value
+
+    // Entries displayed as RadioItems
+    private val _forecastRegionCandidates: MutableState<List<ForecastRegion>> = mutableStateOf(emptyList())
+    val forecastRegionCandidates: List<ForecastRegion>
+        get() = _forecastRegionCandidates.value
+    // The selected index of candidates
+    private val _selectedForecastRegionIndex = mutableStateOf(if (isForecastRegionAuto) 0 else 1)
+    val selectedForecastRegionIndex: Int
+        get() = _selectedForecastRegionIndex.value
+
+    // Displayed location names
     private val _cityName: MutableState<String> = mutableStateOf(stringForNull)
     val cityName: String
         get() = _cityName.value
@@ -153,16 +152,66 @@ class WeatherViewModel(
     val toastMessage = _toastMessage.asStateFlow()
 
     /**
-     * Update location information determined by fixed LocatingMethod,
-     * and triggers retrieving weather data eventually.
+     * Update [forecastRegion], either retrieved from [startLocationUpdate] or directly from a fixed location.
+     * [isImplicit] is true when it was a (confirming) result from the [locationCallback].
      * */
-    private fun updateFixedLocation(region: ForecastRegion) {
-        // Update the city name.
-        _cityName.value = region.cityName
-        _districtName.value = region.districtName
+    fun updateForecastRegion(region: ForecastRegion, isImplicit: Boolean = false) {
+        // Store the selection.
+        viewModelScope.launch {
+            userPrefsRepo.updateForecastRegion(region)
+            defaultRegionCandidates[1] = region
+        }
 
-        // Update weather based on the coordinates.
-        updateWeather(CoordinatesXy(region.nx, region.ny))
+        // Update the city name.
+        updateRepresentedCityName(region)
+
+        // Check if the location changed before reassigning.
+        val isSameCoordinate = region.xy == forecastRegion.xy
+        forecastRegion = region
+
+        if (isSameCoordinate) {
+            Log.d(TAG, "The same coordinates.")
+
+            if (isNewDataReleasedAfter(lastCheckedTime)) {
+                requestAllWeatherData()  // For the same location, but for a later hour.
+            } else {
+                if (!isImplicit) {
+                    if (kmaJob.isCompleted) _isRefreshing.value = false
+                    _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
+                }
+            }
+        } else {
+            Log.d(LOCATION_TAG, "A new coordinates\t: (${region.xy.nx}, ${region.xy.ny})")
+
+            // Request new data for the location.
+            requestAllWeatherData()  // For a different location.
+        }
+    }
+
+    private fun isNewDataReleasedAfter(lastCheckedCal: Calendar?): Boolean {
+        Log.d(TAG, "isNewDataReleased(Calendar) called.")
+        return if (lastCheckedCal == null) {
+            Log.d(TAG, "ViewModel doesn't hold any data.")
+            true
+        } else {
+            val lastBaseTime = getKmaBaseTime(cal = lastCheckedCal, roundOff = HOUR)
+            val currentBaseTime = getKmaBaseTime(roundOff = HOUR)
+
+            if (currentBaseTime.isLaterThan(lastBaseTime)) {
+                Log.d(TAG, "New data are available.(${lastBaseTime.hour} -> ${currentBaseTime.hour})")
+                true
+            } else {
+                Log.d(TAG, "No new data available.")
+                false
+            }
+        }
+    }
+
+    private fun updateRepresentedCityName(region: ForecastRegion) {
+        _cityName.value = getCityName(region.address).removeSpecialCitySuffix()
+            ?: getGeneralCityName(region.address)
+        _districtName.value =
+            getDistrictName(region.address) ?: getGeneralDistrictName(region.address) ?: ""
     }
 
     private fun nullifyWeatherInfo() {
@@ -170,6 +219,19 @@ class WeatherViewModel(
         _hourlyTempDiff.value = null
         _dailyTemps.value = getDefaultDailyTemps()
         _rainfallStatus.value = Sky.Undetermined
+    }
+
+    private fun isInfoNull(): Boolean {
+        if (
+            (_hourlyTempDiff.value == null) ||
+            (_hourlyTempDiff.value == null) ||
+            (_rainfallStatus.value == Sky.Undetermined)
+        ) return true
+
+        for (dailyTemp in _dailyTemps.value) {
+            if ((dailyTemp.highest == stringForNull) || (dailyTemp.lowest == stringForNull)) return true
+        }
+        return false
     }
 
     private fun requestAllWeatherData() {
@@ -199,7 +261,7 @@ class WeatherViewModel(
                                 val rowCountShort = 6
                                 val lowTempBaseTime = "0200"  // From 3:00
                                 val highTempBaseTime = "1100"  // From 12:00
-                                val characteristicTempHourSpan = 5  // Monitors 5 hours(3:00 ~ 8:00 and 12:00 ~ 17:00)
+                                val characteristicTempHourSpan = 6  // Monitors 6 hours(3 AM..8 AM and 12 PM..17 PM)
 
                                 // Conditional tasks, only if the current time passed baseTime
                                 var todayLowTempResponse: Deferred<Response<ForecastResponse>>? = null
@@ -237,32 +299,32 @@ class WeatherViewModel(
                                         baseDate = latestVillageBaseTime.date,  // Yesterday(23:00 only) or today
                                         baseTime = latestVillageBaseTime.hour,
                                         numOfRows = remainingHours * VILLAGE_ROWS_PER_HOUR,
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
+                                        nx = forecastRegion.xy.nx,
+                                        ny = forecastRegion.xy.ny,
                                     )
                                 }
 
                                 // Responses to extract the highest/lowest temperatures of tomorrow and D2
                                 val futureDayHourSpan = 4  // 300 ~ 700, 1200 ~ 1600
                                 val futureDayRowCount = futureDayHourSpan * VILLAGE_ROWS_PER_HOUR + VILLAGE_EXTRA_ROWS
-                                val baseTime1 = "1100"
-                                val baseTime2 = "2300"  // of yesterday
+                                val baseTime1 = 1100
+                                val baseTime2 = 2300  // of yesterday
                                 val pagesPerDay: Int = 24 / futureDayHourSpan
 
                                 val futureDayBaseTime: String
                                 val futureDayBaseDate: String
                                 val tomorrowHighTempPageNo: Int
                                 val tomorrowLowTempPageNo: Int
-                                if (latestVillageBaseTime.hour.toInt() in baseTime1.toInt() until baseTime2.toInt()) {
+                                if (latestVillageBaseTime.hour.toInt() in baseTime1 until baseTime2) {
                                     // fcstTIme starts from today 12:00.
                                     futureDayBaseDate = today
-                                    futureDayBaseTime = baseTime1
+                                    futureDayBaseTime = baseTime1.toString()
                                     tomorrowLowTempPageNo = 5
                                     tomorrowHighTempPageNo = 7
                                 } else {
                                     // fcstTIme starts from today 00:00.
                                     futureDayBaseDate = yesterday
-                                    futureDayBaseTime = baseTime2
+                                    futureDayBaseTime = baseTime2.toString()
                                     tomorrowLowTempPageNo = 8
                                     tomorrowHighTempPageNo = 10
                                 }
@@ -273,8 +335,8 @@ class WeatherViewModel(
                                         baseTime = futureDayBaseTime,
                                         numOfRows = futureDayRowCount,
                                         pageNo = tomorrowHighTempPageNo,
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
+                                        nx = forecastRegion.xy.nx,
+                                        ny = forecastRegion.xy.ny,
                                     )
                                 }
 
@@ -284,8 +346,8 @@ class WeatherViewModel(
                                         baseTime = futureDayBaseTime,
                                         numOfRows = futureDayRowCount,
                                         pageNo = tomorrowLowTempPageNo,
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
+                                        nx = forecastRegion.xy.nx,
+                                        ny = forecastRegion.xy.ny,
                                     )
                                 }
 
@@ -295,8 +357,8 @@ class WeatherViewModel(
                                         baseTime = futureDayBaseTime,
                                         numOfRows = futureDayRowCount,
                                         pageNo = tomorrowHighTempPageNo + pagesPerDay,
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
+                                        nx = forecastRegion.xy.nx,
+                                        ny = forecastRegion.xy.ny,
                                     )
                                 }
 
@@ -306,13 +368,14 @@ class WeatherViewModel(
                                         baseTime = futureDayBaseTime,
                                         numOfRows = futureDayRowCount,
                                         pageNo = tomorrowLowTempPageNo + pagesPerDay,
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
+                                        nx = forecastRegion.xy.nx,
+                                        ny = forecastRegion.xy.ny,
                                     )
                                 }
 
-                                if (latestVillageBaseTime.hour.toInt() >= lowTempBaseTime.toInt()) {  // As soon as the latest lowest temperature span available
-                                    val numOfRows = if (latestVillageBaseTime.hour.toInt() == lowTempBaseTime.toInt() + VILLAGE_HOUR_INTERVAL * 100) {  // During baseTime = 500
+                                val latestVillageHour = latestVillageBaseTime.hour.toInt()
+                                if (isCoveredByFutureTodayData(latestVillageHour, lowTempBaseTime.toInt())) {
+                                    val numOfRows = if (latestVillageHour == lowTempBaseTime.toInt() + VILLAGE_HOUR_INTERVAL * 100) {  // During baseTime = 500
                                         getRowCount(VILLAGE_HOUR_INTERVAL)  // Missing hours span only an interval: 3:00, 4:00, 5:00
                                     } else {  // After baseTime became 800, the lowest temperature won't be renewed.
                                         getRowCount(characteristicTempHourSpan)  // Full span: 3:00, ..., 7:00
@@ -324,14 +387,13 @@ class WeatherViewModel(
                                             baseDate = today,
                                             baseTime = lowTempBaseTime,  // fsctTime starts from 03:00 AM
                                             numOfRows = numOfRows,
-                                            nx = baseCoordinatesXy.nx,
-                                            ny = baseCoordinatesXy.ny,
+                                            nx = forecastRegion.xy.nx,
+                                            ny = forecastRegion.xy.ny,
                                         )
                                     }
                                 }
-
-                                if (latestVillageBaseTime.hour.toInt() >= highTempBaseTime.toInt()) {  // As soon as the latest highest temperature span available
-                                    val numOfRows = if (latestVillageBaseTime.hour.toInt() == highTempBaseTime.toInt() + VILLAGE_HOUR_INTERVAL * 100) {  // During baseTime = 1400
+                                if (isCoveredByFutureTodayData(latestVillageHour, highTempBaseTime.toInt())) {  // As soon as the latest highest temperature span available
+                                    val numOfRows = if (latestVillageHour == highTempBaseTime.toInt() + VILLAGE_HOUR_INTERVAL * 100) {  // During baseTime = 1400
                                         getRowCount(VILLAGE_HOUR_INTERVAL)  // Missing hours span only an interval: 12:00, 13:00, 14:00
                                     } else {  // After baseTime became 1700, the highest temperature won't be renewed.
                                         getRowCount(characteristicTempHourSpan)  // Full span: 12:00, ..., 16:00
@@ -342,8 +404,8 @@ class WeatherViewModel(
                                             baseDate = today,
                                             baseTime = highTempBaseTime,  // fsctTime starts from the noon
                                             numOfRows = numOfRows,
-                                            nx = baseCoordinatesXy.nx,
-                                            ny = baseCoordinatesXy.ny,
+                                            nx = forecastRegion.xy.nx,
+                                            ny = forecastRegion.xy.ny,
                                         )
                                     }
                                 }
@@ -353,8 +415,8 @@ class WeatherViewModel(
                                         baseDate = latestHourlyBaseTime.date,
                                         baseTime = latestHourlyBaseTime.hour,  // 14:50 -> 13:00, 15:00 -> 14:00
                                         numOfRows = 30,  // [LGT -> PTY -> RN1 -> SKY -> TH1] -> REH -> UUU -> VVV -> ...
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
+                                        nx = forecastRegion.xy.nx,
+                                        ny = forecastRegion.xy.ny,
                                     )
                                 }
 
@@ -366,8 +428,8 @@ class WeatherViewModel(
                                         baseTime = yesterdayHourlyBaseTime.hour,  // 14:50 -> 13:00, 15:00 -> 14:00
                                         numOfRows = rowCountShort,
                                         pageNo = t1hPageNo,  // LGT -> PTY -> RN1 -> SKY -> [TH1] -> REH -> UUU -> VVV -> ...
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
+                                        nx = forecastRegion.xy.nx,
+                                        ny = forecastRegion.xy.ny,
                                     )
                                 }
 
@@ -385,8 +447,8 @@ class WeatherViewModel(
                                         baseTime = yesterdayVillageBaseTime.hour,
                                         numOfRows = VILLAGE_ROWS_PER_HOUR,
                                         pageNo = pageNo,
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
+                                        nx = forecastRegion.xy.nx,
+                                        ny = forecastRegion.xy.ny,
                                     )
                                 }
 
@@ -405,8 +467,8 @@ class WeatherViewModel(
                                     WeatherApi.service.getObservedWeather(
                                         baseDate = observedBaseTime.date,
                                         baseTime = observedBaseTime.hour,
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
+                                        nx = forecastRegion.xy.nx,
+                                        ny = forecastRegion.xy.ny,
                                     )
                                 }
                                 */
@@ -417,8 +479,8 @@ class WeatherViewModel(
                                         baseTime = lowTempBaseTime,  // fsctTime starts from 03:00 AM
                                         numOfRows = rowCountShort,
                                         pageNo = t1hPageNo,  // LGT -> PTY -> RN1 -> SKY -> [TH1] -> REH -> UUU -> VVV -> ...
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
+                                        nx = forecastRegion.xy.nx,
+                                        ny = forecastRegion.xy.ny,
                                     )
                                 }
 
@@ -428,8 +490,8 @@ class WeatherViewModel(
                                         baseTime = highTempBaseTime,  // fsctTime starts from the noon
                                         numOfRows = rowCountShort,
                                         pageNo = t1hPageNo,  // LGT -> PTY -> RN1 -> SKY -> [TH1] -> REH -> UUU -> VVV -> ...
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
+                                        nx = forecastRegion.xy.nx,
+                                        ny = forecastRegion.xy.ny,
                                     )
                                 }
 
@@ -439,8 +501,8 @@ class WeatherViewModel(
                                         baseDate = yesterday,
                                         baseTime = lowTempBaseTime,  // fsctTime starts from 03:00 AM
                                         numOfRows = getRowCount(characteristicTempHourSpan),  // Full span: 3:00, ..., 7:00
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
+                                        nx = forecastRegion.xy.nx,
+                                        ny = forecastRegion.xy.ny,
                                     )
                                 }
 
@@ -449,8 +511,8 @@ class WeatherViewModel(
                                         baseDate = yesterday,
                                         baseTime = highTempBaseTime,  // fsctTime starts from the noon
                                         numOfRows = getRowCount(characteristicTempHourSpan),  // Full span: 3:00, ..., 7:00
-                                        nx = baseCoordinatesXy.nx,
-                                        ny = baseCoordinatesXy.ny,
+                                        nx = forecastRegion.xy.nx,
+                                        ny = forecastRegion.xy.ny,
                                     )
                                 }
 
@@ -483,13 +545,12 @@ class WeatherViewModel(
                                 // Log for debugging.
                                 launch(defaultDispatcher) {
                                     var size = 0
-                                    var hasEmptyList = false
+                                    val emptyMessage = "List empty."
 
                                     if (yesterdayHighTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "List empty.")
+                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", emptyMessage)
                                         if (yesterdayHighTempBackupData.isEmpty()) {
-                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}-B", "List empty.")
-                                            hasEmptyList = true
+                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}-B", emptyMessage)
                                         } else {
                                             for (i in yesterdayHighTempBackupData) {
                                                 size += 1
@@ -506,10 +567,9 @@ class WeatherViewModel(
                                     }
 
                                     if (yesterdayLowTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "List empty.")
+                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", emptyMessage)
                                         if (yesterdayLowTempBackupData.isEmpty()) {
-                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}-B", "List empty.")
-                                            hasEmptyList = true
+                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}-B", emptyMessage)
                                         } else {
                                             for (i in yesterdayLowTempBackupData) {
                                                 size += 1
@@ -526,10 +586,9 @@ class WeatherViewModel(
                                     }
 
                                     if (yesterdayHourlyTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG", "List empty.")
+                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG", emptyMessage)
                                         if (yesterdayHourlyTempBackupData.isEmpty()) {
-                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG-B", "List empty.")
-                                            hasEmptyList = true
+                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG-B", emptyMessage)
                                         } else {
                                             for (i in yesterdayHourlyTempBackupData) {
                                                 size += 1
@@ -546,8 +605,7 @@ class WeatherViewModel(
                                     }
 
                                     if (todayHourlyData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Today.dayOffset}-$HOURLY_TEMPERATURE_TAG", "List empty.")
-                                        hasEmptyList = true
+                                        Log.d("D${DayOfInterest.Today.dayOffset}-$HOURLY_TEMPERATURE_TAG", emptyMessage)
                                     } else {
                                         for (i in todayHourlyData) {
                                             size += 1
@@ -557,9 +615,9 @@ class WeatherViewModel(
                                         }
                                     }
 
-                                    if (todayHighTempData.isEmpty() && (latestVillageBaseTime.hour.toInt() >= highTempBaseTime.toInt())) {
-                                        Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "List empty.")
-                                        hasEmptyList = true
+                                    if (isCoveredByFutureTodayData(latestVillageHour, highTempBaseTime.toInt()) &&
+                                        todayHighTempData.isEmpty()) {
+                                        Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", emptyMessage)
                                     } else {
                                         for (i in todayHighTempData) {
                                             size += 1
@@ -569,9 +627,9 @@ class WeatherViewModel(
                                         }
                                     }
 
-                                    if (todayLowTempData.isEmpty() && (latestVillageBaseTime.hour.toInt() >= lowTempBaseTime.toInt())) {
-                                        Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "List empty.")
-                                        hasEmptyList = true
+                                    if (isCoveredByFutureTodayData(latestVillageHour, lowTempBaseTime.toInt()) &&
+                                            todayLowTempData.isEmpty()) {
+                                        Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", emptyMessage)
                                     } else {
                                         for (i in todayLowTempData) {
                                             size += 1
@@ -582,8 +640,7 @@ class WeatherViewModel(
                                     }
 
                                     if (futureTodayData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Today.dayOffset}", "List empty.")
-                                        hasEmptyList = true
+                                        Log.d("D${DayOfInterest.Today.dayOffset}", emptyMessage)
                                     } else {
                                         for (i in futureTodayData) {
                                             size += 1
@@ -594,8 +651,7 @@ class WeatherViewModel(
                                     }
 
                                     if (tomorrowHighTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "List empty.")
-                                        hasEmptyList = true
+                                        Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Highest.descriptor}", emptyMessage)
                                     } else {
                                         for (i in tomorrowHighTempData) {
                                             size += 1
@@ -606,8 +662,7 @@ class WeatherViewModel(
                                     }
 
                                     if (tomorrowLowTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "List empty.")
-                                        hasEmptyList = true
+                                        Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", emptyMessage)
                                     } else {
                                         for (i in tomorrowLowTempData) {
                                             size += 1
@@ -618,8 +673,7 @@ class WeatherViewModel(
                                     }
 
                                     if (d2HighTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "List empty.")
-                                        hasEmptyList = true
+                                        Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Highest.descriptor}", emptyMessage)
                                     } else {
                                         for (i in d2HighTempData) {
                                             size += 1
@@ -630,8 +684,7 @@ class WeatherViewModel(
                                     }
 
                                     if (d2LowTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "List empty.")
-                                        hasEmptyList = true
+                                        Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", emptyMessage)
                                     } else {
                                         for (i in d2LowTempData) {
                                             size += 1
@@ -642,7 +695,6 @@ class WeatherViewModel(
                                     }
 
                                     logElapsedTime(TAG, "$size items", fetchingStartTime)
-                                    if (hasEmptyList) _toastMessage.value = OneShotEvent(R.string.toast_kma_na)
                                 }
 
                                 // Refresh the highest/lowest temperatures
@@ -661,6 +713,7 @@ class WeatherViewModel(
                             networkJob.join()
                             adjustTodayCharTemp()
                             buildDailyTemps()
+                            if (isInfoNull()) _toastMessage.value = OneShotEvent(R.string.toast_kma_na)
                         }
                         break
                     } catch (e: TimeoutCancellationException) {  // Retry on timeouts.
@@ -704,6 +757,11 @@ class WeatherViewModel(
                 }
             }
         }
+    }
+
+    private fun isCoveredByFutureTodayData(latestVillageHour: Int, baseTime: Int): Boolean {
+        return (latestVillageHour != 2300) &&  // futureToday data will cover the whole day. No need to retrieve.
+                (latestVillageHour >= baseTime)  // The baseTime data are available.
     }
 
     private fun getRowCount(hourSpan: Int): Int = hourSpan * VILLAGE_ROWS_PER_HOUR + 1
@@ -930,26 +988,44 @@ class WeatherViewModel(
             highestTemps[1]?.let { ht ->
                 if (tt > ht) {
                     highestTemps[1] = tt
-                    Log.d(TAG, "Overridden by $HOURLY_TEMPERATURE_TAG: $ht -> $tt")
+                    Log.w(TAG, "Overridden by $HOURLY_TEMPERATURE_TAG: $ht -> $tt")
                 }
-
             }
             lowestTemps[1]?.let { lt ->
                 if (tt < lt) {
                     lowestTemps[1] = tt
-                    Log.d(TAG, "Overridden by $HOURLY_TEMPERATURE_TAG: $lt -> $tt")
+                    Log.w(TAG, "Overridden by $HOURLY_TEMPERATURE_TAG: $lt -> $tt")
                 }
             }
         }
     }
 
+    /**
+     * If [isForecastRegionAuto], we need to update the current [ForecastRegion].
+     * Otherwise, we can immediately [requestAllWeatherData] based on a fixed [ForecastRegion].
+     * */
     fun refreshWeatherData() {
-        viewModelScope.launch { _isRefreshing.value = true }
-        if (isForecastRegionAuto) {
-            startLocationUpdate()
-        } else {
-            stopLocationUpdate()  // No need to request location.
-            updateFixedLocation(forecastRegion)  // Update the location directly.
+        _isRefreshing.value = true
+        viewModelScope.launch {
+            try {
+                if (isForecastRegionAuto) {  // Need to update the location.
+                    startLocationUpdate()
+                } else {
+                    stopLocationUpdate()  // No need to request location.
+                    // The ForecastRegion has already been updated on being selected. Just check the time then go.
+                    if (isNewDataReleasedAfter(lastCheckedTime)) {
+                        requestAllWeatherData()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error while refreshWeatherData()", e)
+                _toastMessage.value = OneShotEvent(R.string.error_general_toast)
+            } finally {
+                if (!this.isActive) {
+                    Log.d(TAG, "No active job. Dismiss the ProgressIndicator.")
+                    _isRefreshing.value = false
+                }
+            }
         }
     }
 
@@ -958,8 +1034,8 @@ class WeatherViewModel(
      * */
     private fun startLocationUpdate() {
         Log.d(TAG, "startLocationUpdated() called.")
-        if (ActivityCompat.checkSelfPermission(
-                context, Manifest.permission.ACCESS_FINE_LOCATION
+        if (context.checkSelfPermission(
+                Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
             if (isUpdatingLocation) stopLocationUpdate()
@@ -967,14 +1043,14 @@ class WeatherViewModel(
             locationClient.lastLocation.addOnSuccessListener {
                 if (it != null) {
                     Log.d(LOCATION_TAG, "Last location: (${it.latitude}, ${it.longitude})")
-                    updateLocationAndWeather(CoordinatesLatLon(lat = it.latitude, lon = it.longitude))
+                    requestAutoForecastRegion(CoordinatesLatLon(lat = it.latitude, lon = it.longitude))
                 } else {
                     // e.g. On the very first boot of the device
                     Log.w(LOCATION_TAG, "FusedLocationProviderClient.lastLocation is null.")
                 }
             }
 
-            try {// A costly process to update the current location. Might take about 10 seconds.
+            try {  // A costly process to update the current location. Might take about 10 seconds.
                 locationClient.requestLocationUpdates(currentLocationRequest, locationCallback, Looper.getMainLooper())
                 isUpdatingLocation = true
             } catch (e: Exception) {
@@ -988,51 +1064,52 @@ class WeatherViewModel(
         isUpdatingLocation = false
     }
 
-    private fun updateWeather(coordinates: CoordinatesXy, isImplicit: Boolean = false) {
-        if (coordinates == baseCoordinatesXy) {
-            Log.d(TAG, "The same coordinates.")
+    fun onClickLocationChange() {
+        if (forecastRegionCandidates.isEmpty()) {
+            _forecastRegionCandidates.value = defaultRegionCandidates.toList()
+        }
+        _toShowSearchRegionDialog.value = true
+    }
 
-            lastCheckedTime?.also {
-                val lastBaseTime = getKmaBaseTime(cal = it, roundOff = HOUR)
-                val currentBaseTime = getKmaBaseTime(roundOff = HOUR)
-
-                if (currentBaseTime.isLaterThan(lastBaseTime)) {
-                    Log.d(TAG, "However, new data are available.(${lastBaseTime.hour} -> ${currentBaseTime.hour})")
-                    requestAllWeatherData()
-                } else {
-                    Log.d(TAG, "The data are up-to-date as well.")
-                    if (!isImplicit) {
-                        if (kmaJob.isCompleted) _isRefreshing.value = false
-                        _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
+    /**
+     * Called when location results have been collected from [locationClient].
+     * [isImplicit] is true when it was a (confirming) result from the [locationCallback].
+     * */
+    fun requestAutoForecastRegion(coordinates: CoordinatesLatLon, isImplicit: Boolean = false) {
+        val xy = convertToXy(coordinates)
+        if ((xy.nx in (NX_MIN..NX_MAX)) && (xy.ny in (NY_MIN..NY_MAX))) {
+            KoreanGeocoder(context).updateAddresses(coordinates) { addresses ->
+                val suitableAddress: String
+                var suitableNameIndex = 0
+                if (addresses != null) {
+                    addresses.forEachIndexed { index, address ->
+                        if (suitableNameIndex > 0) return@forEachIndexed  // return if the index changed.
+                        val fullName = address.getAddressLine(0)
+                        // Check we can draw a proper city name.
+                        val cityName = getCityName(fullName)
+                        if (cityName != null) suitableNameIndex = index
                     }
-                }
-            } ?: kotlin.run {
-                Log.d(TAG, "However, the ViewModel doesn't hold any data.")
-                requestAllWeatherData()
+                    val fullAddress = addresses[suitableNameIndex].getAddressLine(0).replace("대한민국 ", "")
+                    val greedyRegex = Regex("(\\S.+[시도군구동읍면리])")
+                    // val greedyRegex = Regex("\\S.+[시도군구동읍면리]")  // TODO: If this throws an exception, how should I catch the exception from the listener of Geocoder?
+                    suitableAddress = greedyRegex.find(fullAddress)?.groupValues?.get(1) ?: fullAddress
+
+                    Log.d(TAG, "The most suitable address: $suitableAddress")
+
+                    // Finally, ForecastRegion can be composed.
+                    val locatedRegion = ForecastRegion(address = suitableAddress, xy = xy)
+                    // Now, it goes the same with fixed ForecastRegions.
+                    updateForecastRegion(locatedRegion, isImplicit)
+                } else showLocationError(coordinates)
             }
         } else {
-            Log.d(LOCATION_TAG, "A new coordinates\t: (${coordinates.nx}, ${coordinates.ny})")
-            baseCoordinatesXy = coordinates
-
-            // Request new data for the location.
-            requestAllWeatherData()
+            showLocationError(coordinates)
         }
     }
 
-    fun updateLocationAndWeather(coordinates: CoordinatesLatLon, isImplicit: Boolean = false) {
-        val geocoder = KoreanGeocoder(context)
-        geocoder.updateAddresses(coordinates) { addresses ->
-            val locatedCityName = getCityName(addresses)
-            getDistrictName(addresses)?.let { _districtName.value = it }
-
-            if (locatedCityName == null) {
-                Log.e(LOCATION_TAG, "Error retrieving a city name(${coordinates.lat}, ${coordinates.lon}).")
-            } else {
-                _cityName.value = locatedCityName
-                val xy = convertToXy(coordinates)
-                updateWeather(xy, isImplicit)
-            }
-        }
+    private fun showLocationError(coordinates: CoordinatesLatLon) {
+        Log.e(LOCATION_TAG, "Error retrieving a city name(${coordinates.lat}, ${coordinates.lon}).")
+        _toastMessage.value = OneShotEvent(R.string.error_auto_location_na)
     }
 
     private val locationCallback = object : LocationCallback() {
@@ -1040,7 +1117,7 @@ class WeatherViewModel(
             super.onLocationResult(locationResult)
             locationResult.lastLocation?.let {
                 Log.d(LOCATION_TAG, "Current location: (${it.latitude}, ${it.longitude})")
-                updateLocationAndWeather(CoordinatesLatLon(it.latitude, it.longitude), isImplicit = true)
+                requestAutoForecastRegion(CoordinatesLatLon(it.latitude, it.longitude), isImplicit = true)
             }
         }
     }
@@ -1084,25 +1161,147 @@ class WeatherViewModel(
         }
     }
 
-    fun updateFixedRegion(region: ForecastRegion) {
-        forecastRegion = region
-        viewModelScope.launch {
-            userPrefsRepo.updateForecastRegion(region)
-        }
-    }
-
-    fun updateAutoRegionEnabled(enabled: Boolean) {
+    fun updateAutoRegionEnabled(enabled: Boolean, isExplicit: Boolean = true) {
+        Log.d(TAG, "Auto region: ${enabled.toEnablementString()}")
         isForecastRegionAuto = enabled
-        viewModelScope.launch {
-            userPrefsRepo.updateAutoRegionEnabled(enabled)
+        _selectedForecastRegionIndex.value = if (enabled) 0 else 1
+        if (isExplicit) {  // No need to feed back to Preferences.
+            viewModelScope.launch {
+                userPrefsRepo.updateAutoRegionEnabled(enabled)
+            }
         }
     }
 
     fun stopRefreshing() {
+        Log.d(TAG, "Refresh cancelled.")
+        searchRegionJob.cancel()
         kmaJob.cancel()
-        // The progress indicator should be explicitly reassigned,
+        // The state should be explicitly reassigned,
         // as the loading indicator won't be dismissed when the Job is cancelled programmatically,
         _isRefreshing.value = false
+    }
+
+    fun searchForCandidates(query: String) {
+        searchRegionJob = viewModelScope.launch(defaultDispatcher) {
+            try {
+                val geoCoder = KoreanGeocoder(context)
+                geoCoder.updateLatLng(query) { coordinateList ->
+                    if (coordinateList != null) {
+                        val searchResults = mutableListOf<ForecastRegion>()
+                        for (coordinate in coordinateList) {
+                            // Operations with the same coordinate
+                            val xy = convertToXy(CoordinatesLatLon(coordinate.lat, coordinate.lon))
+
+                            geoCoder.updateAddresses(coordinate) { addresses ->
+                                if (addresses != null) {
+                                    // A clean set of addresses: Not RDS, takes < 40 ms
+                                    val validAddresses = getValidAddressSet(addresses)
+                                    for (address in validAddresses) {  // Add everyone.
+                                        val region = ForecastRegion(
+                                            address = address,
+                                            xy = xy,
+                                        )
+                                        searchResults.add(region)
+                                    }
+                                } else {
+                                    showNoRegionCandidates()
+                                }
+                            }
+                        }
+                        // Operations with the coordinates done. All results have been collected.
+                        if (searchResults.isEmpty()) {
+                            showNoRegionCandidates()
+                        } else {
+                            searchResults.sortBy { it.address }
+                            _forecastRegionCandidates.value = searchResults
+                            _selectedForecastRegionIndex.value = 0
+                        }
+                    } else {
+                        showNoRegionCandidates()
+                    }
+                }
+            } catch (e: IOException) {
+                Log.w(TAG, "Invalid IO", e)
+                showNoRegionCandidates()
+            } catch (e: Exception) {
+                Log.e(TAG, "Cannot retrieve Locations.", e)
+                searchRegionJob.cancel()
+            }
+        }
+    }
+
+    /**
+     * Returns Set<String> excluding 1. 도로명 주소 2. 숫자가 들어간 동 이름.
+     * */
+    private fun getValidAddressSet(addresses: List<Address>): Set<String> {
+        val addressCandidates = mutableSetOf<String>()
+        // Remove practically duplicate items.
+        for (address in addresses) {
+            val fullName = address.getAddressLine(0).replace("대한민국 ", "")
+
+            if (Regex("[시도군구동읍면리]$").containsMatchIn(fullName)) {
+                val withNumber = Regex("(.+)\\d{1,2}([동리])").find(fullName)?.destructured
+                if (withNumber == null) {
+                    // No practically duplicate items.
+                    addressCandidates.add(fullName)
+                } else {
+                    val regexJae = Regex("(.+)제\\d{1,2}([동리])")
+                    if (!regexJae.containsMatchIn(fullName)) {
+                        // We can safely remove the number
+                        val withoutNumber = withNumber.toList().joinToString("")
+                        addressCandidates.add(withoutNumber)
+                    } else {
+                        val matchJae = regexJae.find(fullName)?.destructured
+
+                        // Check whether it's safe to remove the '제1', '제2', ...
+                        val withoutJae: String = matchJae!!.toList().joinToString("")
+                        if (addressCandidates.contains(withoutJae)) {
+                            // It's a duplicate. (목제1동, but 목동 already in the Set)
+                            Log.d(TAG, "$fullName is a duplicate.")
+                            // To be precise, we should check the candidates with '제\d' match the new address.
+                            // However, omit it for the performance.
+                        } else {
+                            // Likely to be a different element. (홍제1동, 홍동 not in the Set)
+                            Log.d(TAG, "$fullName added.(suspicious)")
+                            addressCandidates.add(fullName)
+                        }
+                    }
+                }
+            }
+        }
+        return addressCandidates
+    }
+
+    private fun showNoRegionCandidates() {
+        Log.d(TAG, "No region candidate.")
+        _forecastRegionCandidates.value = defaultRegionCandidates.toList()
+        _toastMessage.value = OneShotEvent(R.string.dialog_search_region_no_result)
+    }
+
+    /**
+     * Called everytime the Activity is created(including rotating the screen, of course).
+     * */
+    fun updateDefaultRegionCandidates(region: ForecastRegion, autoTitle: String) {
+        Log.d(TAG, "ForecastRegion: ${region.toRegionString()}")
+        forecastRegion = region  // A force update
+        defaultRegionCandidates = arrayOf(
+            ForecastRegion(autoTitle, autoRegionCoordinate),
+            region
+        )
+        updateRepresentedCityName(region)
+        if (forecastRegionCandidates.isEmpty()) {  // There is no search result held.
+            _forecastRegionCandidates.value = defaultRegionCandidates.toList()
+        }
+    }
+
+    fun invalidateSearchDialog() {
+        _toShowSearchRegionDialog.value = false
+        _forecastRegionCandidates.value = emptyList()
+        _selectedForecastRegionIndex.value = if (isForecastRegionAuto) 0 else 1
+    }
+
+    fun updateSelectedForecastRegionIndex(index: Int) {
+        _selectedForecastRegionIndex.value = index
     }
 
     companion object {

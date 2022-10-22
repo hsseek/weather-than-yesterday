@@ -92,5 +92,9 @@
     <string name="share_app_now_good_lower">It\'s lower than yesterday by %1$d.</string>
     <string name="share_app_guide">Choose an app</string>
     <string name="dialog_title_language">Choose language</string>
-    <string name="dialog_title_search_region">Search forecast region</string>
+    <string name="dialog_title_search_region">Configure forecast region</string>
+    <string name="dialog_search_region_no_result">No result for the name.</string>
+    <string name="dialog_search_region_hint">Name of region</string>
+    <string name="error_auto_location_na">KMA data not available for the location.</string>
+    <string name="error_general_toast">Sorry, I managed to keep the app open but an error occurred.</string>
 </resources>

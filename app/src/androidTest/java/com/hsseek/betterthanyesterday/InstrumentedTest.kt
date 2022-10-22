@@ -11,6 +11,7 @@ import org.junit.runner.RunWith
 
 import org.junit.Assert.*
 import java.util.Calendar
+import kotlin.system.measureTimeMillis
 
 /**
  * Instrumented test, which will execute on an Android device.
@@ -29,24 +30,30 @@ class InstrumentedTest {
 
     @Test
     fun geocoderLatLonTest() {
+        val tag = "Geocoder"
         val geo = KoreanGeocoder(appContext)
         val maxResult = 20
-        val query = "경기도 목동"
+        val query = "서울"
 
-        geo.updateLatLng(query, maxResult) {
-//                    assertEquals(37.24293628036336, coordinate.lat, 1e-5)
-//                    assertEquals(131.8668420793528, coordinate.lon, 1e-5)
-        }
+        val time = measureTimeMillis { geo.updateLatLng(query, maxResult) {} }
+        Log.d(tag, "Done in $time ms")
+        // assertEquals(37.24293628036336, coordinate.lat, 1e-5)
+        // assertEquals(131.8668420793528, coordinate.lon, 1e-5)
+
     }
 
     @Test
     fun geocoderAddress() {
+        val tag = "Geocoder"
         val geo = KoreanGeocoder(appContext)
-        val lat = 37.45999322043131
-        val lon = 126.95170256225894
+        val lat = 37.566535
+        val lon = 126.9779691
         val maxResult = 20
 
-        geo.updateAddresses(CoordinatesLatLon(lat, lon), maxResult) { }
+        val time = measureTimeMillis {
+            geo.updateAddresses(CoordinatesLatLon(lat, lon), maxResult) { }
+        }
+        Log.d(tag,"Done in $time ms")
     }
 
     @Test

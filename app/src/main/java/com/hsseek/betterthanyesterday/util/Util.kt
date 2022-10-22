@@ -2,7 +2,6 @@ package com.hsseek.betterthanyesterday.util
 
 import android.content.Context
 import android.content.res.Configuration
-import android.location.Address
 import android.util.Log
 import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.Language
@@ -24,6 +23,11 @@ const val VILLAGE_ROWS_PER_HOUR = 12
 const val VILLAGE_EXTRA_ROWS = 2
 const val VILLAGE_HOUR_INTERVAL = 3
 val SEOUL = CoordinatesXy(60, 127)
+const val NX_MIN = 21
+const val NX_MAX = 144
+const val NY_MIN = 8
+const val NY_MAX = 147
+
 
 data class KmaTime(val date: String, val hour: String){
     fun isLaterThan(time: KmaTime): Boolean {
@@ -123,37 +127,38 @@ suspend fun logCoroutineContext(msg: String = "") {
     Log.d(tag, msg + "\nThread: ${Thread.currentThread().name}" + "\nScope: $coroutineContext")
 }
 
-fun getCityName(addresses: List<Address>?): String? {
-    if (addresses != null) {
-        val regex = Regex("\\s(.+?[시군])\\s")
-        for (address in addresses) {
-            val cityFullName = regex.find(address.getAddressLine(0))?.groupValues?.get(1)
-            if (cityFullName != null) {
-                for (special in listOf("특별시", "광역시", "특별자치")) {
-                    if (cityFullName.contains(special)) {
-                        return cityFullName.replace(special, "")  // e.g. "서울특별시" -> "서울"
-                    }
+fun getCityName(address: String): String? {
+    val regex = Regex("(.+?[시군])(?:\\s|$)")
+    return regex.find(address)?.groupValues?.get(1)
+}
+
+fun getGeneralCityName(address: String): String {
+    return address.replace("대한민국 ", "")  // Always 대한민국, so omit it.
+        .split(" ").first()  // The most upper class name
+}
+
+fun String?.removeSpecialCitySuffix(): String? {
+    this?.let {
+        if (Regex("시(?:\\s|$)").containsMatchIn(this)) {
+            for (special in listOf("특별시", "광역시", "특별자치시")) {
+                if (this.contains(special)) {
+                    return this.replace(special, "")  // e.g. "서울특별시" -> "서울"
                 }
-                return cityFullName
             }
-        }  // No matching pattern found.
-        return addresses.first().getAddressLine(0).split(" ").first()
+        }
+        return this
     }
     return null
 }
 
-fun getDistrictName(addresses: List<Address>?): String? {
-    if (addresses != null) {
-        val regex = Regex("\\s(\\S+?[구읍면])\\s")
-        for (address in addresses) {
-            val district = regex.find(address.getAddressLine(0))?.groupValues?.get(1)
-            if (district != null) return district
-        }  // No matching pattern found.
-        val generalRegex = Regex("\\s.+?[시군]\\s(\\S+?)\\s")
-        val street = generalRegex.find(addresses.first().getAddressLine(0))?.groupValues?.get(1)
-        if (street != null) return street
-    }
-    return null
+fun getDistrictName(address: String): String? {
+    val regex = Regex("\\s(\\S+?[동리])(?:\\s|$)")
+    return regex.find(address)?.groupValues?.get(1)
+}
+
+fun getGeneralDistrictName(address: String): String? {
+    val generalRegex = Regex("\\s(\\S+?[구읍면])(?:\\s|$)")
+    return generalRegex.find(address)?.groupValues?.get(1)
 }
 
 suspend fun createConfigurationWithStoredLocale(context: Context): Configuration {
@@ -171,10 +176,6 @@ suspend fun createConfigurationWithStoredLocale(context: Context): Configuration
 
 fun Int.toEmojiString(): String = String(Character.toChars(this))
 
-enum class KmaHourRoundOff {
-    HOUR, VILLAGE
-}
-
 fun getLocatingMethod(code: Int): LocatingMethod {
     enumValues<LocatingMethod>().forEach {
         if (code == it.code) return it
@@ -182,6 +183,8 @@ fun getLocatingMethod(code: Int): LocatingMethod {
     return LocatingMethod.Auto  // The default
 }
 
-fun ForecastRegion.toRegionString(): String = "${this.cityName}, ${this.districtName} (${this.nx}, ${this.ny})"
+fun ForecastRegion.toRegionString(): String = "${this.address} (${this.xy.nx}, ${this.xy.ny})"
 
 fun Boolean.toEnablementString(): String = if (this) "enabled" else "disabled"
+
+enum class KmaHourRoundOff { HOUR, VILLAGE }

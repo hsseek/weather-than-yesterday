@@ -19,8 +19,7 @@ private const val TAG = "UserPreferencesRepository"
 class UserPreferencesRepository(private val context: Context) {
     private object PreferencesKeys {
         val FORECAST_REGION_AUTO = booleanPreferencesKey("forecast_region_auto")
-        val FORECAST_REGION_CITY = stringPreferencesKey("forecast_region_city")
-        val FORECAST_REGION_DISTRICT = stringPreferencesKey("forecast_region_district")
+        val FORECAST_REGION_ADDRESS = stringPreferencesKey("forecast_region_address")
         val FORECAST_REGION_NX = intPreferencesKey("forecast_region_nx")
         val FORECAST_REGION_NY = intPreferencesKey("region_ny")
         val LANGUAGE_CODE = intPreferencesKey("language_code")
@@ -33,11 +32,8 @@ class UserPreferencesRepository(private val context: Context) {
         .catch { e ->
             if (e is IOException) emit(emptyPreferences()) else throw e
         }.map { preferences ->
-            val placeholderString = "-"
-
             val isForecastRegionAuto = preferences[PreferencesKeys.FORECAST_REGION_AUTO] ?: true
-            val forecastRegionCity = preferences[PreferencesKeys.FORECAST_REGION_CITY] ?: placeholderString
-            val forecastRegionDistrict = preferences[PreferencesKeys.FORECAST_REGION_DISTRICT] ?: placeholderString
+            val forecastRegionAddress= preferences[PreferencesKeys.FORECAST_REGION_ADDRESS] ?: "서울특별시 중구"
             val forecastRegionNx = preferences[PreferencesKeys.FORECAST_REGION_NX] ?: SEOUL.nx
             val forecastRegionNy = preferences[PreferencesKeys.FORECAST_REGION_NY] ?: SEOUL.ny
             val languageCode = preferences[PreferencesKeys.LANGUAGE_CODE] ?: Language.System.code
@@ -47,8 +43,7 @@ class UserPreferencesRepository(private val context: Context) {
 
             UserPreferences(
                 isForecastRegionAuto,
-                forecastRegionCity,
-                forecastRegionDistrict,
+                forecastRegionAddress,
                 forecastRegionNx,
                 forecastRegionNy,
                 languageCode,
@@ -68,10 +63,9 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun updateForecastRegion(region: ForecastRegion) {
         context.dataStore.edit { preferences ->
             Log.d(TAG, "ForecastRegion stored: ${region.toRegionString()}")
-            preferences[PreferencesKeys.FORECAST_REGION_CITY] = region.cityName
-            preferences[PreferencesKeys.FORECAST_REGION_DISTRICT] = region.districtName
-            preferences[PreferencesKeys.FORECAST_REGION_NX] = region.nx
-            preferences[PreferencesKeys.FORECAST_REGION_NY] = region.ny
+            preferences[PreferencesKeys.FORECAST_REGION_ADDRESS] = region.address
+            preferences[PreferencesKeys.FORECAST_REGION_NX] = region.xy.nx
+            preferences[PreferencesKeys.FORECAST_REGION_NY] = region.xy.ny
         }
     }
 
@@ -106,8 +100,7 @@ class UserPreferencesRepository(private val context: Context) {
 
 data class UserPreferences(
     val isForecastRegionAuto: Boolean,
-    val forecastRegionCity: String,
-    val forecastRegionDistrict: String,
+    val forecastRegionAddress: String,
     val forecastRegionNx: Int,
     val forecastRegionNy: Int,
     val languageCode: Int,
@@ -134,4 +127,4 @@ enum class LocatingMethod(val code: Int, val regionId: Int, val examplesId: Int,
     Dokdo(10, R.string.region_dokdo, R.string.examples_dokdo, CoordinatesXy(144, 123)),
 }
 
-data class ForecastRegion(val cityName: String, val districtName: String, val nx: Int, val ny: Int)
+data class ForecastRegion(val address: String, val xy: CoordinatesXy)

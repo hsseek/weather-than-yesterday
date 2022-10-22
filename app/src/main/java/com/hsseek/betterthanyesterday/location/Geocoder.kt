@@ -4,6 +4,7 @@ import android.content.Context
 import android.location.Address
 import android.location.Geocoder
 import android.util.Log
+import com.hsseek.betterthanyesterday.util.logElapsedTime
 import java.util.*
 
 private const val TAG = "Geocoder"
@@ -13,18 +14,20 @@ class KoreanGeocoder(context: Context) {
 
     fun updateLatLng(
         commonName: String,
-        maxResult: Int = 6,
+        maxResult: Int = 8,
         onSuccessLatLon: (List<CoordinatesLatLon>?) -> Unit,
     ) {
+        val start = System.currentTimeMillis()
         try {
             if (android.os.Build.VERSION.SDK_INT >= 33) {
                 val geocoderListener = object : Geocoder.GeocodeListener {
                     override fun onGeocode(addresses: MutableList<Address>) {
-                        logAddress(addresses)
+                        logLatLon(addresses)
+                        logElapsedTime(TAG, "Update lat/long", start)
                         if (addresses.size > 0) {
                             onSuccessLatLon(convertToLatLonList(addresses))
                         } else {
-                            Log.e(TAG, "0 result from getFromLocationName(...)")
+                            Log.d(TAG, "0 result from getFromLocationName(...)")
                             onSuccessLatLon(null)
                         }
                     }
@@ -38,12 +41,13 @@ class KoreanGeocoder(context: Context) {
             } else {
                 @Suppress("DEPRECATION")
                 val addresses = geoCoder.getFromLocationName(commonName, maxResult)
-                logAddress(addresses)
+                logLatLon(addresses)
+                logElapsedTime(TAG, "Update lat/long", start)
 
                 if (addresses != null && addresses.size > 0) {
                     onSuccessLatLon(convertToLatLonList(addresses))
                 } else {
-                    Log.e(TAG, "0 result from getFromLocationName(...) [Deprecated]")
+                    Log.d(TAG, "0 result from getFromLocationName(...) [Deprecated]")
                     onSuccessLatLon(null)
                 }
             }
@@ -54,13 +58,15 @@ class KoreanGeocoder(context: Context) {
 
     fun updateAddresses(
         position: CoordinatesLatLon,
-        maxResult: Int = 6,
+        maxResult: Int = 8,
         onSuccessAddress: (List<Address>?) -> Unit
     ) {
+        val start = System.currentTimeMillis()
         try {
             if (android.os.Build.VERSION.SDK_INT >= 33) {
                 val geocoderListener = object : Geocoder.GeocodeListener {
                     override fun onGeocode(addresses: MutableList<Address>) {
+                        logElapsedTime(TAG, "Update addresses", start)  // Not RDS, takes < 50 ms.
                         onSuccessAddress(addresses)
                         logAddress(addresses)
                     }
@@ -74,6 +80,7 @@ class KoreanGeocoder(context: Context) {
             } else {
                 @Suppress("DEPRECATION")
                 val addresses = geoCoder.getFromLocation(position.lat, position.lon, maxResult)
+                logElapsedTime(TAG, "Update addresses", start)
                 onSuccessAddress(addresses)
                 logAddress(addresses)
             }
@@ -86,17 +93,27 @@ class KoreanGeocoder(context: Context) {
         val latLonList: MutableList<CoordinatesLatLon> = mutableListOf()
         for (address in addresses) {
             val latlon = CoordinatesLatLon(lat = address.latitude, lon = address.longitude)
-            if (latLonList.contains(latlon)) {  // CoordinatesLatLon is a data class.
+            if (!latLonList.contains(latlon)) {  // CoordinatesLatLon is a data class.
                 latLonList.add(latlon)
             }
         }
         return latLonList
     }
 
+    private fun logLatLon(addresses: List<Address>?) {
+        addresses?.also {
+            for (address in it) {
+                Log.d(TAG, "Lat, Lon candidate: ${address.latitude}, ${address.longitude}")
+            }
+        } ?: kotlin.run {
+            Log.e(TAG, "Addresses null.")
+        }
+    }
+
     private fun logAddress(addresses: List<Address>?) {
         addresses?.also {
             for (address in it) {
-                Log.d(TAG, "Address candidate: ${address.getAddressLine(0)}(${address.latitude}, ${address.latitude})")
+                Log.d(TAG, "Address candidate: ${address.getAddressLine(0)}(${address.latitude}, ${address.longitude})")
             }
         } ?: kotlin.run {
             Log.e(TAG, "Addresses null.")
