@@ -44,6 +44,15 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
     val showDaybreakHelp: Boolean
         get() = _showDaybreakHelp.value
 
+    // PresetRegion
+    private val _isPresetRegion = mutableStateOf(false)
+    val isPresetRegion: Boolean
+        get() = _isPresetRegion.value
+
+    private val _showPresetRegionHelp = mutableStateOf(false)
+    val showPresetRegionHelp: Boolean
+        get() = _showPresetRegionHelp.value
+
     fun onClickLanguage() {
         _showLanguageDialog.value = true
     }
@@ -90,6 +99,15 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
         }
     }
 
+    fun updatePresetRegionEnabled(enabled: Boolean, isExplicit: Boolean = true) {
+        _isPresetRegion.value = enabled
+        if (isExplicit) {
+            viewModelScope.launch {
+                userPreferencesRepository.updatePresetRegionEnabled(enabled)
+            }
+        }
+    }
+
     fun onClickSimpleViewHelp() {
         _showSimpleViewHelp.value = true
     }
@@ -112,6 +130,14 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
 
     fun onDismissDaybreakHelp() {
         _showDaybreakHelp.value = false
+    }
+
+    fun onClickPresetRegionHelp() {
+        _showPresetRegionHelp.value = true
+    }
+
+    fun onDismissPresetRegionHelp() {
+        _showPresetRegionHelp.value = false
     }
 }
 

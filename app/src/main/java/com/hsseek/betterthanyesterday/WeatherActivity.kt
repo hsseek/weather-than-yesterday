@@ -54,7 +54,7 @@ import com.google.accompanist.swiperefresh.SwipeRefreshState
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.hsseek.betterthanyesterday.data.ForecastRegion
-import com.hsseek.betterthanyesterday.data.LocatingMethod
+import com.hsseek.betterthanyesterday.data.PresetRegion
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
 import com.hsseek.betterthanyesterday.ui.theme.*
@@ -105,17 +105,18 @@ class WeatherActivity : ComponentActivity() {
                 prefs.forecastRegionAddress,
                 CoordinatesXy(prefs.forecastRegionNx, prefs.forecastRegionNy)
             )
-            viewModel.updateDefaultRegionCandidates(region, getString(R.string.region_auto))
+            viewModel.initiateForecastRegions(region, getString(R.string.region_auto))
         }
 
         // Observe to Preferences changes.
         viewModel.viewModelScope.launch(defaultDispatcher) {
             logCoroutineContext("Preferences Flow observation from MainActivity")
             prefsRepo.preferencesFlow.collect { userPrefs ->
+                viewModel.updateLanguage(userPrefs.languageCode)
                 viewModel.updateSimplifiedEnabled(userPrefs.isSimplified)
                 viewModel.updateAutoRefreshEnabled(userPrefs.isAutoRefresh)
                 viewModel.updateDaybreakEnabled(userPrefs.isDaybreak)
-                viewModel.updateLanguage(userPrefs.languageCode)
+                viewModel.updatePresetRegionEnabled(userPrefs.isPresetRegion)
             }
         }
 
@@ -150,34 +151,36 @@ class WeatherActivity : ComponentActivity() {
 
                     // A Dialog to select ForecastRegion
                     if (viewModel.toShowSearchRegionDialog) {
-                        SearchRegionDialog(
-                            items = viewModel.forecastRegionCandidates,
-                            selected = viewModel.selectedForecastRegionIndex,
-                            onSelect = { viewModel.updateSelectedForecastRegionIndex(it) },
-                            onClickSearch = { query ->
-                                val time = measureTimeMillis {
-                                    viewModel.searchForCandidates(query)
-                                }
-                                Log.d(TAG, "Region search done in $time ms")
-                                // Toast.makeText(this, "Done in $time ms", Toast.LENGTH_SHORT).show()
-                                            },
-                            onClickNegative = { viewModel.invalidateSearchDialog() },
-                            onClickPositive = { index ->
-                                if (viewModel.forecastRegionCandidates.isNotEmpty()) {
-                                    val selectedRegion = viewModel.forecastRegionCandidates[index]
-                                    onSelectedForecastRegion(selectedRegion)
-                                }
-                                viewModel.invalidateSearchDialog()
-                            })
+                        if (!viewModel.isPresetRegion) {
+                            SearchRegionDialog(
+                                items = viewModel.forecastRegionCandidates,
+                                selected = viewModel.selectedForecastRegionIndex,
+                                onSelect = { viewModel.updateSelectedForecastRegionIndex(it) },
+                                onClickSearch = { query ->
+                                    val time = measureTimeMillis {
+                                        viewModel.searchForCandidates(query)
+                                    }
+                                    Log.d(TAG, "Region search done in $time ms")
+                                    // Toast.makeText(this, "Done in $time ms", Toast.LENGTH_SHORT).show()
+                                },
+                                onClickNegative = { viewModel.invalidateSearchDialog() },
+                                onClickPositive = { index ->
+                                    if (viewModel.forecastRegionCandidates.isNotEmpty()) {
+                                        val selectedRegion = viewModel.forecastRegionCandidates[index]
+                                        onSelectedForecastRegion(selectedRegion)
+                                    }
+                                    viewModel.invalidateSearchDialog()
+                                })
+                        } else {
+                            // A Dialog to select PresetRegion.
+                            PresetRegionRadioDialog()
+                        }
                     }
-
-                    // A Dialog to select LocatingMethod.
-                    if (viewModel.toShowLocatingMethodDialog.value) LocatingMethodRadioDialog()
 
                     // ProgressIndicator for Dialog.
                     // Note that a Composable ON the Surface(not a Dialog) would be set BELOW the SearchRegionDialog
                     // and might not be shown.
-                    if (viewModel.toShowSearchRegionDialogLoading) {
+                    if (!viewModel.isPresetRegion && viewModel.toShowSearchRegionDialogLoading) {
                         ProgressIndicatorDialog(onDismissRequest = { viewModel.dismissSearchRegionLoading() })
                     }
                 }
@@ -192,46 +195,44 @@ class WeatherActivity : ComponentActivity() {
         Log.d(TAG, "Selected ForecastRegion: ${forecastRegion.address}")
 
         // Weather it is permitted or not, the user intended to use the locating method. Respect the selection.
-        if (forecastRegion.xy == viewModel.autoRegionCoordinate) {
-            viewModel.updateAutoRegionEnabled(true)
-            // Cannot update ForecastRegion immediately. Wait for the locating results.
-        } else {
-            viewModel.updateAutoRegionEnabled(false)
+        val isAutoRegion = forecastRegion.xy == viewModel.autoRegionCoordinate
+        viewModel.updateAutoRegionEnabled(isAutoRegion)
 
+        if (isAutoRegion) {
+            // Check the validity of the selection. It will update ForecastRegion later.
+            checkPermissionThenRefresh()
+        } else {
             // No need to search location. Update the ForecastRegion immediately.
             viewModel.updateForecastRegion(forecastRegion)
         }
-
-        // Then check the validity of the selection.
-        checkPermissionThenRefresh()
     }
 
     @Composable
-    private fun LocatingMethodRadioDialog() {
-        val presetLocations: MutableList<RadioItem> = mutableListOf()
-        enumValues<LocatingMethod>().forEach {
-            presetLocations.add(
+    private fun PresetRegionRadioDialog() {
+        var selectedIndex = 0
+        val presetRegionRadioItems: MutableList<RadioItem> = mutableListOf()
+        val candidates = enumValues<PresetRegion>().toList()
+        candidates.forEachIndexed { index, presetRegion ->
+            // Build the RadioItem then add it.
+            presetRegionRadioItems.add(
                 RadioItem(
-                    code = it.code,
-                    title = stringResource(id = it.regionId),
-                    desc = stringResource(id = it.examplesId)
+                    code = index,
+                    title = stringResource(id = presetRegion.regionId),
+                    desc = stringResource(id = presetRegion.examplesId)
                 )
             )
-        }
 
-        val selectedPreset = presetLocations.filter { it.title == viewModel.cityName }
-        val selectedIndex = if (selectedPreset.isNotEmpty()) {
-            selectedPreset[0].code
-        } else 0
+            if (presetRegion.xy == viewModel.forecastRegion.xy) selectedIndex = index
+        }
 
         RadioSelectDialog(
             title = stringResource(R.string.dialog_location_title),
-            items = presetLocations,
+            items = presetRegionRadioItems,
             selectedItemIndex = selectedIndex,
-            onClickNegative = { viewModel.toShowLocatingMethodDialog.value = false },
-            onClickPositive = { selectedCode ->
-                viewModel.toShowLocatingMethodDialog.value = false  // Dismiss the dialog anyway.
-                onSelectLocatingMethod(getLocatingMethod(selectedCode))
+            onClickNegative = { viewModel.dismissRegionDialog() },
+            onClickPositive = { newlySelectedIndex ->
+                viewModel.dismissRegionDialog()  // Dismiss the dialog anyway.
+                onSelectPresetRegion(candidates[newlySelectedIndex])
             }
         )
     }
@@ -267,10 +268,10 @@ class WeatherActivity : ComponentActivity() {
         }
     }
 
-    private fun onSelectLocatingMethod(selectedLocatingMethod: LocatingMethod) {
+    private fun onSelectPresetRegion(selectedPresetRegion: PresetRegion) {
         val region = ForecastRegion(
-            address = getString(selectedLocatingMethod.regionId),
-            xy = selectedLocatingMethod.coordinates,
+            address = getString(selectedPresetRegion.regionId),
+            xy = selectedPresetRegion.xy,
         )
         onSelectedForecastRegion(region)
     }
@@ -287,7 +288,7 @@ class WeatherActivity : ComponentActivity() {
 
     private fun checkPermissionThenRefresh() {
         if (isLocatingPermitted()) {  // Good to go.
-            viewModel.refreshWeatherData()
+            viewModel.onClickRefresh()
         } else {
             // Not request refreshing now.
             showRequestPermissionLauncher()
@@ -341,13 +342,13 @@ class WeatherActivity : ComponentActivity() {
     ) { isGranted ->
         if (isGranted) {
             Log.d(TAG, "Permission granted.")
-            viewModel.refreshWeatherData()
+            viewModel.onClickRefresh()  // It is equivalent to click Refresh.
         } else {
             viewModel.stopLocationUpdate()
 
             // The user must select a location to retrieve weather data.
             // It is equivalent to click Change Location.
-            viewModel.onClickLocationChange()
+            viewModel.onClickChangeRegion()
         }
         // Regardless of the result, the launcher dialog has been dismissed.
     }
@@ -361,7 +362,8 @@ class WeatherActivity : ComponentActivity() {
         Scaffold(
             topBar = { WeatherTopAppBar(
                 modifier = modifier.fillMaxWidth(),
-                onClickChangeLocation = { viewModel.onClickLocationChange() }
+                onClickRefresh = { checkPermissionThenRefresh() },
+                onClickChangeLocation = { viewModel.onClickChangeRegion() }
             ) },
         ) { padding ->
             SwipeRefresh(
@@ -539,6 +541,7 @@ class WeatherActivity : ComponentActivity() {
     @Composable
     private fun WeatherTopAppBar(
         modifier: Modifier,
+        onClickRefresh: () -> Unit,
         onClickChangeLocation: () -> Unit,
     ) {
         val topAppBarElevation = 0.dp
@@ -555,7 +558,7 @@ class WeatherActivity : ComponentActivity() {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // Refresh button
-                IconButton(onClick = { checkPermissionThenRefresh() }) {
+                IconButton(onClick = onClickRefresh) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = stringResource(R.string.desc_refresh),
@@ -566,7 +569,7 @@ class WeatherActivity : ComponentActivity() {
 
                 // Edit location button
                 IconButton(
-                    onClick = { onClickChangeLocation() },
+                    onClick = onClickChangeLocation,
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_edit_location),
@@ -761,7 +764,11 @@ class WeatherActivity : ComponentActivity() {
             val districtText = if (isForecastRegionAuto) {
                 districtName
             } else {  // "Warn" the user if the location has been manually set.
-                districtName + "\n" + getString(R.string.location_manually)
+                if (districtName.isNotBlank()) {
+                    districtName + "\n" + getString(R.string.location_manually)
+                } else {
+                    getString(R.string.location_manually)
+                }
             }
             Text(
                 text = districtText,

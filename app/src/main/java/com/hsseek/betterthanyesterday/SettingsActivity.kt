@@ -60,10 +60,11 @@ class SettingsActivity : ComponentActivity() {
         viewModel.viewModelScope.launch(Dispatchers.Default) {
             // No need to observe the Preferences as the ViewModel processes the user input directly.
             val prefs = userPrefsRepo.preferencesFlow.first()
+            viewModel.updateLanguageCode(prefs.languageCode, false)
             viewModel.updateSimpleViewEnabled(prefs.isSimplified, false)
             viewModel.updateAutoRefreshEnabled(prefs.isAutoRefresh, false)
             viewModel.updateDaybreakEnabled(prefs.isDaybreak, false)
-            viewModel.updateLanguageCode(prefs.languageCode, false)
+            viewModel.updatePresetRegionEnabled(prefs.isPresetRegion, false)
         }
 
         setContent {
@@ -124,6 +125,14 @@ class SettingsActivity : ComponentActivity() {
                             title = stringResource(id = R.string.pref_title_daybreak_mode),
                             desc = stringResource(id = R.string.pref_help_daybreak_mode),
                             onDismissRequest = { viewModel.onDismissDaybreakHelp() }
+                        )
+                    }
+
+                    if (viewModel.showPresetRegionHelp) {
+                        HelpDialog(
+                            title = stringResource(id = R.string.pref_title_preset_regions),
+                            desc = stringResource(id = R.string.pref_help_preset_regions),
+                            onDismissRequest = { viewModel.onDismissPresetRegionHelp() }
                         )
                     }
                 }
@@ -189,6 +198,15 @@ private fun MainScreen(
                     onClickHelp = { viewModel.onClickDaybreakHelp() },
                     checked = viewModel.isDaybreak,
                     onCheckedChange = { isChecked -> viewModel.updateDaybreakEnabled(isChecked) },
+                )
+
+                // Preset regions
+                PreferenceToggleRow(
+                    title = stringResource(R.string.pref_title_preset_regions),
+                    description = stringResource(R.string.pref_desc_preset_regions),
+                    onClickHelp = { viewModel.onClickPresetRegionHelp() },
+                    checked = viewModel.isPresetRegion,
+                    onCheckedChange = { isChecked -> viewModel.updatePresetRegionEnabled(isChecked) },
                 )
             }
         }

@@ -19,6 +19,7 @@ import com.google.android.gms.location.LocationServices
 import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.Language
+import com.hsseek.betterthanyesterday.data.PresetRegion
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
@@ -54,7 +55,7 @@ class WeatherViewModel(
     application: Application,
     private val userPrefsRepo: UserPreferencesRepository,
 ) : AndroidViewModel(application) {
-    val autoRegionCoordinate: CoordinatesXy = CoordinatesXy(0, 0)  // Impossible values
+    val autoRegionCoordinate: CoordinatesXy = PresetRegion.Auto.xy
     private val context = application
     private val stringForNull = context.getString(R.string.null_value)
 
@@ -92,10 +93,12 @@ class WeatherViewModel(
     val isDaybreakMode: Boolean
         get() = _isDaybreakMode.value
 
+    private val _isPresetRegion = mutableStateOf(false)
+    val isPresetRegion: Boolean
+        get() = _isPresetRegion.value
+
     // Variables regarding location.
     private val locationClient = LocationServices.getFusedLocationProviderClient(context)
-    var toShowLocatingMethodDialog = mutableStateOf(false)
-        private set
     private var isUpdatingLocation: Boolean = false
 
     // Information of the ForecastRegion
@@ -156,9 +159,10 @@ class WeatherViewModel(
 
     /**
      * Update [forecastRegion], either retrieved from [startLocationUpdate] or directly from a fixed location.
-     * [isImplicit] is true when it was a (confirming) result from the [locationCallback].
+     * [isSecondary] is true when it was a (confirming) result from the [locationCallback].
      * */
-    fun updateForecastRegion(region: ForecastRegion, isImplicit: Boolean = false) {
+    fun updateForecastRegion(region: ForecastRegion, isSecondary: Boolean = false) {
+        Log.d(TAG, "updateForecastRegion(...) called.")
         // Store the selection.
         viewModelScope.launch {
             userPrefsRepo.updateForecastRegion(region)
@@ -171,6 +175,7 @@ class WeatherViewModel(
         // Check if the location changed before reassigning.
         val isSameCoordinate = region.xy == forecastRegion.xy
         forecastRegion = region
+        Log.d(TAG, "forecastRegion: ${forecastRegion.toRegionString()}")
 
         if (isSameCoordinate) {
             Log.d(TAG, "The same coordinates.")
@@ -178,7 +183,7 @@ class WeatherViewModel(
             if (isNewDataReleasedAfter(lastCheckedTime)) {
                 requestAllWeatherData()  // For the same location, but for a later hour.
             } else {
-                if (!isImplicit) {
+                if (!isSecondary) {
                     if (kmaJob.isCompleted) _isRefreshing.value = false
                     _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
                 }
@@ -244,6 +249,7 @@ class WeatherViewModel(
             kmaJob.cancelAndJoin()
             var trialCount = 0
 
+            _isRefreshing.value = true  // TODO: Is it redundant?
             kmaJob = launch(defaultDispatcher) {
                 Log.d(TAG, "kmaJob launched.")
                 lastCheckedTime = getCurrentKoreanDateTime()
@@ -1003,27 +1009,28 @@ class WeatherViewModel(
      * If [isForecastRegionAuto], we need to update the current [ForecastRegion].
      * Otherwise, we can immediately [requestAllWeatherData] based on a fixed [ForecastRegion].
      * */
-    fun refreshWeatherData() {
+    fun onClickRefresh() {
+        Log.d(TAG, "onClickRefresh() called.")
         _isRefreshing.value = true
-        viewModelScope.launch {
-            try {
-                if (isForecastRegionAuto) {  // Need to update the location.
-                    startLocationUpdate()
+        try {
+            if (isForecastRegionAuto) {  // Need to update the location.
+                startLocationUpdate()
+            } else {
+                stopLocationUpdate()  // No need to request location.
+                // The ForecastRegion has already been updated on being selected. Just check the time then go.
+                if (isNewDataReleasedAfter(lastCheckedTime)) {
+                    requestAllWeatherData()
                 } else {
-                    stopLocationUpdate()  // No need to request location.
-                    // The ForecastRegion has already been updated on being selected. Just check the time then go.
-                    if (isNewDataReleasedAfter(lastCheckedTime)) {
-                        requestAllWeatherData()
-                    }
+                    _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error while refreshWeatherData()", e)
-                _toastMessage.value = OneShotEvent(R.string.error_general_toast)
-            } finally {
-                if (!this.isActive) {
-                    Log.d(TAG, "No active job. Dismiss the ProgressIndicator.")
-                    _isRefreshing.value = false
-                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error while refreshWeatherData()", e)
+            _toastMessage.value = OneShotEvent(R.string.error_general_toast)
+        } finally {
+            Log.d(TAG, "kmaJob is ${kmaJob.status()}")
+            if (kmaJob.isCompleted) {
+                _isRefreshing.value = false
             }
         }
     }
@@ -1063,7 +1070,7 @@ class WeatherViewModel(
         isUpdatingLocation = false
     }
 
-    fun onClickLocationChange() {
+    fun onClickChangeRegion() {
         if (forecastRegionCandidates.isEmpty()) {
             _forecastRegionCandidates.value = defaultRegionCandidates.toList()
         }
@@ -1072,9 +1079,9 @@ class WeatherViewModel(
 
     /**
      * Called when location results have been collected from [locationClient].
-     * [isImplicit] is true when it was a (confirming) result from the [locationCallback].
+     * [isSecondary] is true when it was a (confirming) result from the [locationCallback].
      * */
-    fun requestAutoForecastRegion(coordinates: CoordinatesLatLon, isImplicit: Boolean = false) {
+    fun requestAutoForecastRegion(coordinates: CoordinatesLatLon, isSecondary: Boolean = false) {
         val xy = convertToXy(coordinates)
         if ((xy.nx in (NX_MIN..NX_MAX)) && (xy.ny in (NY_MIN..NY_MAX))) {
             KoreanGeocoder(context).updateAddresses(coordinates) { addresses ->
@@ -1098,7 +1105,7 @@ class WeatherViewModel(
                     // Finally, ForecastRegion can be composed.
                     val locatedRegion = ForecastRegion(address = suitableAddress, xy = xy)
                     // Now, it goes the same with fixed ForecastRegions.
-                    updateForecastRegion(locatedRegion, isImplicit)
+                    updateForecastRegion(locatedRegion, isSecondary)
                 } else showLocationError(coordinates)
             }
         } else {
@@ -1116,7 +1123,7 @@ class WeatherViewModel(
             super.onLocationResult(locationResult)
             locationResult.lastLocation?.let {
                 Log.d(LOCATION_TAG, "Current location: (${it.latitude}, ${it.longitude})")
-                requestAutoForecastRegion(CoordinatesLatLon(it.latitude, it.longitude), isImplicit = true)
+                requestAutoForecastRegion(CoordinatesLatLon(it.latitude, it.longitude), isSecondary = true)
             }
         }
     }
@@ -1139,18 +1146,24 @@ class WeatherViewModel(
     }
 
     fun updateSimplifiedEnabled(enabled: Boolean) {
-        Log.d(TAG, "Simple View enabled: $enabled")
+        Log.d(TAG, "Simple View: ${enabled.toEnablementString()}")
         _isSimplified.value = enabled
     }
 
     fun updateAutoRefreshEnabled(enabled: Boolean) {
-        Log.d(TAG, "Auto refresh enabled: $enabled")
+        Log.d(TAG, "Auto refresh: ${enabled.toEnablementString()}")
         isAutoRefresh = enabled
     }
 
     fun updateDaybreakEnabled(enabled: Boolean) {
-        Log.d(TAG, "Daybreak mode enabled: $enabled")
+        Log.d(TAG, "Daybreak mode: ${enabled.toEnablementString()}")
         _isDaybreakMode.value = enabled
+    }
+
+    fun updatePresetRegionEnabled(enabled: Boolean) {
+        Log.d(TAG, "PresetRegion mode: ${enabled.toEnablementString()}")
+        _forecastRegionCandidates.value = emptyList()
+        _isPresetRegion.value = enabled
     }
 
     fun updateLanguage(selectedCode: Int, isExplicit: Boolean = true) {
@@ -1161,6 +1174,9 @@ class WeatherViewModel(
         }
     }
 
+    /**
+     * Update [isForecastRegionAuto] only, without requesting data.
+     * */
     fun updateAutoRegionEnabled(enabled: Boolean, isExplicit: Boolean = true) {
         Log.d(TAG, "Auto region: ${enabled.toEnablementString()}")
         isForecastRegionAuto = enabled
@@ -1280,30 +1296,29 @@ class WeatherViewModel(
 
     private fun showNoRegionCandidates() {
         Log.d(TAG, "No region candidate.")
-        _forecastRegionCandidates.value = defaultRegionCandidates.toList()
         _toastMessage.value = OneShotEvent(R.string.dialog_search_region_no_result)
     }
 
     /**
      * Called everytime the Activity is created(including rotating the screen, of course).
      * */
-    fun updateDefaultRegionCandidates(region: ForecastRegion, autoTitle: String) {
-        Log.d(TAG, "ForecastRegion: ${region.toRegionString()}")
+    fun initiateForecastRegions(region: ForecastRegion, autoTitle: String) {
         forecastRegion = region  // A force update
         defaultRegionCandidates = arrayOf(
             ForecastRegion(autoTitle, autoRegionCoordinate),
             region
         )
         updateRepresentedCityName(region)
-        if (forecastRegionCandidates.isEmpty()) {  // There is no search result held.
-            _forecastRegionCandidates.value = defaultRegionCandidates.toList()
-        }
     }
 
     fun invalidateSearchDialog() {
-        _toShowSearchRegionDialog.value = false
+        dismissRegionDialog()
         _forecastRegionCandidates.value = emptyList()
         _selectedForecastRegionIndex.value = if (isForecastRegionAuto) 0 else 1
+    }
+
+    fun dismissRegionDialog() {
+        _toShowSearchRegionDialog.value = false
     }
 
     fun updateSelectedForecastRegionIndex(index: Int) {

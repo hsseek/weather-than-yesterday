@@ -26,6 +26,7 @@ class UserPreferencesRepository(private val context: Context) {
         val SIMPLE_VIEW = booleanPreferencesKey("simple_view")
         val AUTO_REFRESH = booleanPreferencesKey("auto_refresh")
         val DAYBREAK = booleanPreferencesKey("daybreak")
+        val PRESET_REGION = booleanPreferencesKey("preset_region")
     }
 
     val preferencesFlow: Flow<UserPreferences> = context.dataStore.data
@@ -40,6 +41,7 @@ class UserPreferencesRepository(private val context: Context) {
             val isSimplified = preferences[PreferencesKeys.SIMPLE_VIEW] ?: false
             val isAutoRefresh = preferences[PreferencesKeys.AUTO_REFRESH] ?: false
             val isDaybreak = preferences[PreferencesKeys.DAYBREAK] ?: false
+            val isPresetRegion = preferences[PreferencesKeys.PRESET_REGION] ?: false
 
             UserPreferences(
                 isForecastRegionAuto,
@@ -50,6 +52,7 @@ class UserPreferencesRepository(private val context: Context) {
                 isSimplified,
                 isAutoRefresh,
                 isDaybreak,
+                isPresetRegion,
             )
         }
 
@@ -96,6 +99,13 @@ class UserPreferencesRepository(private val context: Context) {
             preferences[PreferencesKeys.DAYBREAK] = enabled
         }
     }
+
+    suspend fun updatePresetRegionEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            Log.d(TAG, "Preset location mode stored: ${enabled.toEnablementString()}")
+            preferences[PreferencesKeys.PRESET_REGION] = enabled
+        }
+    }
 }
 
 data class UserPreferences(
@@ -107,24 +117,25 @@ data class UserPreferences(
     val isSimplified: Boolean,
     val isAutoRefresh: Boolean,
     val isDaybreak: Boolean,
+    val isPresetRegion: Boolean,
 )
 
 enum class Language(val code: Int, val iso: String) {
     System(0, "en"), English(1, "en"), Korean(2, "ko")
 }
 
-enum class LocatingMethod(val code: Int, val regionId: Int, val examplesId: Int, val coordinates: CoordinatesXy) {
-     Auto(0, R.string.region_auto, R.string.examples_auto, CoordinatesXy(SEOUL.nx, SEOUL.ny)),  // Default: Seoul
-    Capital(1, R.string.region_captial, R.string.examples_captial, CoordinatesXy(SEOUL.nx, SEOUL.ny)),
-    Gangwon(2, R.string.region_gangwon, R.string.examples_gangwon, CoordinatesXy(73, 134)),
-    SouthGs(3, R.string.region_south_gs, R.string.examples_south_gs, CoordinatesXy(98, 76)),
-    NorthGs(4, R.string.region_north_gs, R.string.examples_north_gs, CoordinatesXy(89, 90)),
-    SouthJl(5, R.string.region_south_jl, R.string.examples_south_jl, CoordinatesXy(58, 74)),
-    NorthJl(6, R.string.region_north_jl, R.string.examples_north_jl, CoordinatesXy(63, 89)),
-    Jeju(7, R.string.region_jeju, R.string.examples_jeju, CoordinatesXy(52, 38)),
-    SouthCh(8, R.string.region_south_ch, R.string.examples_south_ch, CoordinatesXy(67, 100)),
-    NorthCh(9, R.string.region_north_ch, R.string.examples_north_ch, CoordinatesXy(69, 107)),
-    Dokdo(10, R.string.region_dokdo, R.string.examples_dokdo, CoordinatesXy(144, 123)),
+enum class PresetRegion(val regionId: Int, val examplesId: Int, val xy: CoordinatesXy) {
+     Auto(R.string.region_auto, R.string.examples_auto, CoordinatesXy(0, 0)),  // An impossible values
+    Capital(R.string.region_captial, R.string.examples_captial, CoordinatesXy(SEOUL.nx, SEOUL.ny)),
+    Gangwon(R.string.region_gangwon, R.string.examples_gangwon, CoordinatesXy(73, 134)),
+    SouthGs(R.string.region_south_gs, R.string.examples_south_gs, CoordinatesXy(98, 76)),
+    NorthGs(R.string.region_north_gs, R.string.examples_north_gs, CoordinatesXy(89, 90)),
+    SouthJl(R.string.region_south_jl, R.string.examples_south_jl, CoordinatesXy(58, 74)),
+    NorthJl(R.string.region_north_jl, R.string.examples_north_jl, CoordinatesXy(63, 89)),
+    Jeju(R.string.region_jeju, R.string.examples_jeju, CoordinatesXy(52, 38)),
+    SouthCh(R.string.region_south_ch, R.string.examples_south_ch, CoordinatesXy(67, 100)),
+    NorthCh(R.string.region_north_ch, R.string.examples_north_ch, CoordinatesXy(69, 107)),
+    Dokdo(R.string.region_dokdo, R.string.examples_dokdo, CoordinatesXy(144, 123)),
 }
 
 data class ForecastRegion(val address: String, val xy: CoordinatesXy)

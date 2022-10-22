@@ -5,9 +5,9 @@ import android.content.res.Configuration
 import android.util.Log
 import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.Language
-import com.hsseek.betterthanyesterday.data.LocatingMethod
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
@@ -183,14 +183,15 @@ fun getLocaleFromCode(code: Int): Locale {
     return Locale(isoCode)
 }
 
-fun Int.toEmojiString(): String = String(Character.toChars(this))
-
-fun getLocatingMethod(code: Int): LocatingMethod {
-    enumValues<LocatingMethod>().forEach {
-        if (code == it.code) return it
-    }
-    return LocatingMethod.Auto  // The default
+fun Job.status(): String = when {
+    isActive -> "Active"
+    isCompleted && isCancelled -> "Cancelled"
+    isCancelled -> "Cancelling"
+    isCompleted -> "Completed"
+    else -> "New"
 }
+
+fun Int.toEmojiString(): String = String(Character.toChars(this))
 
 fun ForecastRegion.toRegionString(): String = "${this.address} (${this.xy.nx}, ${this.xy.ny})"
 
