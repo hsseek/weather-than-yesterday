@@ -162,16 +162,25 @@ fun getGeneralDistrictName(address: String): String? {
 }
 
 suspend fun createConfigurationWithStoredLocale(context: Context): Configuration {
+    // Get the stored Locale(the code, to be exact).
     val userPrefsRepo = UserPreferencesRepository(context)
     val prefs = userPrefsRepo.preferencesFlow.first()
-    val isoCode: String = when (prefs.languageCode) {
+    val locale = getLocaleFromCode(prefs.languageCode)
+
+    // Get the Configuration.
+    val config = Configuration(context.resources.configuration)
+    // Modify the Configuration the return it.
+    config.setLocale(locale)
+    return config
+}
+
+fun getLocaleFromCode(code: Int): Locale {
+    val isoCode: String = when (code) {
         Language.English.code -> Language.English.iso
         Language.Korean.code -> Language.Korean.iso
         else -> Locale.getDefault().language
     }
-    val config = Configuration(context.resources.configuration)
-    config.setLocale(Locale(isoCode))
-    return config
+    return Locale(isoCode)
 }
 
 fun Int.toEmojiString(): String = String(Character.toChars(this))

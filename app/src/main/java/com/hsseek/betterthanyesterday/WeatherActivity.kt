@@ -1,6 +1,7 @@
 package com.hsseek.betterthanyesterday
 
 import android.Manifest
+import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
@@ -38,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -121,7 +123,7 @@ class WeatherActivity : ComponentActivity() {
         viewModel.viewModelScope.launch(defaultDispatcher) {
             viewModel.toastMessage.collect { event ->
                 event.getContentIfNotHandled()?.let { id ->
-                    toastOnUiThread(id)
+                    toastOnUiThread(this@WeatherActivity, id)
                 }
             }
         }
@@ -320,14 +322,16 @@ class WeatherActivity : ComponentActivity() {
         }
     }
 
-    private fun toastOnUiThread(id: Int) {
+    private fun toastOnUiThread(activity: Activity, id: Int) {
         if (id > 0) {
             try {
-                runOnUiThread {
-                    Toast.makeText(this, getString(id), Toast.LENGTH_LONG).show()
+                activity.runOnUiThread {
+                    Toast.makeText(activity, activity.getString(id), Toast.LENGTH_LONG).show()
                 }
             } catch (e: Resources.NotFoundException) {
                 Log.e(TAG, "Toast res id invalid.")
+            } catch (e: Exception) {
+                Log.d(TAG, "Error while toastOnUiThread(Int)", e)
             }
         }
     }
@@ -381,25 +385,27 @@ class WeatherActivity : ComponentActivity() {
                                 .verticalScroll(rememberScrollState()),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                            val spacerCenter = 70.dp
+                            val horizontalPadding = 50.dp
                             val spacer12 = 25.dp
                             val spacer23 = 40.dp
                             val leftHalfVerticalOffset = (-8).dp
 
                             Row (
-                                horizontalArrangement = Arrangement.SpaceAround
+                                modifier = modifier.padding(horizontal = horizontalPadding),
+                                horizontalArrangement = Arrangement.SpaceAround,
                             ) {
-                                val mod = Modifier.fillMaxWidth(.5f)
+                                val weight = 0.5f
                                 CurrentTemperature(
-                                    modifier = modifier.offset(y = leftHalfVerticalOffset),
+                                    modifier = modifier
+                                        .offset(y = leftHalfVerticalOffset)
+                                        .weight(weight),
                                     isSimplified = viewModel.isSimplified,
                                     hourlyTempDiff = viewModel.hourlyTempDiff,
                                     currentTemp = viewModel.hourlyTempToday,
                                     hugeFontSize = enlargedFontSize,
                                 )
-                                Spacer(modifier = Modifier.width(spacerCenter))
                                 Column(
-                                    modifier = mod,
+                                    modifier = modifier.weight(weight),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                 ) {
                                     LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.isForecastRegionAuto)
@@ -464,8 +470,9 @@ class WeatherActivity : ComponentActivity() {
         timeout: Long,
         onTimeout: () -> Unit,
     ) {
-        val letterFraction = .4f
-        val iconFraction = .18f
+        val space: Dp
+        val letterFraction: Float
+        val iconFraction: Float
 
         LaunchedEffect(true) {
             delay(timeout)
@@ -473,7 +480,9 @@ class WeatherActivity : ComponentActivity() {
         }
         when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
-                val space = 60.dp
+                space = 75.dp
+                letterFraction = .4f
+                iconFraction = .12f
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -498,7 +507,9 @@ class WeatherActivity : ComponentActivity() {
                 }
             }
             else -> {
-                val space = 30.dp
+                space = 30.dp
+                letterFraction = .4f
+                iconFraction = .18f
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -980,8 +991,9 @@ class WeatherActivity : ComponentActivity() {
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .offset(y = verticalOffset),
-            horizontalArrangement = arrangement
+                .offset(y = verticalOffset)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = arrangement,
         ) {
             // The header column
             if (!isSimplified) DailyTemperatureColumn(dailyTemp = null, isSimplified = false)
@@ -1121,31 +1133,14 @@ class WeatherActivity : ComponentActivity() {
         }
     }
 
-    @Preview(showBackground = true, heightDp = 640)
-    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, heightDp = 640)
+//    @Preview(showBackground = true, heightDp = 640)
+//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, heightDp = 640)
+    @Preview("Landscape", device = Devices.AUTOMOTIVE_1024p, widthDp = 1920, heightDp = 960)
     @Composable
     fun LandingScreenPreview() {
         BetterThanYesterdayTheme {
-            Surface(
-                color = MaterialTheme.colors.background
-            ) {
+            Surface(color = MaterialTheme.colors.background) {
                 LandingScreen(timeout = 0) {}
-            }
-        }
-    }
-
-    @Preview(showBackground = true, heightDp = 640)
-    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, heightDp = 640)
-    @Composable
-    fun LandingScreen01Preview() {
-        BetterThanYesterdayTheme {
-            Surface(
-                color = MaterialTheme.colors.background
-            ) {
-                LandingScreen(
-                    timeout = 0,
-                    letter = painterResource(id = R.drawable.landing_letter_01)
-                ) {}
             }
         }
     }
