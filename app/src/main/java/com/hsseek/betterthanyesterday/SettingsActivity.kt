@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -38,6 +39,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import androidx.compose.foundation.lazy.items
 
 private const val ROW_PADDING = 14
 private const val TAG = "SettingsActivity"
@@ -391,20 +393,33 @@ private fun PreferenceRowHeader(
 
 @Composable
 fun RadioGroup(
-    items: List<RadioItem>,
+    radioItems: List<RadioItem>,
     selected: Int,
-    onSelect: (Int) -> Unit,
-    maxHeightFraction: Float,
     titleStyle: TextStyle = Typography.body1,
     descStyle: TextStyle = Typography.h6,
+    onSelect: (Int) -> Unit,
+    onClickNegative: () -> Unit,
+    onClickPositive: (Int) -> Unit,
 ) {
-    Column(
-        Modifier
-            .heightIn(max = (LocalConfiguration.current.screenHeightDp * maxHeightFraction).dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        items.forEach { radioItem ->
-            RadioRow(onSelect, radioItem, titleStyle, descStyle, selected)
+    Column {
+        LazyColumn {
+            items(radioItems) { radioItem ->
+                RadioRow(onSelect, radioItem, titleStyle, descStyle, selected)
+            }
+            item {
+                // The Cancel and Ok buttons
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    TextButton(onClick = onClickNegative) {
+                        Text(text = stringResource(R.string.dialog_dismiss_cancel))
+                    }
+                    TextButton(onClick = { onClickPositive(selected) }) {
+                        Text(text = stringResource(R.string.dialog_dismiss_ok))
+                    }
+                }
+            }
         }
     }
 }
@@ -457,7 +472,6 @@ fun RadioSelectDialog(
 ) {
     val backgroundColor = if (isSystemInDarkTheme()) Gray400 else MaterialTheme.colors.surface
     val titleBottomPadding = 7.dp
-    val maxHeightFraction = 0.85f
 
     AlertDialog(
         title = { Text(
@@ -471,24 +485,12 @@ fun RadioSelectDialog(
             val selected = rememberSaveable { mutableStateOf(selectedItemIndex) }
 
             RadioGroup(
-                items = items,
-                maxHeightFraction = maxHeightFraction,
+                radioItems = items,
                 selected = selected.value,
                 onSelect = { selected.value = it },
+                onClickNegative = onClickNegative,
+                onClickPositive = onClickPositive,
             )
-
-            // The Cancel and Ok buttons
-            Row(
-                horizontalArrangement = Arrangement.End,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                TextButton(onClick = onClickNegative) {
-                    Text(text = stringResource(R.string.dialog_dismiss_cancel))
-                }
-                TextButton(onClick = { onClickPositive(selected.value) }) {
-                    Text(text = stringResource(R.string.dialog_dismiss_ok))
-                }
-            }
         }
     )
 }

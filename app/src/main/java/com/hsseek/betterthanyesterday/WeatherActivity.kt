@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.*
 import com.google.accompanist.swiperefresh.SwipeRefresh
@@ -170,6 +171,13 @@ class WeatherActivity : ComponentActivity() {
 
                     // A Dialog to select LocatingMethod.
                     if (viewModel.toShowLocatingMethodDialog.value) LocatingMethodRadioDialog()
+
+                    // ProgressIndicator for Dialog.
+                    // Note that a Composable ON the Surface(not a Dialog) would be set BELOW the SearchRegionDialog
+                    // and might not be shown.
+                    if (viewModel.toShowSearchRegionDialogLoading) {
+                        ProgressIndicatorDialog(onDismissRequest = { viewModel.dismissSearchRegionLoading() })
+                    }
                 }
                 if (viewModel.isRefreshing) {
                     BackHandler { viewModel.stopRefreshing() }
@@ -1147,16 +1155,14 @@ class WeatherActivity : ComponentActivity() {
 fun SearchRegionDialog(
     title: String = stringResource(R.string.dialog_title_search_region),
     items: List<ForecastRegion>,
+    backgroundColor: Color = if (isSystemInDarkTheme()) Gray400 else MaterialTheme.colors.surface,
+    titleBottomPadding: Dp = 7.dp,
     selected: (Int),
     onSelect: (Int) -> Unit,
     onClickSearch: (String) -> Unit,
     onClickNegative: () -> Unit,
     onClickPositive: (Int) -> Unit,
 ) {
-    val backgroundColor = if (isSystemInDarkTheme()) Gray400 else MaterialTheme.colors.surface
-    val titleBottomPadding = 7.dp
-    val maxHeightFraction = 0.6f
-
     AlertDialog(
         modifier = Modifier.wrapContentHeight(),
         title = { Text(
@@ -1172,7 +1178,7 @@ fun SearchRegionDialog(
                 TextField(
                     value = query.value,
                     onValueChange = { query.value = it },
-                    placeholder = { stringResource(R.string.dialog_search_region_hint) }
+                    placeholder = { Text(text = stringResource(R.string.dialog_search_region_hint)) },
                 )
                 IconButton(onClick = { onClickSearch(query.value) }) {
                     Icon(
@@ -1183,27 +1189,36 @@ fun SearchRegionDialog(
             }
 
             RadioGroup(
-                items = convertToRadioItemList(items),
-                maxHeightFraction = maxHeightFraction,
+                radioItems = convertToRadioItemList(items),
                 selected = selected,
                 onSelect = onSelect,
+                onClickNegative = onClickNegative,
+                onClickPositive = onClickPositive,
             )
-
-            // The Cancel and Ok buttons
-            Row(
-                horizontalArrangement = Arrangement.End,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                TextButton(onClick = onClickNegative) {
-                    Text(text = stringResource(R.string.dialog_dismiss_cancel))
-                }
-                TextButton(onClick = { onClickPositive(selected) }) {
-                    Text(text = stringResource(R.string.dialog_dismiss_ok))
-                }
-            }
         }
     )
 }
+
+@Composable
+private fun ProgressIndicatorDialog(
+    width: Dp = 4.dp,
+    size: Dp = 35.dp,
+    offset: Dp = (-30).dp,
+    onDismissRequest: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismissRequest) {
+        Box {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .size(size)
+                    .align(Alignment.Center)
+                    .offset(y = offset),
+                strokeWidth = width,
+            )
+        }
+    }
+}
+
 
 fun convertToRadioItemList(searchResults: List<ForecastRegion>): List<RadioItem> {
     val builder = mutableListOf<RadioItem>()

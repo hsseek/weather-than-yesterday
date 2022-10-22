@@ -109,6 +109,9 @@ class WeatherViewModel(
     private val _toShowSearchRegionDialog = mutableStateOf(false)
     val toShowSearchRegionDialog: Boolean
         get() = _toShowSearchRegionDialog.value
+    private val _toShowSearchRegionDialogLoading = mutableStateOf(false)
+    val toShowSearchRegionDialogLoading: Boolean
+        get() = _toShowSearchRegionDialogLoading.value
 
     // Entries displayed as RadioItems
     private val _forecastRegionCandidates: MutableState<List<ForecastRegion>> = mutableStateOf(emptyList())
@@ -1174,16 +1177,20 @@ class WeatherViewModel(
 
     fun stopRefreshing() {
         Log.d(TAG, "Refresh cancelled.")
+
+        // Cancel searching ForecastRegion. Indicator will be dismissed in the finally block.
         searchRegionJob.cancel()
+
         kmaJob.cancel()
         // The state should be explicitly reassigned,
-        // as the loading indicator won't be dismissed when the Job is cancelled programmatically,
+        // as the loading indicator won't be dismissed when the Job is cancelled programmatically.
         _isRefreshing.value = false
     }
 
     fun searchForCandidates(query: String) {
         searchRegionJob = viewModelScope.launch(defaultDispatcher) {
             try {
+                _toShowSearchRegionDialogLoading.value = true
                 val geoCoder = KoreanGeocoder(context)
                 geoCoder.updateLatLng(query) { coordinateList ->
                     if (coordinateList != null) {
@@ -1226,6 +1233,8 @@ class WeatherViewModel(
             } catch (e: Exception) {
                 Log.e(TAG, "Cannot retrieve Locations.", e)
                 searchRegionJob.cancel()
+            } finally {
+                dismissSearchRegionLoading()
             }
         }
     }
@@ -1302,6 +1311,10 @@ class WeatherViewModel(
 
     fun updateSelectedForecastRegionIndex(index: Int) {
         _selectedForecastRegionIndex.value = index
+    }
+
+    fun dismissSearchRegionLoading() {
+        _toShowSearchRegionDialogLoading.value = false
     }
 
     companion object {
