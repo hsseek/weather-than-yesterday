@@ -242,7 +242,7 @@ class WeatherViewModel(
 
     private fun requestAllWeatherData() {
         Log.d(TAG, "requestAllWeatherData() called.")
-        val reportSeparator = "\n----------------\n"
+        val reportSeparator = "\n────────────────\n"
         nullifyWeatherInfo()
         viewModelScope.launch(defaultDispatcher) {
             kmaJob.cancelAndJoin()
@@ -254,7 +254,7 @@ class WeatherViewModel(
                 lastCheckedTime = getCurrentKoreanDateTime()
 
                 while (trialCount < NETWORK_MAX_RETRY) {
-                    var dataReport = "Data retrieved from KMA\n"
+                    var dataReport = reportSeparator + "Data retrieved from KMA\n"
                     try {
                         withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
                             val networkJob = launch(defaultDispatcher) {
@@ -805,7 +805,7 @@ class WeatherViewModel(
                 context.createConfigurationContext(config)
             }
             val title = "\"${modifiedContext.getString(R.string.app_name)}\" ${modifiedContext.getString(R.string.snack_bar_error_send_title)}"
-            val body = modifiedContext.getString(R.string.snack_bar_error_send_body) + "\n\n" + description
+            val body = modifiedContext.getString(R.string.snack_bar_error_send_body) + "\n" + description
 
             val intent = Intent(Intent.ACTION_SENDTO).apply {
                 data = (Uri.parse("mailto:"))
