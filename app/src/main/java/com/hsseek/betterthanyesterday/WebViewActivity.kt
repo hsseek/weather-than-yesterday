@@ -1,6 +1,7 @@
 package com.hsseek.betterthanyesterday
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.webkit.WebView
@@ -20,9 +21,15 @@ import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.hsseek.betterthanyesterday.ui.theme.BetterThanYesterdayTheme
 import com.hsseek.betterthanyesterday.ui.theme.White
 
-class FaqActivity : ComponentActivity() {
+const val EXTRA_URL_KEY = "bty_intent_extra_url"
+const val FAQ_URL = "https://blog.naver.com/seoulworkshop/222898712063"
+const val BLOG_URL = "https://blog.naver.com/seoulworkshop"
+
+class WebViewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val url: String = intent.extras?.getString(EXTRA_URL_KEY) ?: FAQ_URL
+
         setContent {
             BetterThanYesterdayTheme {
                 // Make the status bar transparent.
@@ -35,37 +42,39 @@ class FaqActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    WebViewScreen()
+                    WebViewScreen(this, url)
                 }
             }
         }
     }
+}
 
-    @SuppressLint("SetJavaScriptEnabled")
-    @Composable
-    private fun WebViewScreen() {
-        val backEnabled = remember { mutableStateOf(false) }
-        var webView: WebView? = null
-        val url = "https://blog.naver.com/seoulworkshop/222898712063"
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+internal fun WebViewScreen(
+    context: Context,
+    url: String,
+) {
+    val backEnabled = remember { mutableStateOf(false) }
+    var webView: WebView? = null
 
-        AndroidView(factory = {
-            WebView(this).apply {
-                webViewClient = object : WebViewClient() {
-                    override fun onPageStarted(
-                        view: WebView,
-                        url: String?,
-                        favicon: Bitmap?
-                    ) {
-                        backEnabled.value = view.canGoBack()
-                    }
+    AndroidView(factory = {
+        WebView(context).apply {
+            webViewClient = object : WebViewClient() {
+                override fun onPageStarted(
+                    view: WebView,
+                    url: String?,
+                    favicon: Bitmap?
+                ) {
+                    backEnabled.value = view.canGoBack()
                 }
-                settings.javaScriptEnabled = true
-                loadUrl(url)
-                webView = this
             }
-        }, update = { webView = it })
-        BackHandler(enabled = backEnabled.value) {
-            webView?.goBack()
+            settings.javaScriptEnabled = true
+            loadUrl(url)
+            webView = this
         }
+    }, update = { webView = it })
+    BackHandler(enabled = backEnabled.value) {
+        webView?.goBack()
     }
 }

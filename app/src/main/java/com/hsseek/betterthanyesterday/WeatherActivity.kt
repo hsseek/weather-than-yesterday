@@ -431,7 +431,7 @@ class WeatherActivity : ComponentActivity() {
                                     DailyTemperatures(modifier, viewModel.isSimplified, viewModel.dailyTemps)
                                 }
                             }
-                            CustomScreen(modifier)
+                            CustomScreen()
                         }
                     } else {
                         val minHeight = (screenHeight * 0.75).dp
@@ -460,7 +460,7 @@ class WeatherActivity : ComponentActivity() {
                                 RainfallStatus(modifier, viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
                             }
                             Spacer(modifier = modifier.height(gapFromContent))
-                            CustomScreen(modifier)
+                            CustomScreen()
                         }
                     }
                 }
@@ -487,22 +487,36 @@ class WeatherActivity : ComponentActivity() {
         }
     }
 
+    private val customScreenClickListener = {
+        val intent = Intent(this, WebViewActivity::class.java).apply {
+            putExtra(EXTRA_URL_KEY, BLOG_URL)
+        }
+        startActivity(intent)
+    }
+
     @Composable
     private fun CustomScreen(
-        modifier: Modifier
+        height: Dp = 120.dp,
+        onClick: () -> Unit = customScreenClickListener,
     ) {
-        Column(
-            modifier = modifier,
-            horizontalAlignment = Alignment.CenterHorizontally,
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(height)
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .background(MaterialTheme.colors.secondary),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(text = "광고")
+            Column {
+                Text(
+                    modifier = Modifier.padding(vertical = 7.dp),
+                    text = "Ad",
+                    style = Typography.h6
+                )
+                Image(
+                    painter = painterResource(id = R.drawable.blog_logo),
+                    contentDescription = stringResource(R.string.desc_banner_ad),
+                    contentScale = ContentScale.Fit,
+                )
             }
         }
     }
@@ -665,7 +679,9 @@ class WeatherActivity : ComponentActivity() {
 
             DropdownMenuItem(onClick = {
                 onDismissRequest()
-                val intent = Intent(this@WeatherActivity, FaqActivity::class.java)
+                val intent = Intent(this@WeatherActivity, WebViewActivity::class.java).apply {
+                    putExtra(EXTRA_URL_KEY, FAQ_URL)
+                }
                 this@WeatherActivity.startActivity(intent)
             }) {
                 Text(text = stringResource(R.string.top_bar_help))

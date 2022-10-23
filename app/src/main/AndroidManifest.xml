@@ -27,7 +27,7 @@
                 android:value="" />
         </activity>
         <activity
-            android:name=".FaqActivity"
+            android:name=".WebViewActivity"
             android:exported="false"
             android:label="@string/title_activity_web_view"
             android:theme="@style/Theme.BetterThanYesterday">
