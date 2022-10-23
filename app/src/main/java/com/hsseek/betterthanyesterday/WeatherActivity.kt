@@ -143,8 +143,7 @@ class WeatherActivity : ComponentActivity() {
                                 onTimeout = { viewModel.onLandingScreenTimeout() },
                             )
                         } else {
-                            val modifier = Modifier
-                            MainScreen(modifier = modifier)
+                            MainScreen()
                         }
                     }
 
@@ -347,7 +346,7 @@ class WeatherActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun MainScreen(modifier: Modifier) {
+    private fun MainScreen() {
         // Make the status bar transparent.
         val systemUiController = rememberSystemUiController()
         systemUiController.setSystemBarsColor(color = MaterialTheme.colors.background)
@@ -357,7 +356,7 @@ class WeatherActivity : ComponentActivity() {
         Scaffold(
             scaffoldState = scaffoldState,
             topBar = { WeatherTopAppBar(
-                modifier = modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 onClickRefresh = { checkPermissionThenRefresh() },
                 onClickChangeLocation = { viewModel.onClickChangeRegion() }
             ) },
@@ -390,7 +389,7 @@ class WeatherActivity : ComponentActivity() {
                     val enlargedFontSize = 178.sp
                     if (isWidthLong()) {
                         Column(
-                            modifier = modifier
+                            modifier = Modifier
                                 .padding(padding)
                                 .verticalScroll(rememberScrollState()),
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -403,7 +402,7 @@ class WeatherActivity : ComponentActivity() {
                             val minHeight = (screenHeight * 0.67).dp
 
                             Row (
-                                modifier = modifier
+                                modifier = Modifier
                                     .padding(horizontal = horizontalPadding)
                                     .heightIn(min = minHeight)
                                 ,
@@ -411,24 +410,29 @@ class WeatherActivity : ComponentActivity() {
                                 horizontalArrangement = Arrangement.SpaceAround,
                             ) {
                                 val weight = 0.5f
-                                CurrentTemperature(
-                                    modifier = modifier
-                                        .offset(y = leftHalfVerticalOffset)
-                                        .weight(weight),
-                                    isSimplified = viewModel.isSimplified,
-                                    hourlyTempDiff = viewModel.hourlyTempDiff,
-                                    currentTemp = viewModel.hourlyTempToday,
-                                    hugeFontSize = enlargedFontSize,
-                                )
+
+                                Box(
+                                    modifier = Modifier
+                                    .offset(y = leftHalfVerticalOffset)
+                                    .weight(weight),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CurrentTemperature(
+                                        isSimplified = viewModel.isSimplified,
+                                        hourlyTempDiff = viewModel.hourlyTempDiff,
+                                        currentTemp = viewModel.hourlyTempToday,
+                                        hugeFontSize = enlargedFontSize,
+                                    )
+                                }
                                 Column(
-                                    modifier = modifier.weight(weight),
+                                    modifier = Modifier.weight(weight),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                 ) {
-                                    LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.isForecastRegionAuto)
+                                    LocationInformation(viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.isForecastRegionAuto)
                                     Spacer(modifier = Modifier.height(spacer12))
-                                    RainfallStatus(modifier, viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
+                                    RainfallStatus(viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
                                     Spacer(modifier = Modifier.height(spacer23))
-                                    DailyTemperatures(modifier, viewModel.isSimplified, viewModel.dailyTemps)
+                                    DailyTemperatures(viewModel.isSimplified, viewModel.dailyTemps)
                                 }
                             }
                             CustomScreen()
@@ -437,7 +441,7 @@ class WeatherActivity : ComponentActivity() {
                         val minHeight = (screenHeight * 0.75).dp
 
                         Column(
-                            modifier = modifier
+                            modifier = Modifier
                                 .padding(padding)
                                 .verticalScroll(rememberScrollState()),
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -450,16 +454,16 @@ class WeatherActivity : ComponentActivity() {
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.SpaceAround,
                             ) {
-                                LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.isForecastRegionAuto)
+                                LocationInformation(viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.isForecastRegionAuto)
                                 if (viewModel.isSimplified) {
-                                    CurrentTemperature(modifier, viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday, enlargedFontSize)
+                                    CurrentTemperature(viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday, enlargedFontSize)
                                 } else {
-                                    CurrentTemperature(modifier, viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
+                                    CurrentTemperature(viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
                                 }
-                                DailyTemperatures(modifier, viewModel.isSimplified, viewModel.dailyTemps)
-                                RainfallStatus(modifier, viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
+                                DailyTemperatures(viewModel.isSimplified, viewModel.dailyTemps)
+                                RainfallStatus(viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
                             }
-                            Spacer(modifier = modifier.height(gapFromContent))
+                            Spacer(modifier = Modifier.height(gapFromContent))
                             CustomScreen()
                         }
                     }
@@ -785,7 +789,6 @@ class WeatherActivity : ComponentActivity() {
 
     @Composable
     private fun LocationInformation(
-        modifier: Modifier,
         isSimplified: Boolean,
         cityName: String,
         districtName: String,
@@ -795,7 +798,7 @@ class WeatherActivity : ComponentActivity() {
         val longNameHorizontalPadding = 12.dp
 
         Column(
-            modifier = modifier.padding(horizontal = longNameHorizontalPadding),
+            modifier = Modifier.padding(horizontal = longNameHorizontalPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // A descriptive title
@@ -834,7 +837,6 @@ class WeatherActivity : ComponentActivity() {
 
     @Composable
     fun CurrentTemperature(
-        modifier: Modifier,
         isSimplified: Boolean,
         hourlyTempDiff: Int?,
         currentTemp: Int?,
@@ -844,7 +846,7 @@ class WeatherActivity : ComponentActivity() {
         val titleBottomPadding = 4.dp
 
         Column(
-            modifier = modifier.padding(top = columnTopPadding),
+            modifier = Modifier.padding(top = columnTopPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // The title
@@ -1039,7 +1041,6 @@ class WeatherActivity : ComponentActivity() {
 
     @Composable
     fun DailyTemperatures(
-        modifier: Modifier,
         isSimplified: Boolean,
         dailyTemps: List<DailyTemperature>,
     ) {
@@ -1048,7 +1049,7 @@ class WeatherActivity : ComponentActivity() {
 
         // Day by day
         Row(
-            modifier = modifier
+            modifier = Modifier
                 .fillMaxWidth()
                 .offset(y = verticalOffset)
                 .horizontalScroll(rememberScrollState()),
@@ -1065,7 +1066,6 @@ class WeatherActivity : ComponentActivity() {
 
     @Composable
     fun RainfallStatus(
-        modifier: Modifier,
         isSimplified: Boolean,
         sky: Sky,
     ) {
@@ -1073,21 +1073,18 @@ class WeatherActivity : ComponentActivity() {
         val imageSpacerSize = 6.dp
         val rowHeight = 56.dp
 
-        Column(
-            modifier = modifier,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (!isSimplified) {// Title
                 Text(
                     text = stringResource(R.string.rainfall_title),
                     style = Typography.h6,
-                    modifier = modifier.padding(bottom = titleBottomPadding)
+                    modifier = Modifier.padding(bottom = titleBottomPadding)
                 )
             }
 
             // The icon and the description
             Row(
-                modifier = modifier.height(rowHeight),
+                modifier = Modifier.height(rowHeight),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // The id of the visual icon

@@ -746,12 +746,12 @@ class WeatherViewModel(
                             break
                         }
                     } catch (e: Exception) {  // Other exceptions dealt without retrying.
+                        val trace = e.stackTraceToString()
                         when (e) {
                             is CancellationException -> Log.d(TAG, "Retrieving weather data cancelled.")
                             is UnknownHostException -> _toastMessage.value = ToastEvent(R.string.toast_weather_failure_network)
                             is com.google.gson.stream.MalformedJsonException -> {
                                 Log.e(TAG, "Cannot process weather data.", e)
-                                val trace = e.stackTraceToString()
                                 _snackBarEvent.value = SnackBarEvent(
                                     getErrorReportSnackBarContent(
                                         R.string.snack_bar_error_json,
@@ -761,7 +761,6 @@ class WeatherViewModel(
                             }
                             else -> {
                                 Log.e(TAG, "Cannot retrieve weather data.", e)
-                                val trace = e.stackTraceToString()
                                 _snackBarEvent.value = SnackBarEvent(
                                     getErrorReportSnackBarContent(
                                         R.string.snack_bar_weather_error_general,
