@@ -197,14 +197,7 @@ class WeatherActivity : ComponentActivity() {
         // Weather it is permitted or not, the user intended to use the locating method. Respect the selection.
         val isAutoRegion = forecastRegion.xy == viewModel.autoRegionCoordinate
         viewModel.updateAutoRegionEnabled(isAutoRegion)
-
-        if (isAutoRegion) {
-            // Check the validity of the selection. It will update ForecastRegion later.
-            checkPermissionThenRefresh()
-        } else {
-            // No need to search location. Update the ForecastRegion immediately.
-            viewModel.updateForecastRegion(forecastRegion)
-        }
+        checkPermissionThenRefresh(forecastRegion)
     }
 
     @Composable
@@ -280,15 +273,16 @@ class WeatherActivity : ComponentActivity() {
         val minInterval: Long = if (viewModel.isAutoRefresh) 60 * 1000 else 60 * 60 * 1000  // 1 min or 1 hour
         val lastChecked = viewModel.lastCheckedTime
         if (lastChecked == null || getCurrentKoreanDateTime().timeInMillis - lastChecked.timeInMillis > minInterval) {
+            // Implicit request, on the previously selected ForecastRegion.
             checkPermissionThenRefresh()
         } else {
             Log.d(TAG, "Too soon, skip refresh. (Last checked at ${lastChecked.get(Calendar.HOUR_OF_DAY)}:${lastChecked.get(Calendar.MINUTE)}, while interval is ${minInterval / 1000}s)")
         }
     }
 
-    private fun checkPermissionThenRefresh() {
+    private fun checkPermissionThenRefresh(region: ForecastRegion = viewModel.forecastRegion) {
         if (isLocatingPermitted()) {  // Good to go.
-            viewModel.onClickRefresh()
+            viewModel.onClickRefresh(region)
         } else {
             // Not request refreshing now.
             showRequestPermissionLauncher()

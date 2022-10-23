@@ -167,7 +167,7 @@ class WeatherViewModel(
      * Update [forecastRegion], either retrieved from [startLocationUpdate] or directly from a fixed location.
      * [isSecondary] is true when it was a (confirming) result from the [locationCallback].
      * */
-    fun updateForecastRegion(region: ForecastRegion, isSecondary: Boolean = false) {
+    private fun updateForecastRegion(region: ForecastRegion, isSecondary: Boolean = false) {
         Log.d(TAG, "updateForecastRegion(...) called.")
         // Store the selection.
         viewModelScope.launch {
@@ -185,20 +185,12 @@ class WeatherViewModel(
 
         if (isSameCoordinate) {
             Log.d(TAG, "The same coordinates.")
-
-            if (isNewDataReleasedAfter(lastCheckedTime)) {
-                requestAllWeatherData()  // For the same location, but for a later hour.
-            } else {
-                if (!isSecondary) {
-                    if (kmaJob.isCompleted) _isRefreshing.value = false
-                    _toastMessage.value = ToastEvent(R.string.toast_refresh_up_to_date)
-                }
-            }
+            checkTimeThenRequest(isSecondary)
         } else {
             Log.d(LOCATION_TAG, "A new coordinates\t: (${region.xy.nx}, ${region.xy.ny})")
 
-            // Request new data for the location.
-            requestAllWeatherData()  // For a different location.
+            // No need to check time, request the new data for the location.
+            requestAllWeatherData()
         }
     }
 
@@ -1066,11 +1058,7 @@ class WeatherViewModel(
         }
     }
 
-    /**
-     * If [isForecastRegionAuto], we need to update the current [ForecastRegion].
-     * Otherwise, we can immediately [requestAllWeatherData] based on a fixed [ForecastRegion].
-     * */
-    fun onClickRefresh() {
+    fun onClickRefresh(region: ForecastRegion = forecastRegion) {
         Log.d(TAG, "onClickRefresh() called.")
         _isRefreshing.value = true
         try {
@@ -1078,12 +1066,7 @@ class WeatherViewModel(
                 startLocationUpdate()
             } else {
                 stopLocationUpdate()  // No need to request location.
-                // The ForecastRegion has already been updated on being selected. Just check the time then go.
-                if (isNewDataReleasedAfter(lastCheckedTime)) {
-                    requestAllWeatherData()
-                } else {
-                    _toastMessage.value = ToastEvent(R.string.toast_refresh_up_to_date)
-                }
+                updateForecastRegion(region)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error while refreshWeatherData()", e)
@@ -1097,6 +1080,17 @@ class WeatherViewModel(
             Log.d(TAG, "kmaJob is ${kmaJob.status()}")
             if (kmaJob.isCompleted) {
                 _isRefreshing.value = false
+            }
+        }
+    }
+
+    private fun checkTimeThenRequest(isSecondary: Boolean = false) {
+        if (isNewDataReleasedAfter(lastCheckedTime)) {
+            requestAllWeatherData()
+        } else {
+            if (!isSecondary) {
+                if (kmaJob.isCompleted) _isRefreshing.value = false
+                _toastMessage.value = ToastEvent(R.string.toast_refresh_up_to_date)
             }
         }
     }
@@ -1115,7 +1109,8 @@ class WeatherViewModel(
             locationClient.lastLocation.addOnSuccessListener {
                 if (it != null) {
                     Log.d(LOCATION_TAG, "Last location: (${it.latitude}, ${it.longitude})")
-                    requestAutoForecastRegion(CoordinatesLatLon(lat = it.latitude, lon = it.longitude))
+                    val coordinate = CoordinatesLatLon(lat = it.latitude, lon = it.longitude)
+                    requestAutoForecastRegion(coordinate, false)
                 } else {
                     // e.g. On the very first boot of the device
                     Log.w(LOCATION_TAG, "FusedLocationProviderClient.lastLocation is null.")
@@ -1147,7 +1142,10 @@ class WeatherViewModel(
      * Called when location results have been collected from [locationClient].
      * [isSecondary] is true when it was a (confirming) result from the [locationCallback].
      * */
-    fun requestAutoForecastRegion(coordinates: CoordinatesLatLon, isSecondary: Boolean = false) {
+    fun requestAutoForecastRegion(
+        coordinates: CoordinatesLatLon,
+        isSecondary: Boolean = false,
+    ) {
         val xy = convertToXy(coordinates)
         if ((xy.nx in (NX_MIN..NX_MAX)) && (xy.ny in (NY_MIN..NY_MAX))) {
             KoreanGeocoder(context).updateAddresses(coordinates) { addresses ->
