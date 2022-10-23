@@ -351,6 +351,7 @@ class WeatherActivity : ComponentActivity() {
         // Make the status bar transparent.
         val systemUiController = rememberSystemUiController()
         systemUiController.setSystemBarsColor(color = MaterialTheme.colors.background)
+        val screenHeight = LocalConfiguration.current.screenHeightDp
 
         val scaffoldState = rememberScaffoldState()
         Scaffold(
@@ -380,65 +381,87 @@ class WeatherActivity : ComponentActivity() {
                     )
                 }
             ) {
-                val enlargedFontSize = 178.sp
-                if (isWidthLong()) {
-                    Column(
-                        modifier = modifier
-                            .padding(padding)
-                            .verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        val horizontalPadding = 50.dp
-                        val spacer12 = 25.dp
-                        val spacer23 = 40.dp
-                        val leftHalfVerticalOffset = (-8).dp
-
-                        Row (
-                            modifier = modifier.padding(horizontal = horizontalPadding),
-                            horizontalArrangement = Arrangement.SpaceAround,
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val enlargedFontSize = 178.sp
+                    if (isWidthLong()) {
+                        Column(
+                            modifier = modifier
+                                .padding(padding)
+                                .verticalScroll(rememberScrollState()),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceAround,
                         ) {
-                            val weight = 0.5f
-                            CurrentTemperature(
+                            val horizontalPadding = 50.dp
+                            val spacer12 = 25.dp
+                            val spacer23 = 40.dp
+                            val leftHalfVerticalOffset = (-8).dp
+                            val minHeight = (screenHeight * 0.67).dp
+
+                            Row (
                                 modifier = modifier
-                                    .offset(y = leftHalfVerticalOffset)
-                                    .weight(weight),
-                                isSimplified = viewModel.isSimplified,
-                                hourlyTempDiff = viewModel.hourlyTempDiff,
-                                currentTemp = viewModel.hourlyTempToday,
-                                hugeFontSize = enlargedFontSize,
-                            )
+                                    .padding(horizontal = horizontalPadding)
+                                    .heightIn(min = minHeight)
+                                ,
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceAround,
+                            ) {
+                                val weight = 0.5f
+                                CurrentTemperature(
+                                    modifier = modifier
+                                        .offset(y = leftHalfVerticalOffset)
+                                        .weight(weight),
+                                    isSimplified = viewModel.isSimplified,
+                                    hourlyTempDiff = viewModel.hourlyTempDiff,
+                                    currentTemp = viewModel.hourlyTempToday,
+                                    hugeFontSize = enlargedFontSize,
+                                )
+                                Column(
+                                    modifier = modifier.weight(weight),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.isForecastRegionAuto)
+                                    Spacer(modifier = Modifier.height(spacer12))
+                                    RainfallStatus(modifier, viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
+                                    Spacer(modifier = Modifier.height(spacer23))
+                                    DailyTemperatures(modifier, viewModel.isSimplified, viewModel.dailyTemps)
+                                }
+                            }
+                            CustomScreen(modifier)
+                        }
+                    } else {
+                        val minHeight = (screenHeight * 0.75).dp
+
+                        Column(
+                            modifier = modifier
+                                .padding(padding)
+                                .verticalScroll(rememberScrollState()),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceAround,
+                        ) {
+                            val gapFromContent = 30.dp
+
                             Column(
-                                modifier = modifier.weight(weight),
+                                modifier = Modifier.heightIn(min = minHeight),
                                 horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.SpaceAround,
                             ) {
                                 LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.isForecastRegionAuto)
-                                Spacer(modifier = Modifier.height(spacer12))
-                                RainfallStatus(modifier, viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
-                                Spacer(modifier = Modifier.height(spacer23))
+                                if (viewModel.isSimplified) {
+                                    CurrentTemperature(modifier, viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday, enlargedFontSize)
+                                } else {
+                                    CurrentTemperature(modifier, viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
+                                }
                                 DailyTemperatures(modifier, viewModel.isSimplified, viewModel.dailyTemps)
+                                RainfallStatus(modifier, viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
                             }
+                            Spacer(modifier = modifier.height(gapFromContent))
+                            CustomScreen(modifier)
                         }
-                        CustomScreen(modifier)
-                    }
-                } else {
-                    Column(
-                        modifier = modifier
-                            .padding(padding)
-                            .verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        val gapFromContent = 30.dp
-
-                        LocationInformation(modifier, viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.isForecastRegionAuto)
-                        if (viewModel.isSimplified) {
-                            CurrentTemperature(modifier, viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday, enlargedFontSize)
-                        } else {
-                            CurrentTemperature(modifier, viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
-                        }
-                        DailyTemperatures(modifier, viewModel.isSimplified, viewModel.dailyTemps)
-                        RainfallStatus(modifier, viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
-                        Spacer(modifier = modifier.height(gapFromContent))
-                        CustomScreen(modifier)
                     }
                 }
             }
@@ -826,7 +849,7 @@ class WeatherActivity : ComponentActivity() {
             Text(
                 text = title,
                 style = Typography.h6,
-                modifier = modifier.padding(bottom = titleBottomPadding),
+                modifier = Modifier.padding(bottom = titleBottomPadding),
             )
 
             // The current temperature
@@ -1247,10 +1270,10 @@ fun convertToRadioItemList(searchResults: List<ForecastRegion>): List<RadioItem>
 @Composable
 fun isWidthLong(): Boolean {
     val config = LocalConfiguration.current
-    val screenHeight = config.screenHeightDp.dp
-    val screenWidth = config.screenWidthDp.dp
-    Log.d(TAG, "Aspect ratio $screenWidth : $screenHeight (${screenHeight/screenWidth})")
-    return screenHeight/screenWidth < 1.28
+    val screenHeight = config.screenHeightDp
+    val screenWidth = config.screenWidthDp
+    val ratio = (screenHeight/screenWidth.toFloat())
+    return ratio < 1.28
 }
 
 /**

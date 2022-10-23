@@ -248,7 +248,7 @@ class WeatherViewModel(
             kmaJob.cancelAndJoin()
             var trialCount = 0
 
-            _isRefreshing.value = true  // TODO: Is it redundant?
+            _isRefreshing.value = true
             kmaJob = launch(defaultDispatcher) {
                 Log.d(TAG, "kmaJob launched.")
                 lastCheckedTime = getCurrentKoreanDateTime()
@@ -791,7 +791,7 @@ class WeatherViewModel(
 
     private fun String.appendAndLog(tag: String, message: String): String {
         Log.d(tag, message)
-        return this + "\n" + message
+        return this + "\n$tag\t\t$message"
     }
 
     private fun getErrorReportSnackBarContent(messageId: Int, description: String) = SnackBarContent(
