@@ -18,15 +18,16 @@ private const val TIME_ZONE = "GMT+09:00"
 private const val DATE_FORMAT = "yyyyMMdd"
 private const val HOUR_FORMAT = "HH00"
 private const val TAG = "Util"
+const val DEVELOPER_EMAIL = "better.than.yesterday.weather@gmail.com"
 const val LOCATION_TAG = "Location"
 const val VILLAGE_ROWS_PER_HOUR = 12
 const val VILLAGE_EXTRA_ROWS = 2
 const val VILLAGE_HOUR_INTERVAL = 3
-val SEOUL = CoordinatesXy(60, 127)
 const val NX_MIN = 21
 const val NX_MAX = 144
 const val NY_MIN = 8
 const val NY_MAX = 147
+val SEOUL = CoordinatesXy(60, 127)
 
 
 data class KmaTime(val date: String, val hour: String){

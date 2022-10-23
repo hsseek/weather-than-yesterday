@@ -367,6 +367,14 @@ class WeatherActivity : ComponentActivity() {
                 onClickRefresh = { checkPermissionThenRefresh() },
                 onClickChangeLocation = { viewModel.onClickChangeRegion() }
             ) },
+//            snackbarHost = {
+//                           SnackbarHost(it) { data ->
+//                               Snackbar(
+//                                   actionColor = Color.Green,
+//                                   snackbarData = data
+//                               )
+//                           }
+//            },
         ) { padding ->
             SwipeRefresh(
                 modifier = Modifier.fillMaxSize(),
@@ -678,7 +686,6 @@ class WeatherActivity : ComponentActivity() {
             "\"${getString(R.string.share_app_now_good_higher, 1)}\" $positiveEmoji"
         }
         val downloadLink = "https://blog.naver.com/seoulworkshop/222898712063"
-
         val opening = getString(R.string.share_app_message_opening)
 
         val intent = Intent(Intent.ACTION_SEND).apply {

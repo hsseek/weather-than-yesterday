@@ -62,7 +62,6 @@
     <string name="daily_highest">Highest</string>
     <string name="daily_lowest">Lowest</string>
     <string name="toast_refresh_up_to_date">Weather information is up-to-date.</string>
-    <string name="toast_weather_failure_general">Cannot retrieve weather data.</string>
     <string name="toast_weather_failure_network">Please check your network status.</string>
     <string name="title_activity_web_view">FAQ</string>
     <string name="title_activity_settings">Settings</string>
@@ -74,8 +73,6 @@
     <string name="pref_title_auto_refresh">Auto refresh</string>
     <string name="pref_desc_auto_refresh">Refresh when returning to app after 1 minute.</string>
     <string name="pref_help_auto_refresh">By default, the app refreshes when it is terminated(by pressing back) then reopened. Additionally, with auto refresh enabled, the app refreshes when you return to app from Task Switcher or from Home.\n\nNote that it won\'t auto-refresh within a minute.You can always refresh manually if you want to.\n\nAlso note that refreshing is to check new data, not to create new data. If KMA has not released new data yet(which is done every hour), information won\'t change.</string>
-    <string name="snack_bar_kma_na">KMA data not available, which is uploaded every hour.</string>
-    <string name="toast_error_json">An error occurred while processing KMA data.</string>
     <string name="pref_title_daybreak_mode">Daybreak mode</string>
     <string name="pref_desc_daybreak_mode">Show daily temperatures in the lowest to the highest order.</string>
     <string name="pref_help_daybreak_mode">During a day, the lowest temperature occurs first(e.g. 5 AM) then the highest temperature comes after(e.g. 2 PM). Therefore, it might be more reasonable to represent the lowest temperature first then the highest temperature.\n\nWith this mode enabled, the \"Daybreak temperature\"(the lowest) is shown at the top and the \"Heat built-up\"(the highest) is shown at the bottom.</string>
@@ -96,8 +93,14 @@
     <string name="dialog_search_region_no_result">No result for the name.</string>
     <string name="dialog_search_region_hint">Region name</string>
     <string name="error_auto_location_na">KMA data not available for the location.</string>
-    <string name="error_general_toast">Sorry, I managed to keep the app open but an error occurred.</string>
+    <string name="toast_error_general">Sorry, I managed to keep the app open but an error occurred.</string>
     <string name="pref_title_preset_regions">Preset forecast regions</string>
     <string name="pref_desc_preset_regions">Choose one of the preset locations instead of searching.</string>
     <string name="pref_help_preset_regions">With this mode enabled, you can choose a forecast region from a preset instead of searching a region.\n\nOn change forecast region, it can spare your typing the name of a region, while forecast for preset regions represents a more general information.</string>
+    <string name="snack_bar_weather_error_general">Cannot retrieve weather data.</string>
+    <string name="snack_bar_error_kma_na">KMA data not available, which is uploaded every hour.</string>
+    <string name="snack_bar_error_json">An error occurred while processing KMA data.</string>
+    <string name="snack_bar_error_send_action">Report</string>
+    <string name="snack_bar_error_send_title">Error Report</string>
+    <string name="snack_bar_error_send_body">The following is the code executed just before the error. If you share this context, it greatly helps to identify the problem.\n\nI decided to utilize emails as the sharing method, to make it sure that nothing sneaky is included. All I can see is what you choose to send. You can review it, add descriptions, edit or delete if you\'d like.</string>
 </resources>

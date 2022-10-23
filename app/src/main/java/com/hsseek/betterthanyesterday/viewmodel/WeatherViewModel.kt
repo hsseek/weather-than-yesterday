@@ -2,8 +2,11 @@ package com.hsseek.betterthanyesterday.viewmodel
 
 import android.Manifest
 import android.app.Application
+import android.content.Intent
+import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 import android.content.pm.PackageManager
 import android.location.Address
+import android.net.Uri
 import android.os.Looper
 import android.util.Log
 import androidx.compose.runtime.MutableState
@@ -247,6 +250,7 @@ class WeatherViewModel(
 
     private fun requestAllWeatherData() {
         Log.d(TAG, "requestAllWeatherData() called.")
+        val reportSeparator = "\n----------------\n"
         nullifyWeatherInfo()
         viewModelScope.launch(defaultDispatcher) {
             kmaJob.cancelAndJoin()
@@ -258,6 +262,7 @@ class WeatherViewModel(
                 lastCheckedTime = getCurrentKoreanDateTime()
 
                 while (trialCount < NETWORK_MAX_RETRY) {
+                    var dataReport = "Data retrieved from KMA\n"
                     try {
                         withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
                             val networkJob = launch(defaultDispatcher) {
@@ -560,148 +565,148 @@ class WeatherViewModel(
                                     val emptyMessage = "List empty."
 
                                     if (yesterdayHighTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", emptyMessage)
+                                        dataReport = dataReport.appendAndLog("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", emptyMessage)
                                         if (yesterdayHighTempBackupData.isEmpty()) {
-                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}-B", emptyMessage)
+                                            dataReport = dataReport.appendAndLog("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}-B", emptyMessage)
                                         } else {
                                             for (i in yesterdayHighTempBackupData) {
                                                 size += 1
                                                 if (i.category == VILLAGE_TEMPERATURE_TAG) {
-                                                    Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                                    dataReport = dataReport.appendAndLog("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
                                                 }
                                             }
                                         }
                                     } else {
                                         for (i in yesterdayHighTempData) {
                                             size += 1
-                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                            dataReport = dataReport.appendAndLog("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
                                         }
                                     }
 
                                     if (yesterdayLowTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", emptyMessage)
+                                        dataReport = dataReport.appendAndLog("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", emptyMessage)
                                         if (yesterdayLowTempBackupData.isEmpty()) {
-                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}-B", emptyMessage)
+                                            dataReport = dataReport.appendAndLog("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}-B", emptyMessage)
                                         } else {
                                             for (i in yesterdayLowTempBackupData) {
                                                 size += 1
                                                 if (i.category == VILLAGE_TEMPERATURE_TAG) {
-                                                    Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}-B", "$i")
+                                                    dataReport = dataReport.appendAndLog("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}-B", "$i")
                                                 }
                                             }
                                         }
                                     } else {
                                         for (i in yesterdayLowTempData) {
                                             size += 1
-                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+                                            dataReport = dataReport.appendAndLog("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
                                         }
                                     }
 
                                     if (yesterdayHourlyTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG", emptyMessage)
+                                        dataReport = dataReport.appendAndLog("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG", emptyMessage)
                                         if (yesterdayHourlyTempBackupData.isEmpty()) {
-                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG-B", emptyMessage)
+                                            dataReport = dataReport.appendAndLog("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG-B", emptyMessage)
                                         } else {
                                             for (i in yesterdayHourlyTempBackupData) {
                                                 size += 1
                                                 if (i.category == VILLAGE_TEMPERATURE_TAG) {
-                                                    Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG-B", "$i")
+                                                    dataReport = dataReport.appendAndLog("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG-B", "$i")
                                                 }
                                             }
                                         }
                                     } else {
                                         for (i in yesterdayHourlyTempData) {
                                             size += 1
-                                            Log.d("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
+                                            dataReport = dataReport.appendAndLog("D${DayOfInterest.Yesterday.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
                                         }
                                     }
 
                                     if (todayHourlyData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Today.dayOffset}-$HOURLY_TEMPERATURE_TAG", emptyMessage)
+                                        dataReport = dataReport.appendAndLog("D${DayOfInterest.Today.dayOffset}-$HOURLY_TEMPERATURE_TAG", emptyMessage)
                                     } else {
                                         for (i in todayHourlyData) {
                                             size += 1
                                             if (i.category == HOURLY_TEMPERATURE_TAG || i.category == RAIN_TAG) {
-                                                Log.d("D${DayOfInterest.Today.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
+                                                dataReport = dataReport.appendAndLog("D${DayOfInterest.Today.dayOffset}-$HOURLY_TEMPERATURE_TAG", "$i")
                                             }
                                         }
                                     }
 
                                     if (isCoveredByFutureTodayData(latestVillageHour, highTempBaseTime.toInt()) &&
                                         todayHighTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", emptyMessage)
+                                        dataReport = dataReport.appendAndLog("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", emptyMessage)
                                     } else {
                                         for (i in todayHighTempData) {
                                             size += 1
                                             if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
-                                                Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                                dataReport = dataReport.appendAndLog("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
                                             }
                                         }
                                     }
 
                                     if (isCoveredByFutureTodayData(latestVillageHour, lowTempBaseTime.toInt()) &&
                                             todayLowTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", emptyMessage)
+                                        dataReport = dataReport.appendAndLog("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", emptyMessage)
                                     } else {
                                         for (i in todayLowTempData) {
                                             size += 1
                                             if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
-                                                Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+                                                dataReport = dataReport.appendAndLog("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
                                             }
                                         }
                                     }
 
                                     if (futureTodayData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Today.dayOffset}", emptyMessage)
+                                        dataReport = dataReport.appendAndLog("D${DayOfInterest.Today.dayOffset}", emptyMessage)
                                     } else {
                                         for (i in futureTodayData) {
                                             size += 1
                                             if (i.category == VILLAGE_TEMPERATURE_TAG) {
-                                                Log.d("D${DayOfInterest.Today.dayOffset}", "$i")
+                                                dataReport = dataReport.appendAndLog("D${DayOfInterest.Today.dayOffset}", "$i")
                                             }
                                         }
                                     }
 
                                     if (tomorrowHighTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Highest.descriptor}", emptyMessage)
+                                        dataReport = dataReport.appendAndLog("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Highest.descriptor}", emptyMessage)
                                     } else {
                                         for (i in tomorrowHighTempData) {
                                             size += 1
                                             if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
-                                                Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                                dataReport = dataReport.appendAndLog("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
                                             }
                                         }
                                     }
 
                                     if (tomorrowLowTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", emptyMessage)
+                                        dataReport = dataReport.appendAndLog("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", emptyMessage)
                                     } else {
                                         for (i in tomorrowLowTempData) {
                                             size += 1
                                             if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
-                                                Log.d("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+                                                dataReport = dataReport.appendAndLog("D${DayOfInterest.Tomorrow.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
                                             }
                                         }
                                     }
 
                                     if (d2HighTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Highest.descriptor}", emptyMessage)
+                                        dataReport = dataReport.appendAndLog("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Highest.descriptor}", emptyMessage)
                                     } else {
                                         for (i in d2HighTempData) {
                                             size += 1
                                             if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == HIGH_TEMPERATURE_TAG) {
-                                                Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
+                                                dataReport = dataReport.appendAndLog("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$i")
                                             }
                                         }
                                     }
 
                                     if (d2LowTempData.isEmpty()) {
-                                        Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", emptyMessage)
+                                        dataReport = dataReport.appendAndLog("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", emptyMessage)
                                     } else {
                                         for (i in d2LowTempData) {
                                             size += 1
                                             if (i.category == VILLAGE_TEMPERATURE_TAG || i.category == LOW_TEMPERATURE_TAG) {
-                                                Log.d("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
+                                                dataReport = dataReport.appendAndLog("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$i")
                                             }
                                         }
                                     }
@@ -726,7 +731,7 @@ class WeatherViewModel(
                             adjustTodayCharTemp()
                             buildDailyTemps()
                             if (isNullInfoIncluded()) {
-                                _snackBarEvent.value = SnackBarEvent(SnackBarContent(R.string.snack_bar_kma_na))
+                                _snackBarEvent.value = SnackBarEvent(SnackBarContent(R.string.snack_bar_error_kma_na))
                                 lastCheckedTime = null  // Incomplete data
                             }
                         }
@@ -738,7 +743,13 @@ class WeatherViewModel(
                             runBlocking { delay(NETWORK_PAUSE) }
                         } else {  // Maximum count of trials has been reached.
                             Log.e(TAG, "Stop trying after reaching timeout $NETWORK_MAX_RETRY times.\n$e")
-                            _toastMessage.value = ToastEvent(R.string.toast_weather_failure_general)
+                            val trace = e.stackTraceToString()
+                            _snackBarEvent.value = SnackBarEvent(
+                                getErrorReportSnackBarContent(
+                                    R.string.snack_bar_weather_error_general,
+                                    dataReport + if (dataReport.isNotBlank()) reportSeparator else "" + trace
+                                )
+                            )
                             lastCheckedTime = null
                             break
                         }
@@ -748,11 +759,23 @@ class WeatherViewModel(
                             is UnknownHostException -> _toastMessage.value = ToastEvent(R.string.toast_weather_failure_network)
                             is com.google.gson.stream.MalformedJsonException -> {
                                 Log.e(TAG, "Cannot process weather data.", e)
-                                _toastMessage.value = ToastEvent(R.string.toast_error_json)
+                                val trace = e.stackTraceToString()
+                                _snackBarEvent.value = SnackBarEvent(
+                                    getErrorReportSnackBarContent(
+                                        R.string.snack_bar_error_json,
+                                        dataReport + if (dataReport.isNotBlank()) reportSeparator else "" + trace
+                                    )
+                                )
                             }
                             else -> {
                                 Log.e(TAG, "Cannot retrieve weather data.", e)
-                                _toastMessage.value = ToastEvent(R.string.toast_weather_failure_general)
+                                val trace = e.stackTraceToString()
+                                _snackBarEvent.value = SnackBarEvent(
+                                    getErrorReportSnackBarContent(
+                                        R.string.snack_bar_weather_error_general,
+                                        dataReport + if (dataReport.isNotBlank()) reportSeparator else "" + trace
+                                    )
+                                )
                             }
                         }
                         lastCheckedTime = null
@@ -771,6 +794,38 @@ class WeatherViewModel(
                     _showLandingScreen.value = false
                 }
             }
+        }
+    }
+
+    private fun String.appendAndLog(tag: String, message: String): String {
+        Log.d(tag, message)
+        return this + "\n" + message
+    }
+
+    private fun getErrorReportSnackBarContent(messageId: Int, description: String) = SnackBarContent(
+        messageId, R.string.snack_bar_error_send_action, shareException(description))
+
+    private fun shareException(description: String): () -> Unit = {
+        viewModelScope.launch {
+            // A modified Context with the Locale from Preferences
+            val modifiedContext = withContext(defaultDispatcher) {
+                val config = createConfigurationWithStoredLocale(context)
+                context.createConfigurationContext(config)
+            }
+            val title = "\"${modifiedContext.getString(R.string.app_name)}\" ${modifiedContext.getString(R.string.snack_bar_error_send_title)}"
+            val body = modifiedContext.getString(R.string.snack_bar_error_send_body) + "\n\n" + description
+
+            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                data = (Uri.parse("mailto:"))
+                putExtra(Intent.EXTRA_EMAIL, arrayOf(DEVELOPER_EMAIL))
+                putExtra(Intent.EXTRA_SUBJECT, title)
+                putExtra(Intent.EXTRA_TEXT, body)
+            }
+
+            val chooser = Intent.createChooser(intent, modifiedContext.getString(R.string.share_app_guide)).apply {
+                addFlags(FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
         }
     }
 
@@ -1032,7 +1087,12 @@ class WeatherViewModel(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error while refreshWeatherData()", e)
-            _toastMessage.value = ToastEvent(R.string.error_general_toast)
+            _snackBarEvent.value = SnackBarEvent(
+                getErrorReportSnackBarContent(
+                    R.string.snack_bar_weather_error_general,
+                    e.stackTraceToString()
+                )
+            )
         } finally {
             Log.d(TAG, "kmaJob is ${kmaJob.status()}")
             if (kmaJob.isCompleted) {

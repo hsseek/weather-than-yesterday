@@ -57,7 +57,7 @@
     <string name="daily_lowest">최저</string>
     <string name="desc_splash_screen">로딩 화면</string>
     <string name="toast_refresh_up_to_date">날씨 정보가 최신 상태입니다.</string>
-    <string name="toast_weather_failure_general">날씨 정보를 받아올 수 없습니다.</string>
+    <string name="snack_bar_weather_error_general">날씨 정보를 받아올 수 없습니다.</string>
     <string name="toast_weather_failure_network">네트워크 상태를 확인해주세요.</string>
     <string name="hour_23">오후 11시</string>
     <string name="title_activity_web_view">자주 묻는 질문</string>
@@ -72,8 +72,8 @@
     <string name="pref_title_auto_refresh">자동 새로고침</string>
     <string name="pref_desc_auto_refresh">1분 경과 시 앱으로 복귀할 때 새로고침</string>
     <string name="pref_help_auto_refresh">앱이 종료된 후 다시 가동되는 경우는 물론, 창 전환 또는 홈 화면에서 복귀하는 경우에도 앱이 새로고침 됩니다.\n\n마지막 확인 이후 1분 내에 다시 앱으로 복귀한 경우 자동 새로고침이 되지 않지만, 앱 종료 후 재가동 또는 수동 새로고침은 언제든 예외 없이 이루어집니다.\n\n새로고침을 하더라도 새로운 기상청 데이터가 공개되지 않았다면 날씨 정보는 갱신되지 않습니다(매 시간마다 공개).</string>
-    <string name="snack_bar_kma_na">기상청 데이터가 없습니다.(매 시 정각 새 데이터 업로드)</string>
-    <string name="toast_error_json">기상청 공개 데이터가 형식에 맞지 않습니다.</string>
+    <string name="snack_bar_error_kma_na">기상청 데이터가 없습니다.(매 시 정각 새 데이터 업로드)</string>
+    <string name="snack_bar_error_json">기상청 공개 데이터가 형식에 맞지 않습니다.</string>
     <string name="pref_title_daybreak_mode">새벽-낮 온도 표시</string>
     <string name="pref_desc_daybreak_mode">일별 온도를 최저-최고 순서로 표시</string>
     <string name="pref_help_daybreak_mode">일 최저 기온은 새벽 5시 ~ 7시경, 최고 기온은 오후 1시 ~3시경에 관측됩니다. 즉, 최저 기온이 먼저 발생한 후 최고 기온이 발생하기 때문에 최저 기온을 먼저 표시하는 것이 시적 흐름에 부합합니다.\n\n이 모드를 활성화하면 새벽 온도(최저 온도)를 상단에, 낮 온도(최고 온도)를 하단에 표시합니다.</string>
@@ -92,8 +92,11 @@
     <string name="dialog_search_region_no_result">해당 이름과 일치하는 지역이 없습니다.</string>
     <string name="dialog_search_region_hint">지역명</string>
     <string name="error_auto_location_na">해당 지역에 대한 기상청 데이터가 없습니다.</string>
-    <string name="error_general_toast">죄송합니다. 오류가 발생했습니다. 앱이 꺼지지 않게 하는 정도가 제 최선입니다.</string>
+    <string name="toast_error_general">죄송합니다. 오류가 발생했습니다. 앱이 꺼지지 않게 하는 정도가 제 최선입니다.</string>
     <string name="pref_title_preset_regions">사전설정 예보지역 사용</string>
     <string name="pref_desc_preset_regions">예보지역 검색 대신, 미리 설정된 지역 중 하나를 선택</string>
     <string name="pref_help_preset_regions">예보지역을 검색하는 대신 미리 설정된 몇 개의 예보지역 중 하나를 선택할 수 있습니다(예: 수도권, 강원도 등).\n\n예보지역 변경 시 검색을 하지 않고 목록에서 바로 선택할 수 있기 때문에, 세부지역에 대한 예보보다 간편한 지역 변경을 우선하는 경우 유용합니다.</string>
+    <string name="snack_bar_error_send_action">오류 보고</string>
+    <string name="snack_bar_error_send_title">오류 보고</string>
+    <string name="snack_bar_error_send_body">아래는 오류 발생 직전에 실행 중이던 코드입니다. 코드를 같이 공유해주시면 버그를 찾아내는 데 큰 도움이 됩니다. \n\n오류 보고를 사용자가 직접 보고 공유 내용을 결정할 수 있도록 이메일을 통해 오류를 공유할 수 있도록 설계하였습니다. 이메일에 적혀있는 내용만이 공유될 것이며, 원한다면 상황 설명 등을 추가하거나 내용을 수정할 수 있습니다.</string>
 </resources>
