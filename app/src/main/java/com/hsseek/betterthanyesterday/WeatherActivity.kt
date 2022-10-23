@@ -269,8 +269,12 @@ class WeatherActivity : ComponentActivity() {
 
     private fun requestRefreshImplicitly() {
         val minInterval: Long = if (viewModel.isAutoRefresh) 60 * 1000 else 60 * 60 * 1000  // 1 min or 1 hour
-        val lastChecked = viewModel.lastCheckedTime
-        if (lastChecked == null || getCurrentKoreanDateTime().timeInMillis - lastChecked.timeInMillis > minInterval) {
+        val lastChecked = viewModel.lastImplicitlyCheckedTime
+        val current = Calendar.getInstance().also {
+            viewModel.updateLastImplicitChecked(it)
+        }
+
+        if (lastChecked == null || current.timeInMillis - lastChecked.timeInMillis > minInterval) {
             // Implicit request, on the previously selected ForecastRegion.
             checkPermissionThenRefresh()
         } else {

@@ -75,11 +75,14 @@ class WeatherViewModel(
     val showLandingScreen: Boolean
         get() = _showLandingScreen.value
 
-    var lastCheckedTime: Calendar? = null
+    var lastSuccessfulTime: Calendar? = null
         private set(value) {
             field = value
-            Log.d(TAG, "last checked hour: ${value?.get(Calendar.HOUR_OF_DAY)}")
+            Log.d(TAG, "last successful data retrieving hour: ${value?.get(Calendar.HOUR_OF_DAY)}")
         }
+
+    var lastImplicitlyCheckedTime: Calendar? = null
+        private set
 
     // Preferences
     private var languageCode: Int = Language.System.code
@@ -251,7 +254,7 @@ class WeatherViewModel(
             _isRefreshing.value = true
             kmaJob = launch(defaultDispatcher) {
                 Log.d(TAG, "kmaJob launched.")
-                lastCheckedTime = getCurrentKoreanDateTime()
+                lastSuccessfulTime = getCurrentKoreanDateTime()
 
                 while (trialCount < NETWORK_MAX_RETRY) {
                     var dataReport = reportSeparator + "Data retrieved from KMA\n"
@@ -724,7 +727,7 @@ class WeatherViewModel(
                             buildDailyTemps()
                             if (isNullInfoIncluded()) {
                                 _snackBarEvent.value = SnackBarEvent(SnackBarContent(R.string.snack_bar_error_kma_na))
-                                lastCheckedTime = null  // Incomplete data
+                                lastSuccessfulTime = null  // Incomplete data
                             }
                         }
                         break
@@ -742,7 +745,7 @@ class WeatherViewModel(
                                     dataReport + if (dataReport.isNotBlank()) reportSeparator else "" + trace
                                 )
                             )
-                            lastCheckedTime = null
+                            lastSuccessfulTime = null
                             break
                         }
                     } catch (e: Exception) {  // Other exceptions dealt without retrying.
@@ -752,12 +755,7 @@ class WeatherViewModel(
                             is UnknownHostException -> _toastMessage.value = ToastEvent(R.string.toast_weather_failure_network)
                             is com.google.gson.stream.MalformedJsonException -> {
                                 Log.e(TAG, "Cannot process weather data.", e)
-                                _snackBarEvent.value = SnackBarEvent(
-                                    getErrorReportSnackBarContent(
-                                        R.string.snack_bar_error_json,
-                                        dataReport + if (dataReport.isNotBlank()) reportSeparator else "" + trace
-                                    )
-                                )
+                                _toastMessage.value = ToastEvent(R.string.toast_error_json)
                             }
                             else -> {
                                 Log.e(TAG, "Cannot retrieve weather data.", e)
@@ -769,7 +767,7 @@ class WeatherViewModel(
                                 )
                             }
                         }
-                        lastCheckedTime = null
+                        lastSuccessfulTime = null
                         break
                     } finally {
                         // _isLoading.value = false   Called on every loops, which is not intended.
@@ -791,6 +789,10 @@ class WeatherViewModel(
     private fun String.appendAndLog(tag: String, message: String): String {
         Log.d(tag, message)
         return this + "\n$tag\t\t$message"
+    }
+
+    fun updateLastImplicitChecked(cal: Calendar) {
+        lastImplicitlyCheckedTime = cal
     }
 
     private fun getErrorReportSnackBarContent(messageId: Int, description: String) = SnackBarContent(
@@ -1084,7 +1086,7 @@ class WeatherViewModel(
     }
 
     private fun checkTimeThenRequest(isSecondary: Boolean = false) {
-        if (isNewDataReleasedAfter(lastCheckedTime)) {
+        if (isNewDataReleasedAfter(lastSuccessfulTime)) {
             requestAllWeatherData()
         } else {
             if (!isSecondary) {

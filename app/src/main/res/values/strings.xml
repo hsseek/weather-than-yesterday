@@ -99,7 +99,7 @@
     <string name="pref_help_preset_regions">With this mode enabled, you can choose a forecast region from a preset instead of searching a region.\n\nOn change forecast region, it can spare your typing the name of a region, while forecast for preset regions represents a more general information.</string>
     <string name="snack_bar_weather_error_general">Cannot retrieve weather data.</string>
     <string name="snack_bar_error_kma_na">KMA data not available, which is uploaded every hour.</string>
-    <string name="snack_bar_error_json">An error occurred while processing KMA data.</string>
+    <string name="toast_error_json">An error occurred while processing KMA data.</string>
     <string name="snack_bar_error_send_action">Report</string>
     <string name="snack_bar_error_send_title">Error Report</string>
     <string name="snack_bar_error_send_body">The following is the code executed just before the error. If you share this context, it greatly helps to identify the problem.\n\nI decided to utilize emails as the sharing method, to make it sure that nothing sneaky is included. All I can see is what you choose to compose here. You can review it, add descriptions, edit or delete if you\'d like.</string>
