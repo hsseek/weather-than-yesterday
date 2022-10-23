@@ -126,7 +126,7 @@ enum class Language(val code: Int, val iso: String) {
 
 enum class PresetRegion(val regionId: Int, val examplesId: Int, val xy: CoordinatesXy) {
      Auto(R.string.region_auto, R.string.examples_auto, CoordinatesXy(0, 0)),  // An impossible values
-    Capital(R.string.region_captial, R.string.examples_captial, CoordinatesXy(SEOUL.nx, SEOUL.ny)),
+    Capital(R.string.region_capital, R.string.examples_capital, CoordinatesXy(SEOUL.nx, SEOUL.ny)),
     Gangwon(R.string.region_gangwon, R.string.examples_gangwon, CoordinatesXy(73, 134)),
     SouthGs(R.string.region_south_gs, R.string.examples_south_gs, CoordinatesXy(98, 76)),
     NorthGs(R.string.region_north_gs, R.string.examples_north_gs, CoordinatesXy(89, 90)),

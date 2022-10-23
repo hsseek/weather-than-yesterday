@@ -12,3 +12,7 @@ open class OneShotEvent<out T>(private val content: T) {
         }
     }
 }
+
+class ToastEvent(messageId: Int): OneShotEvent<Int>(messageId)
+class SnackBarEvent(snackBarContent: SnackBarContent): OneShotEvent<SnackBarContent>(snackBarContent)
+data class SnackBarContent(val messageId: Int?, val actionId: Int? = null, val action: (() -> Unit) = {})

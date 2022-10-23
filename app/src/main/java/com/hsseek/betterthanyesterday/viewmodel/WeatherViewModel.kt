@@ -154,8 +154,11 @@ class WeatherViewModel(
     private val _rainfallStatus: MutableStateFlow<Sky> = MutableStateFlow(Sky.Undetermined)
     val rainfallStatus = _rainfallStatus.asStateFlow()
 
-    private val _toastMessage = MutableStateFlow(OneShotEvent(0))
+    private val _toastMessage = MutableStateFlow(ToastEvent(0))
     val toastMessage = _toastMessage.asStateFlow()
+
+    private val _snackBarEvent = MutableStateFlow(SnackBarEvent(SnackBarContent(null, null) {} ))
+    val snackBarMessage = _snackBarEvent.asStateFlow()
 
     /**
      * Update [forecastRegion], either retrieved from [startLocationUpdate] or directly from a fixed location.
@@ -185,7 +188,7 @@ class WeatherViewModel(
             } else {
                 if (!isSecondary) {
                     if (kmaJob.isCompleted) _isRefreshing.value = false
-                    _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
+                    _toastMessage.value = ToastEvent(R.string.toast_refresh_up_to_date)
                 }
             }
         } else {
@@ -229,7 +232,7 @@ class WeatherViewModel(
         _rainfallStatus.value = Sky.Undetermined
     }
 
-    private fun isInfoNull(): Boolean {
+    private fun isNullInfoIncluded(): Boolean {
         if (
             (_hourlyTempDiff.value == null) ||
             (_hourlyTempDiff.value == null) ||
@@ -722,7 +725,10 @@ class WeatherViewModel(
                             networkJob.join()
                             adjustTodayCharTemp()
                             buildDailyTemps()
-                            if (isInfoNull()) _toastMessage.value = OneShotEvent(R.string.toast_kma_na)
+                            if (isNullInfoIncluded()) {
+                                _snackBarEvent.value = SnackBarEvent(SnackBarContent(R.string.snack_bar_kma_na))
+                                lastCheckedTime = null  // Incomplete data
+                            }
                         }
                         break
                     } catch (e: TimeoutCancellationException) {  // Retry on timeouts.
@@ -732,21 +738,21 @@ class WeatherViewModel(
                             runBlocking { delay(NETWORK_PAUSE) }
                         } else {  // Maximum count of trials has been reached.
                             Log.e(TAG, "Stop trying after reaching timeout $NETWORK_MAX_RETRY times.\n$e")
-                            _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_general)
+                            _toastMessage.value = ToastEvent(R.string.toast_weather_failure_general)
                             lastCheckedTime = null
                             break
                         }
                     } catch (e: Exception) {  // Other exceptions dealt without retrying.
                         when (e) {
                             is CancellationException -> Log.d(TAG, "Retrieving weather data cancelled.")
-                            is UnknownHostException -> _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_network)
+                            is UnknownHostException -> _toastMessage.value = ToastEvent(R.string.toast_weather_failure_network)
                             is com.google.gson.stream.MalformedJsonException -> {
                                 Log.e(TAG, "Cannot process weather data.", e)
-                                _toastMessage.value = OneShotEvent(R.string.toast_error_json)
+                                _toastMessage.value = ToastEvent(R.string.toast_error_json)
                             }
                             else -> {
                                 Log.e(TAG, "Cannot retrieve weather data.", e)
-                                _toastMessage.value = OneShotEvent(R.string.weather_retrieving_failure_general)
+                                _toastMessage.value = ToastEvent(R.string.toast_weather_failure_general)
                             }
                         }
                         lastCheckedTime = null
@@ -1021,12 +1027,12 @@ class WeatherViewModel(
                 if (isNewDataReleasedAfter(lastCheckedTime)) {
                     requestAllWeatherData()
                 } else {
-                    _toastMessage.value = OneShotEvent(R.string.refresh_up_to_date)
+                    _toastMessage.value = ToastEvent(R.string.toast_refresh_up_to_date)
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error while refreshWeatherData()", e)
-            _toastMessage.value = OneShotEvent(R.string.error_general_toast)
+            _toastMessage.value = ToastEvent(R.string.error_general_toast)
         } finally {
             Log.d(TAG, "kmaJob is ${kmaJob.status()}")
             if (kmaJob.isCompleted) {
@@ -1115,7 +1121,7 @@ class WeatherViewModel(
 
     private fun showLocationError(coordinates: CoordinatesLatLon) {
         Log.e(LOCATION_TAG, "Error retrieving a city name(${coordinates.lat}, ${coordinates.lon}).")
-        _toastMessage.value = OneShotEvent(R.string.error_auto_location_na)
+        _toastMessage.value = ToastEvent(R.string.error_auto_location_na)
     }
 
     private val locationCallback = object : LocationCallback() {
@@ -1296,7 +1302,7 @@ class WeatherViewModel(
 
     private fun showNoRegionCandidates() {
         Log.d(TAG, "No region candidate.")
-        _toastMessage.value = OneShotEvent(R.string.dialog_search_region_no_result)
+        _toastMessage.value = ToastEvent(R.string.dialog_search_region_no_result)
     }
 
     /**

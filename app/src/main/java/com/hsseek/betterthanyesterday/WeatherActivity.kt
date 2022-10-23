@@ -359,7 +359,9 @@ class WeatherActivity : ComponentActivity() {
         val systemUiController = rememberSystemUiController()
         systemUiController.setSystemBarsColor(color = MaterialTheme.colors.background)
 
+        val scaffoldState = rememberScaffoldState()
         Scaffold(
+            scaffoldState = scaffoldState,
             topBar = { WeatherTopAppBar(
                 modifier = modifier.fillMaxWidth(),
                 onClickRefresh = { checkPermissionThenRefresh() },
@@ -440,6 +442,25 @@ class WeatherActivity : ComponentActivity() {
                             Spacer(modifier = modifier.height(gapFromContent))
                             CustomScreen(modifier)
                         }
+                    }
+                }
+            }
+
+            // A SnackBar
+            val snackBarContent = viewModel.snackBarMessage.collectAsState().value.getContentIfNotHandled()
+            if (snackBarContent?.messageId != null) {
+                LaunchedEffect(scaffoldState.snackbarHostState, viewModel.snackBarMessage.collectAsState().value) {
+                    val actionLabel = if (snackBarContent.actionId == null) null else getString(snackBarContent.actionId)
+
+                    val snackBarResult = scaffoldState.snackbarHostState.showSnackbar(
+                        message = getString(snackBarContent.messageId),
+                        actionLabel = actionLabel,
+                        duration = SnackbarDuration.Long,
+                    )
+
+                    when (snackBarResult) {
+                        SnackbarResult.Dismissed -> { }  // Nothing to do.
+                        SnackbarResult.ActionPerformed -> { snackBarContent.action() }
                     }
                 }
             }
@@ -621,7 +642,7 @@ class WeatherActivity : ComponentActivity() {
                 val intent = getSharingIntent()
                 startActivity(Intent.createChooser(intent, getString(R.string.share_app_guide)))
             }) {
-                Text(text = stringResource(R.string.topbar_share_app))
+                Text(text = stringResource(R.string.top_bar_share_app))
             }
 
             DropdownMenuItem(onClick = {
@@ -629,7 +650,7 @@ class WeatherActivity : ComponentActivity() {
                 val intent = Intent(this@WeatherActivity, FaqActivity::class.java)
                 this@WeatherActivity.startActivity(intent)
             }) {
-                Text(text = stringResource(R.string.topbar_help))
+                Text(text = stringResource(R.string.top_bar_help))
             }
         }
     }
@@ -805,10 +826,8 @@ class WeatherActivity : ComponentActivity() {
                 }
 
             val title: String = if (!isSimplified) {
-                stringResource(R.string.current_temp_title) + "\n" + stringResource(R.string.current_temp_time) + " " + hourString
-                } else {
-                    hourString
-                }
+                "${stringResource(R.string.current_temp_title)}\n(${stringResource(R.string.current_temp_time)} $hourString)"
+            } else hourString
 
             Text(
                 text = title,

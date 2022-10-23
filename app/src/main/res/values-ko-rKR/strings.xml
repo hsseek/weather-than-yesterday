@@ -29,7 +29,7 @@
     <string name="dialog_dismiss_ok">확인</string>
     <string name="region_auto">현재 위치</string>
     <string name="examples_auto">자동 설정</string>
-    <string name="region_captial">서울\u00B7인천\u00B7경기 지역</string>
+    <string name="region_capital">서울\u00B7인천\u00B7경기 지역</string>
     <string name="region_gangwon">강원 지역</string>
     <string name="region_south_gs">부산\u00B7울산\u00B7경남 지역</string>
     <string name="region_north_gs">대구\u00B7경북 지역</string>
@@ -39,7 +39,7 @@
     <string name="region_south_ch">대전\u00B7충남 지역</string>
     <string name="region_north_ch">충북 지역</string>
     <string name="region_dokdo">독도 지역</string>
-    <string name="examples_captial">수원, 고양, 용인 등</string>
+    <string name="examples_capital">수원, 고양, 용인 등</string>
     <string name="examples_gangwon">원주, 춘천, 강릉 등</string>
     <string name="examples_south_gs">창원, 김해, 양산 등</string>
     <string name="examples_north_gs">포항, 구미, 경산 등</string>
@@ -50,15 +50,15 @@
     <string name="examples_north_ch">청주, 충주, 제천 등</string>
     <string name="examples_dokdo">울릉도, 독도</string>
     <string name="desc_refresh">날씨정보 새로고침</string>
-    <string name="topbar_share_app">앱 공유하기</string>
-    <string name="topbar_help">도움말</string>
+    <string name="top_bar_share_app">앱 공유하기</string>
+    <string name="top_bar_help">도움말</string>
     <string name="desc_overflow_menu">부가 메뉴</string>
     <string name="daily_highest">최고</string>
     <string name="daily_lowest">최저</string>
     <string name="desc_splash_screen">로딩 화면</string>
-    <string name="refresh_up_to_date">날씨 정보가 최신 상태입니다.</string>
-    <string name="weather_retrieving_failure_general">날씨 정보를 받아올 수 없습니다.</string>
-    <string name="weather_retrieving_failure_network">네트워크 상태를 확인해주세요.</string>
+    <string name="toast_refresh_up_to_date">날씨 정보가 최신 상태입니다.</string>
+    <string name="toast_weather_failure_general">날씨 정보를 받아올 수 없습니다.</string>
+    <string name="toast_weather_failure_network">네트워크 상태를 확인해주세요.</string>
     <string name="hour_23">오후 11시</string>
     <string name="title_activity_web_view">자주 묻는 질문</string>
     <string name="title_activity_settings">설정</string>
@@ -72,7 +72,7 @@
     <string name="pref_title_auto_refresh">자동 새로고침</string>
     <string name="pref_desc_auto_refresh">1분 경과 시 앱으로 복귀할 때 새로고침</string>
     <string name="pref_help_auto_refresh">앱이 종료된 후 다시 가동되는 경우는 물론, 창 전환 또는 홈 화면에서 복귀하는 경우에도 앱이 새로고침 됩니다.\n\n마지막 확인 이후 1분 내에 다시 앱으로 복귀한 경우 자동 새로고침이 되지 않지만, 앱 종료 후 재가동 또는 수동 새로고침은 언제든 예외 없이 이루어집니다.\n\n새로고침을 하더라도 새로운 기상청 데이터가 공개되지 않았다면 날씨 정보는 갱신되지 않습니다(매 시간마다 공개).</string>
-    <string name="toast_kma_na">기상청 데이터가 없습니다.(매 시 정각 새 데이터 업로드)</string>
+    <string name="snack_bar_kma_na">기상청 데이터가 없습니다.(매 시 정각 새 데이터 업로드)</string>
     <string name="toast_error_json">기상청 공개 데이터가 형식에 맞지 않습니다.</string>
     <string name="pref_title_daybreak_mode">새벽-낮 온도 표시</string>
     <string name="pref_desc_daybreak_mode">일별 온도를 최저-최고 순서로 표시</string>
