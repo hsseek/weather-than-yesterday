@@ -18,41 +18,47 @@ class KoreanGeocoder(context: Context) {
         onSuccessLatLon: (List<CoordinatesLatLon>?) -> Unit,
     ) {
         val start = System.currentTimeMillis()
-        try {
-            if (android.os.Build.VERSION.SDK_INT >= 33) {
-                val geocoderListener = object : Geocoder.GeocodeListener {
-                    override fun onGeocode(addresses: MutableList<Address>) {
-                        logLatLon(addresses)
-                        logElapsedTime(TAG, "Update lat/long", start)
-                        if (addresses.size > 0) {
-                            onSuccessLatLon(convertToLatLonList(addresses))
-                        } else {
-                            Log.d(TAG, "0 result from getFromLocationName(...)")
-                            onSuccessLatLon(null)
+        if (commonName.isNotBlank()) {
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    val geocoderListener = object : Geocoder.GeocodeListener {
+                        override fun onGeocode(addresses: MutableList<Address>) {
+                            logLatLon(addresses)
+                            logElapsedTime(TAG, "Update lat/long", start)
+                            if (addresses.size > 0) {
+                                onSuccessLatLon(convertToLatLonList(addresses))
+                            } else {
+                                Log.d(TAG, "0 result from getFromLocationName(...)")
+                                onSuccessLatLon(null)
+                            }
+                        }
+
+                        override fun onError(errorMessage: String?) {
+                            super.onError(errorMessage)
+                            Log.e(TAG, "Error while getFromLocationName(...): $errorMessage")
                         }
                     }
+                    geoCoder.getFromLocationName(commonName, maxResult, geocoderListener)
+                } else {
+                    @Suppress("DEPRECATION")
+                    val addresses = geoCoder.getFromLocationName(commonName, maxResult)
+                    logLatLon(addresses)
+                    logElapsedTime(TAG, "Update lat/long", start)
 
-                    override fun onError(errorMessage: String?) {
-                        super.onError(errorMessage)
-                        Log.e(TAG, "Error while getFromLocationName(...): $errorMessage")
+                    if (addresses != null && addresses.size > 0) {
+                        onSuccessLatLon(convertToLatLonList(addresses))
+                    } else {
+                        Log.d(TAG, "0 result from getFromLocationName(...) [Deprecated]")
+                        onSuccessLatLon(null)
                     }
                 }
-                geoCoder.getFromLocationName(commonName, maxResult, geocoderListener)
-            } else {
-                @Suppress("DEPRECATION")
-                val addresses = geoCoder.getFromLocationName(commonName, maxResult)
-                logLatLon(addresses)
-                logElapsedTime(TAG, "Update lat/long", start)
-
-                if (addresses != null && addresses.size > 0) {
-                    onSuccessLatLon(convertToLatLonList(addresses))
-                } else {
-                    Log.d(TAG, "0 result from getFromLocationName(...) [Deprecated]")
-                    onSuccessLatLon(null)
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error while getFromLocationName(...)", e)
+                onSuccessLatLon(null)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error while getFromLocationName(...)", e)
+        } else {
+            // Blank query
+            onSuccessLatLon(null)
         }
     }
 

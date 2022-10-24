@@ -19,6 +19,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -36,6 +37,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Devices
@@ -154,9 +156,10 @@ class WeatherActivity : ComponentActivity() {
                                 items = viewModel.forecastRegionCandidates,
                                 selected = viewModel.selectedForecastRegionIndex,
                                 onSelect = { viewModel.updateSelectedForecastRegionIndex(it) },
+                                onTextChanged = { viewModel.searchRegionCandidateDebounced(it) },
                                 onClickSearch = { query ->
                                     val time = measureTimeMillis {
-                                        viewModel.searchForCandidates(query)
+                                        viewModel.searchRegionCandidate(query)
                                     }
                                     Log.d(TAG, "Region search done in $time ms")
                                     // Toast.makeText(this, "Done in $time ms", Toast.LENGTH_SHORT).show()
@@ -417,8 +420,8 @@ class WeatherActivity : ComponentActivity() {
 
                                 Box(
                                     modifier = Modifier
-                                    .offset(y = leftHalfVerticalOffset)
-                                    .weight(weight),
+                                        .offset(y = leftHalfVerticalOffset)
+                                        .weight(weight),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     CurrentTemperature(
@@ -1214,6 +1217,7 @@ fun SearchRegionDialog(
     titleBottomPadding: Dp = 7.dp,
     selected: (Int),
     onSelect: (Int) -> Unit,
+    onTextChanged: (String) -> Unit,
     onClickSearch: (String) -> Unit,
     onClickNegative: () -> Unit,
     onClickPositive: (Int) -> Unit,
@@ -1229,27 +1233,34 @@ fun SearchRegionDialog(
         backgroundColor = backgroundColor,
         buttons = {
             val query = rememberSaveable{ mutableStateOf("") }
-            Row {
-                TextField(
-                    value = query.value,
-                    onValueChange = { query.value = it },
-                    placeholder = { Text(text = stringResource(R.string.dialog_search_region_hint)) },
-                )
-                IconButton(onClick = { onClickSearch(query.value) }) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = stringResource(R.string.dialog_title_search_region)
+            Column {
+                Row {
+                    TextField(
+                        modifier = Modifier.weight(1f),
+                        value = query.value,
+                        onValueChange = {
+                            query.value = it
+                            onTextChanged(it)
+                        },
+                        placeholder = { Text(text = stringResource(R.string.dialog_search_region_hint)) },
+                        keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
                     )
+                    IconButton(onClick = { onClickSearch(query.value) }) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = stringResource(R.string.dialog_title_search_region)
+                        )
+                    }
                 }
-            }
 
-            RadioGroup(
-                radioItems = convertToRadioItemList(items),
-                selected = selected,
-                onSelect = onSelect,
-                onClickNegative = onClickNegative,
-                onClickPositive = onClickPositive,
-            )
+                RadioGroup(
+                    radioItems = convertToRadioItemList(items),
+                    selected = selected,
+                    onSelect = onSelect,
+                    onClickNegative = onClickNegative,
+                    onClickPositive = onClickPositive,
+                )
+            }
         }
     )
 }

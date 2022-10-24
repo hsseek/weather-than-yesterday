@@ -64,8 +64,8 @@ class WeatherViewModel(
 
     private val retrofitDispatcher = Dispatchers.IO
     private val defaultDispatcher = Dispatchers.Default
-    private var kmaJob: Job = Job()
-    private var searchRegionJob: Job = Job()
+    private var kmaJob: Job? = null
+    private var searchRegionJob: Job? = null
 
     private val _isRefreshing = mutableStateOf(false)
     val isRefreshing: Boolean
@@ -75,7 +75,7 @@ class WeatherViewModel(
     val showLandingScreen: Boolean
         get() = _showLandingScreen.value
 
-    var lastSuccessfulTime: Calendar? = null
+    private var lastSuccessfulTime: Calendar? = null
         private set(value) {
             field = value
             Log.d(TAG, "last successful data retrieving hour: ${value?.get(Calendar.HOUR_OF_DAY)}")
@@ -248,7 +248,7 @@ class WeatherViewModel(
         val reportSeparator = "\n────────────────\n"
         nullifyWeatherInfo()
         viewModelScope.launch(defaultDispatcher) {
-            kmaJob.cancelAndJoin()
+            kmaJob?.cancelAndJoin()
             var trialCount = 0
 
             _isRefreshing.value = true
@@ -776,8 +776,8 @@ class WeatherViewModel(
                 }
             }
 
-            kmaJob.invokeOnCompletion {
-                if (!kmaJob.isCancelled) {
+            kmaJob?.invokeOnCompletion {
+                if (kmaJob?.isCancelled == false) {
                     Log.d(TAG, "kmaJob completed without cancelled.")
                     _isRefreshing.value = false
                     _showLandingScreen.value = false
@@ -1078,8 +1078,8 @@ class WeatherViewModel(
                 )
             )
         } finally {
-            Log.d(TAG, "kmaJob is ${kmaJob.status()}")
-            if (kmaJob.isCompleted) {
+            Log.d(TAG, "kmaJob is ${kmaJob?.status()}")
+            if (kmaJob?.isCompleted == true) {
                 _isRefreshing.value = false
             }
         }
@@ -1090,7 +1090,7 @@ class WeatherViewModel(
             requestAllWeatherData()
         } else {
             if (!isSecondary) {
-                if (kmaJob.isCompleted) _isRefreshing.value = false
+                if (kmaJob?.isCompleted == true) _isRefreshing.value = false
                 _toastMessage.value = ToastEvent(R.string.toast_refresh_up_to_date)
             }
         }
@@ -1133,9 +1133,7 @@ class WeatherViewModel(
     }
 
     fun onClickChangeRegion() {
-        if (forecastRegionCandidates.isEmpty()) {
-            _forecastRegionCandidates.value = defaultRegionCandidates.toList()
-        }
+        _forecastRegionCandidates.value = defaultRegionCandidates.toList()
         _toShowSearchRegionDialog.value = true
     }
 
@@ -1227,7 +1225,7 @@ class WeatherViewModel(
 
     fun updatePresetRegionEnabled(enabled: Boolean) {
         Log.d(TAG, "PresetRegion mode: ${enabled.toEnablementString()}")
-        _forecastRegionCandidates.value = emptyList()
+        _forecastRegionCandidates.value = defaultRegionCandidates.toList()
         _isPresetRegion.value = enabled
     }
 
@@ -1257,18 +1255,26 @@ class WeatherViewModel(
         Log.d(TAG, "Refresh cancelled.")
 
         // Cancel searching ForecastRegion. Indicator will be dismissed in the finally block.
-        searchRegionJob.cancel()
+        searchRegionJob?.cancel()
 
-        kmaJob.cancel()
+        kmaJob?.cancel()
         // The state should be explicitly reassigned,
         // as the loading indicator won't be dismissed when the Job is cancelled programmatically.
         _isRefreshing.value = false
     }
 
-    fun searchForCandidates(query: String) {
+    fun searchRegionCandidateDebounced(query: String, delay: Long = 250) {
+        searchRegionJob?.cancel()
+        searchRegionJob = viewModelScope.launch {
+            delay(delay)
+            searchRegionCandidate(query, false)
+        }
+    }
+
+    fun searchRegionCandidate(query: String, isExplicit: Boolean = true) {
         searchRegionJob = viewModelScope.launch(defaultDispatcher) {
             try {
-                _toShowSearchRegionDialogLoading.value = true
+                if (isExplicit) _toShowSearchRegionDialogLoading.value = true
                 val geoCoder = KoreanGeocoder(context)
                 geoCoder.updateLatLng(query) { coordinateList ->
                     if (coordinateList != null) {
@@ -1289,28 +1295,28 @@ class WeatherViewModel(
                                         searchResults.add(region)
                                     }
                                 } else {
-                                    showNoRegionCandidates()
+                                    onNoRegionCandidates(isExplicit)
                                 }
                             }
                         }
                         // Operations with the coordinates done. All results have been collected.
                         if (searchResults.isEmpty()) {
-                            showNoRegionCandidates()
+                            onNoRegionCandidates(isExplicit)
                         } else {
                             searchResults.sortBy { it.address }
                             _forecastRegionCandidates.value = searchResults
                             _selectedForecastRegionIndex.value = 0
                         }
                     } else {
-                        showNoRegionCandidates()
+                        onNoRegionCandidates(isExplicit)
                     }
                 }
             } catch (e: IOException) {
                 Log.w(TAG, "Invalid IO", e)
-                showNoRegionCandidates()
+                onNoRegionCandidates(isExplicit)
             } catch (e: Exception) {
                 Log.e(TAG, "Cannot retrieve Locations.", e)
-                searchRegionJob.cancel()
+                searchRegionJob?.cancel()
             } finally {
                 dismissSearchRegionLoading()
             }
@@ -1359,9 +1365,13 @@ class WeatherViewModel(
         return addressCandidates
     }
 
-    private fun showNoRegionCandidates() {
+    private fun onNoRegionCandidates(isExplicit: Boolean) {
         Log.d(TAG, "No region candidate.")
-        _toastMessage.value = ToastEvent(R.string.dialog_search_region_no_result)
+        if (isExplicit) {
+            _toastMessage.value = ToastEvent(R.string.dialog_search_region_no_result)
+        } else {
+            _forecastRegionCandidates.value = defaultRegionCandidates.toList()
+        }
     }
 
     /**
@@ -1378,7 +1388,7 @@ class WeatherViewModel(
 
     fun invalidateSearchDialog() {
         dismissRegionDialog()
-        _forecastRegionCandidates.value = emptyList()
+        _forecastRegionCandidates.value = defaultRegionCandidates.toList()
         _selectedForecastRegionIndex.value = if (isForecastRegionAuto) 0 else 1
     }
 
