@@ -81,7 +81,7 @@
     <string name="pref_desc_language">Language</string>
     <string name="radio_lang_system">시스템 설정 언어</string>
     <string name="share_app_guide">공유할 앱 선택</string>
-    <string name="share_app_message_opening">\n어제 날씨와 비교해주는 날씨앱</string>
+    <string name="share_app_message_opening">어제 날씨와 비교해주는 날씨앱</string>
     <string name="share_app_bad_before">현재 기온은 %1$d도입니다.</string>
     <string name="share_app_now_good_higher">어제보다 %1$d도 높습니다.</string>
     <string name="share_app_now_good_lower">어제보다 %1$d도 낮습니다.</string>

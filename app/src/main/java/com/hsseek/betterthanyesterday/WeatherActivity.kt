@@ -742,7 +742,7 @@ class WeatherActivity : ComponentActivity() {
         } else {
             "\"${getString(R.string.share_app_now_good_higher, 1)}\" $positiveEmoji"
         }
-        val downloadLink = "https://blog.naver.com/seoulworkshop/222898712063"
+        val googlePlayUrl = "https://play.google.com/store/apps/details?id=com.hsseek.betterthanyesterday"
         val opening = getString(R.string.share_app_message_opening)
 
         val intent = Intent(Intent.ACTION_SEND).apply {
@@ -752,7 +752,7 @@ class WeatherActivity : ComponentActivity() {
                 Intent.EXTRA_TEXT, "$opening\n\n" +
                         "$thenDescription\n" +
                         "$nowDescription\n\n" +
-                        downloadLink
+                        googlePlayUrl
             )
         }
         return intent

@@ -181,6 +181,7 @@ private fun MainScreen(
                 PreferenceToggleRow(
                     title = stringResource(R.string.pref_title_simple_mode),
                     description = stringResource(R.string.pref_desc_simple_mode),
+                    enabled = false,
                     checked = viewModel.isSimplified,
                     isSpecial = highlightedIndex == 1,
                     onClickHelp = { viewModel.onClickSimpleViewHelp() },
@@ -188,35 +189,35 @@ private fun MainScreen(
                 )
 
                 // To be released
-                // Auto Refresh
-                PreferenceToggleRow(
-                    title = stringResource(R.string.pref_title_auto_refresh),
-                    description = stringResource(R.string.pref_desc_auto_refresh),
-                    checked = viewModel.isAutoRefresh,
-                    isSpecial = highlightedIndex == 2,
-                    onClickHelp = { viewModel.onClickAutoRefreshHelp() },
-                    onCheckedChange = { isChecked -> viewModel.updateAutoRefreshEnabled(isChecked) },
-                )
-
-                // Daybreak mode
-                PreferenceToggleRow(
-                    title = stringResource(R.string.pref_title_daybreak_mode),
-                    description = stringResource(R.string.pref_desc_daybreak_mode),
-                    checked = viewModel.isDaybreak,
-                    isSpecial = highlightedIndex == 3,
-                    onClickHelp = { viewModel.onClickDaybreakHelp() },
-                    onCheckedChange = { isChecked -> viewModel.updateDaybreakEnabled(isChecked) },
-                )
-
-                // Preset regions
-                PreferenceToggleRow(
-                    title = stringResource(R.string.pref_title_preset_regions),
-                    description = stringResource(R.string.pref_desc_preset_regions),
-                    checked = viewModel.isPresetRegion,
-                    isSpecial = highlightedIndex == 4,
-                    onClickHelp = { viewModel.onClickPresetRegionHelp() },
-                    onCheckedChange = { isChecked -> viewModel.updatePresetRegionEnabled(isChecked) },
-                )
+//                // Auto Refresh
+//                PreferenceToggleRow(
+//                    title = stringResource(R.string.pref_title_auto_refresh),
+//                    description = stringResource(R.string.pref_desc_auto_refresh),
+//                    checked = viewModel.isAutoRefresh,
+//                    isSpecial = highlightedIndex == 2,
+//                    onClickHelp = { viewModel.onClickAutoRefreshHelp() },
+//                    onCheckedChange = { isChecked -> viewModel.updateAutoRefreshEnabled(isChecked) },
+//                )
+//
+//                // Daybreak mode
+//                PreferenceToggleRow(
+//                    title = stringResource(R.string.pref_title_daybreak_mode),
+//                    description = stringResource(R.string.pref_desc_daybreak_mode),
+//                    checked = viewModel.isDaybreak,
+//                    isSpecial = highlightedIndex == 3,
+//                    onClickHelp = { viewModel.onClickDaybreakHelp() },
+//                    onCheckedChange = { isChecked -> viewModel.updateDaybreakEnabled(isChecked) },
+//                )
+//
+//                // Preset regions
+//                PreferenceToggleRow(
+//                    title = stringResource(R.string.pref_title_preset_regions),
+//                    description = stringResource(R.string.pref_desc_preset_regions),
+//                    checked = viewModel.isPresetRegion,
+//                    isSpecial = highlightedIndex == 4,
+//                    onClickHelp = { viewModel.onClickPresetRegionHelp() },
+//                    onCheckedChange = { isChecked -> viewModel.updatePresetRegionEnabled(isChecked) },
+//                )
             }
         }
     )
