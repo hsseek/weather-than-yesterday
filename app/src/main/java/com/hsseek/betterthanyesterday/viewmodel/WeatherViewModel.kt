@@ -19,6 +19,7 @@ import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
+import com.google.gson.stream.MalformedJsonException
 import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.Language
@@ -731,44 +732,41 @@ class WeatherViewModel(
                             }
                         }
                         break
-                    } catch (e: TimeoutCancellationException) {  // Retry on timeouts.
-                        if (++trialCount < NETWORK_MAX_RETRY) {
-                            val timeout: String = e.toString().split("for ").last()
-                            Log.w(TAG, "Retrieving weather timeout($timeout)")
-                            runBlocking { delay(NETWORK_PAUSE) }
-                        } else {  // Maximum count of trials has been reached.
-                            Log.e(TAG, "Stop trying after reaching timeout $NETWORK_MAX_RETRY times.\n$e")
-                            val trace = e.stackTraceToString()
-                            _snackBarEvent.value = SnackBarEvent(
-                                getErrorReportSnackBarContent(
-                                    R.string.snack_bar_weather_error_general,
-                                    dataReport + if (dataReport.isNotBlank()) reportSeparator else "" + trace
-                                )
-                            )
-                            lastSuccessfulTime = null
-                            break
-                        }
-                    } catch (e: Exception) {  // Other exceptions dealt without retrying.
-                        val trace = e.stackTraceToString()
-                        when (e) {
-                            is CancellationException -> Log.d(TAG, "Retrieving weather data cancelled.")
-                            is UnknownHostException -> _toastMessage.value = ToastEvent(R.string.toast_weather_failure_network)
-                            is com.google.gson.stream.MalformedJsonException -> {
-                                Log.e(TAG, "Cannot process weather data.", e)
-                                _toastMessage.value = ToastEvent(R.string.toast_error_json)
-                            }
-                            else -> {
-                                Log.e(TAG, "Cannot retrieve weather data.", e)
+                    } catch (e: Exception) {
+                        if (e is TimeoutCancellationException || e is MalformedJsonException) {  // Worth retrying.
+                            if (++trialCount < NETWORK_MAX_RETRY) {
+                                Log.w(TAG, "(Retrying) $e")
+                                runBlocking { delay(NETWORK_PAUSE) }
+                            } else {  // Maximum count of trials has been reached.
+                                Log.e(TAG, "Stop trying after reaching timeout $NETWORK_MAX_RETRY times.\n$e")
+                                val trace = e.stackTraceToString()
                                 _snackBarEvent.value = SnackBarEvent(
                                     getErrorReportSnackBarContent(
                                         R.string.snack_bar_weather_error_general,
                                         dataReport + if (dataReport.isNotBlank()) reportSeparator else "" + trace
                                     )
                                 )
+                                lastSuccessfulTime = null
+                                break
                             }
+                        } else {  // Not worth retrying, just stop.
+                            val trace = e.stackTraceToString()
+                            when (e) {
+                                is CancellationException -> Log.d(TAG, "Retrieving weather data cancelled.")
+                                is UnknownHostException -> _toastMessage.value = ToastEvent(R.string.toast_weather_failure_network)
+                                else -> {
+                                    Log.e(TAG, "Cannot retrieve weather data.", e)
+                                    _snackBarEvent.value = SnackBarEvent(
+                                        getErrorReportSnackBarContent(
+                                            R.string.snack_bar_weather_error_general,
+                                            dataReport + if (dataReport.isNotBlank()) reportSeparator else "" + trace
+                                        )
+                                    )
+                                }
+                            }
+                            lastSuccessfulTime = null
+                            break
                         }
-                        lastSuccessfulTime = null
-                        break
                     } finally {
                         // _isLoading.value = false   Called on every loops, which is not intended.
                         // kmaJob.cancelAndJoin()  Cannot be run here: https://kt.academy/article/cc-cancellation
@@ -1178,7 +1176,7 @@ class WeatherViewModel(
             }
         }
         Log.d(TAG, "The most suitable address: $suitableAddress")
-        return suitableAddress
+        return suitableAddress.replace("대한민국 ", "")
     }
 
     private fun showLocationError(coordinates: CoordinatesLatLon) {
