@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.Dp
 
 private const val ROW_PADDING = 14
@@ -346,7 +347,11 @@ fun PreferenceDialogRow(
             modifier = Modifier.padding(ROW_PADDING.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PreferenceRowHeader(enabled, title, description, isHighlighted.value, onClickHelp = onClickHelp)
+            PreferenceRowHeader(
+                enabled, title, description, isHighlighted.value,
+                titleMaxFraction = 0.85f,
+                onClickHelp = onClickHelp,
+            )
         }
         SettingsDivider()
     }
@@ -392,24 +397,30 @@ private fun PreferenceRowHeader(
     title: String,
     description: String,
     isSpecial: Boolean,
+    titleMaxFraction: Float = 0.70f,
     highlightedDotSize: Dp = 8.dp,
     onClickHelp: (() -> Unit)? = null,
 ) {
     val disabledAlpha = 0.6f
-    val titleMaxFraction = 0.85
     val highlightedDotPadding = 3.dp
 
     Column {
         val titleStyle = if (enabled) {
             Typography.h4
         } else {
-            Typography.h4.copy(color = Gray000.copy(alpha = disabledAlpha))
+            Typography.h4.copy(
+                color = Gray000.copy(alpha = disabledAlpha),
+                fontStyle = FontStyle.Italic,
+            )
         }
 
         val descStyle = if (enabled) {
             Typography.h6
         } else {
-            Typography.h6.copy(color = Gray000.copy(alpha = disabledAlpha))
+            Typography.h6.copy(
+                color = Gray000.copy(alpha = disabledAlpha),
+                fontStyle = FontStyle.Italic,
+            )
         }
 
         val align = TextAlign.Start

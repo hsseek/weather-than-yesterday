@@ -20,8 +20,6 @@ import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
-import com.google.gson.JsonSyntaxException
-import com.google.gson.stream.MalformedJsonException
 import com.hsseek.betterthanyesterday.*
 import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.Language
@@ -257,8 +255,15 @@ class WeatherViewModel(
 
     private fun requestAllWeatherData() {
         Log.d(TAG, "requestAllWeatherData() called.")
-        val reportSeparator = "\n────────────────\n"
         nullifyWeatherInfo()
+
+        val reportSeparator = "\n────────────────\n"
+        val reportHeader = reportSeparator +
+                "App version: ${BuildConfig.VERSION_CODE}\n" +
+                "SDK version:${android.os.Build.VERSION.SDK_INT}" +
+                reportSeparator +
+                "Data retrieved from KMA\n"
+
         viewModelScope.launch(defaultDispatcher) {
             kmaJob?.cancelAndJoin()
             var trialCount = 0
@@ -268,17 +273,16 @@ class WeatherViewModel(
                 Log.d(TAG, "kmaJob launched.")
                 lastSuccessfulTime = getCurrentKoreanDateTime()
                 while (trialCount < NETWORK_MAX_RETRY) {
-                    var dataReport = reportSeparator +
-                            "App version: ${BuildConfig.VERSION_CODE}\n" +
-                            "SDK version:${android.os.Build.VERSION.SDK_INT}" +
-                            reportSeparator +
-                            "Data retrieved from KMA"
+                    var dataReport = reportHeader
                     try {
                         withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
                             val networkJob = launch(defaultDispatcher) {
                                 val today: String = formatToKmaDate(getCurrentKoreanDateTime())
                                 val latestVillageBaseTime = getKmaBaseTime(roundOff = VILLAGE)  // 2:00 for 2:11 ~ 5:10
                                 val latestHourlyBaseTime = getKmaBaseTime(roundOff = HOUR)  // 2:00 for 3:00 ~ 3:59
+                                dataReport += "${latestHourlyBaseTime.toTimeString()}." +
+                                        "${latestVillageBaseTime.hour.toInt()/100}." +
+                                        "${forecastRegion.xy.nx}.${forecastRegion.xy.ny}\n"
 
                                 val cal = getCurrentKoreanDateTime()
                                 cal.add(Calendar.DAY_OF_YEAR, -1)
@@ -749,9 +753,8 @@ class WeatherViewModel(
                         }
                         break
                     } catch (e: Exception) {
-                        if (e is TimeoutCancellationException ||
-                            e is MalformedJsonException ||
-                            e is JsonSyntaxException
+                        if (e is TimeoutCancellationException
+                            // || e is MalformedJsonException || e is JsonSyntaxException
                         ) {  // Worth retrying.
                             if (++trialCount < NETWORK_MAX_RETRY) {
                                 Log.w(TAG, "(Retrying) $e")
@@ -759,10 +762,13 @@ class WeatherViewModel(
                             } else {  // Maximum count of trials has been reached.
                                 Log.e(TAG, "Stop trying after reaching timeout $NETWORK_MAX_RETRY times.\n$e")
                                 val trace = e.stackTraceToString()
+                                if (trace.isNotBlank()) {
+                                    dataReport += reportSeparator + trace
+                                }
                                 _exceptionSnackBarEvent.value = SnackBarEvent(
                                     getErrorReportSnackBarContent(
                                         R.string.snack_bar_weather_error_general,
-                                        dataReport + reportSeparator + trace
+                                        dataReport
                                     )
                                 )
                                 lastSuccessfulTime = null
@@ -770,6 +776,9 @@ class WeatherViewModel(
                             }
                         } else {  // Not worth retrying, just stop.
                             val trace = e.stackTraceToString()
+                            if (trace.isNotBlank()) {
+                                dataReport += reportSeparator + trace
+                            }
                             when (e) {
                                 is CancellationException -> Log.d(TAG, "Retrieving weather data cancelled.")
                                 is UnknownHostException -> _toastMessage.value = ToastEvent(R.string.toast_weather_failure_network)
@@ -778,7 +787,7 @@ class WeatherViewModel(
                                     _exceptionSnackBarEvent.value = SnackBarEvent(
                                         getErrorReportSnackBarContent(
                                             R.string.snack_bar_weather_error_general,
-                                            dataReport + if (dataReport.isNotBlank()) reportSeparator else "" + trace
+                                            dataReport
                                         )
                                     )
                                 }
@@ -919,9 +928,13 @@ class WeatherViewModel(
             Language.English.code -> Language.English.iso
             Language.Korean.code -> Language.Korean.iso
             else -> {
-                // Not system locale:
-                // if the system locale is Japanese, for example, the weekdays will be displayed in Japanese.
-                Language.English.iso
+                if (Locale.getDefault().language == Language.Korean.iso) {
+                    Language.Korean.iso
+                } else {
+                    // Not system locale:
+                    // if the system locale is Japanese, for example, the weekdays will be displayed in Japanese.
+                    Language.English.iso
+                }
             }
         }
         val locale = Locale(isoCode)

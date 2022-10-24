@@ -193,9 +193,8 @@ fun Job.status(): String = when {
 }
 
 fun Int.toEmojiString(): String = String(Character.toChars(this))
-
-fun ForecastRegion.toRegionString(): String = "${this.address} (${this.xy.nx}, ${this.xy.ny})"
-
 fun Boolean.toEnablementString(): String = if (this) "enabled" else "disabled"
+fun ForecastRegion.toRegionString(): String = "${this.address} (${this.xy.nx}, ${this.xy.ny})"
+fun KmaTime.toTimeString(): String = "${this.date}-${this.hour}"
 
 enum class KmaHourRoundOff { HOUR, VILLAGE }
