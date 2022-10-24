@@ -1198,21 +1198,22 @@ class WeatherViewModel(
     }
 
     private fun getSuitableAddress(addresses: List<Address>): String {
-        val greedyRegex = Regex("(\\S.+[시도군구동읍면리])$")
-        var suitableAddress = addresses[0].getAddressLine(0)  // The first item is the best bet.
+        val validAddresses = getValidAddressSet(addresses).toList()
+        val greedyRegex = Regex("(\\S.+[시도군구동읍면리])(?:\\s|$)")
+        var suitableAddress = validAddresses[0]  // The first item is the best bet.
 
-        val dongs = addresses.filter { address ->
-            getDistrictName(address.getAddressLine(0)) != null
+        val dongs = validAddresses.filter { address ->
+            getDistrictName(address) != null
         }
         if (dongs.isNotEmpty()) {
-            val fullAddress = dongs[0].getAddressLine(0)
+            val fullAddress = dongs[0]
             suitableAddress = greedyRegex.find(fullAddress)?.groupValues?.get(1) ?: fullAddress
         } else {
-            val gus = addresses.filter { address ->
-                getGeneralDistrictName(address.getAddressLine(0)) != null
+            val gus = validAddresses.filter { address ->
+                getGeneralDistrictName(address) != null
             }
             if (gus.isNotEmpty()) {
-                val fullAddress = gus[0].getAddressLine(0)
+                val fullAddress = gus[0]
                 suitableAddress = greedyRegex.find(fullAddress)?.groupValues?.get(1) ?: fullAddress
             }
         }
