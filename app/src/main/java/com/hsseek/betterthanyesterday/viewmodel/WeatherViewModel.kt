@@ -20,6 +20,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.gson.stream.MalformedJsonException
+import com.hsseek.betterthanyesterday.BuildConfig
 import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.Language
@@ -257,9 +258,12 @@ class WeatherViewModel(
             kmaJob = launch(defaultDispatcher) {
                 Log.d(TAG, "kmaJob launched.")
                 lastSuccessfulTime = getCurrentKoreanDateTime()
-
                 while (trialCount < NETWORK_MAX_RETRY) {
-                    var dataReport = reportSeparator + "Data retrieved from KMA\n"
+                    var dataReport = reportSeparator +
+                            "App version: ${BuildConfig.VERSION_CODE}\n" +
+                            "SDK version:${android.os.Build.VERSION.SDK_INT}" +
+                            reportSeparator +
+                            "Data retrieved from KMA"
                     try {
                         withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
                             val networkJob = launch(defaultDispatcher) {
@@ -744,7 +748,7 @@ class WeatherViewModel(
                                 _snackBarEvent.value = SnackBarEvent(
                                     getErrorReportSnackBarContent(
                                         R.string.snack_bar_weather_error_general,
-                                        dataReport + if (dataReport.isNotBlank()) reportSeparator else "" + trace
+                                        dataReport + reportSeparator + trace
                                     )
                                 )
                                 lastSuccessfulTime = null
@@ -1410,10 +1414,7 @@ class WeatherViewModel(
 
     companion object {
         private const val REQUEST_INTERVAL: Long = 60 * 60 * 1000
-        val currentLocationRequest: LocationRequest = LocationRequest.create().apply {
-            interval = REQUEST_INTERVAL
-            fastestInterval = REQUEST_INTERVAL / 2
-        }
+        val currentLocationRequest: LocationRequest = LocationRequest.Builder(REQUEST_INTERVAL).build()
     }
 }
 
