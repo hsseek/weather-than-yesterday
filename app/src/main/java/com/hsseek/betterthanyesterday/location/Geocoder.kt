@@ -98,9 +98,9 @@ class KoreanGeocoder(context: Context) {
     private fun convertToLatLonList(addresses: List<Address>): List<CoordinatesLatLon> {
         val latLonList: MutableList<CoordinatesLatLon> = mutableListOf()
         for (address in addresses) {
-            val latlon = CoordinatesLatLon(lat = address.latitude, lon = address.longitude)
-            if (!latLonList.contains(latlon)) {  // CoordinatesLatLon is a data class.
-                latLonList.add(latlon)
+            val ll = CoordinatesLatLon(lat = address.latitude, lon = address.longitude)
+            if (!latLonList.contains(ll)) {  // CoordinatesLatLon is a data class.
+                latLonList.add(ll)
             }
         }
         return latLonList

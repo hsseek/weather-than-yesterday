@@ -1148,32 +1148,37 @@ class WeatherViewModel(
         val xy = convertToXy(coordinates)
         if ((xy.nx in (NX_MIN..NX_MAX)) && (xy.ny in (NY_MIN..NY_MAX))) {
             KoreanGeocoder(context).updateAddresses(coordinates) { addresses ->
-                val suitableAddress: String
-                var suitableNameIndex = 0
                 if (addresses != null) {
-                    addresses.forEachIndexed { index, address ->
-                        if (suitableNameIndex > 0) return@forEachIndexed  // return if the index changed.
-                        val fullName = address.getAddressLine(0)
-                        // Check we can draw a proper city name.
-                        val cityName = getCityName(fullName)
-                        if (cityName != null) suitableNameIndex = index
-                    }
-                    val fullAddress = addresses[suitableNameIndex].getAddressLine(0).replace("대한민국 ", "")
-                    val greedyRegex = Regex("(\\S.+[시도군구동읍면리])")
-                    // val greedyRegex = Regex("\\S.+[시도군구동읍면리]")  // TODO: If this throws an exception, how should I catch the exception from the listener of Geocoder?
-                    suitableAddress = greedyRegex.find(fullAddress)?.groupValues?.get(1) ?: fullAddress
-
-                    Log.d(TAG, "The most suitable address: $suitableAddress")
-
-                    // Finally, ForecastRegion can be composed.
-                    val locatedRegion = ForecastRegion(address = suitableAddress, xy = xy)
-                    // Now, it goes the same with fixed ForecastRegions.
+                    val locatedRegion = ForecastRegion(address = getSuitableAddress(addresses), xy = xy)
                     updateForecastRegion(locatedRegion, isSecondary)
                 } else showLocationError(coordinates)
             }
         } else {
             showLocationError(coordinates)
         }
+    }
+
+    private fun getSuitableAddress(addresses: List<Address>): String {
+        val greedyRegex = Regex("(\\S.+[시도군구동읍면리])$")
+        var suitableAddress = addresses[0].getAddressLine(0)  // The first item is the best bet.
+
+        val dongs = addresses.filter { address ->
+            getDistrictName(address.getAddressLine(0)) != null
+        }
+        if (dongs.isNotEmpty()) {
+            val fullAddress = dongs[0].getAddressLine(0)
+            suitableAddress = greedyRegex.find(fullAddress)?.groupValues?.get(1) ?: fullAddress
+        } else {
+            val gus = addresses.filter { address ->
+                getGeneralDistrictName(address.getAddressLine(0)) != null
+            }
+            if (gus.isNotEmpty()) {
+                val fullAddress = gus[0].getAddressLine(0)
+                suitableAddress = greedyRegex.find(fullAddress)?.groupValues?.get(1) ?: fullAddress
+            }
+        }
+        Log.d(TAG, "The most suitable address: $suitableAddress")
+        return suitableAddress
     }
 
     private fun showLocationError(coordinates: CoordinatesLatLon) {
