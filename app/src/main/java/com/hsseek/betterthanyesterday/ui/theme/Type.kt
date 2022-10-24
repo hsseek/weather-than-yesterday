@@ -2,9 +2,12 @@ package com.hsseek.betterthanyesterday.ui.theme
 
 import androidx.compose.material.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
+import com.hsseek.betterthanyesterday.R
 
 // Set of Material typography styles to start with
 val Typography = Typography(
@@ -43,4 +46,10 @@ val Typography = Typography(
         fontSize = 14.sp
     ),
     */
+)
+
+val circleFamily = FontFamily(
+    Font(R.font.circle_l, FontWeight.Thin),
+    Font(R.font.circle_m, FontWeight.Normal),
+    Font(R.font.circle_b, FontWeight.Bold),
 )

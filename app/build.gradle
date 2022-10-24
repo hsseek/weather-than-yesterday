@@ -71,7 +71,7 @@ dependencies {
     implementation "androidx.compose.runtime:runtime-livedata:$compose_version"
 
     // Location
-    implementation 'com.google.android.gms:play-services-location:20.0.0'
+    implementation 'com.google.android.gms:play-services-location:21.0.0'
 
     // Dats Store
     implementation "androidx.datastore:datastore-preferences:1.0.0"

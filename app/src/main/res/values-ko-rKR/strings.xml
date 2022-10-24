@@ -55,7 +55,6 @@
     <string name="desc_overflow_menu">부가 메뉴</string>
     <string name="daily_highest">최고</string>
     <string name="daily_lowest">최저</string>
-    <string name="desc_splash_screen">로딩 화면</string>
     <string name="toast_refresh_up_to_date">날씨 정보가 최신 상태입니다.</string>
     <string name="snack_bar_weather_error_general">날씨 정보를 받아올 수 없습니다.</string>
     <string name="toast_weather_failure_network">네트워크 상태를 확인해주세요.</string>

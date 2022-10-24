@@ -2,7 +2,6 @@
     <string name="app_name">Better Than Yesterday</string>
     <string name="dialog_title_location_permission">Location Permission Required</string>
     <string name="dialog_message_location_permission">The permission is required to get the weather conditions of the current location(Otherwise, you can deny the request and set a location manually).</string>
-    <string name="desc_splash_screen">Splash screen</string>
     <string name="current_temp_title">Temperature status</string>
     <string name="current_temp_time">Forecast time:</string>
     <string name="current_temp_value">Currently:</string>
@@ -93,7 +92,6 @@
     <string name="dialog_search_region_no_result">No result for the name.</string>
     <string name="dialog_search_region_hint">Region name</string>
     <string name="error_auto_location_na">KMA data not available for the location.</string>
-    <string name="toast_error_general">Sorry, I managed to keep the app open but an error occurred.</string>
     <string name="pref_title_preset_regions">Preset forecast regions</string>
     <string name="pref_desc_preset_regions">Choose one of the preset locations instead of searching.</string>
     <string name="pref_help_preset_regions">With this mode enabled, you can choose a forecast region from a preset instead of searching a region.\n\nOn change forecast region, it can spare your typing the name of a region, while forecast for preset regions represents a more general information.</string>
