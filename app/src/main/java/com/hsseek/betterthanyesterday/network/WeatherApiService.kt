@@ -1,15 +1,18 @@
 package com.hsseek.betterthanyesterday.network
 
+import com.google.gson.GsonBuilder
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
 
+
 private const val BASE_URL = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/"
 private const val DATA_TYPE_JSON = "JSON"
+private val gson = GsonBuilder().setLenient().create()
 private val retrofit = Retrofit.Builder()
-    .addConverterFactory(GsonConverterFactory.create())
+    .addConverterFactory(GsonConverterFactory.create(gson))
     .baseUrl(BASE_URL)
     .build()
 

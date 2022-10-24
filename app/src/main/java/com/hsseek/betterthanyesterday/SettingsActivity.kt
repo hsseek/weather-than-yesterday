@@ -40,15 +40,18 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.unit.Dp
 
 private const val ROW_PADDING = 14
 private const val TAG = "SettingsActivity"
+const val EXTRA_NEW_SETTING_KEY = "bty_intent_extra_new_setting"
 
 class SettingsActivity : ComponentActivity() {
     private lateinit var viewModel: SettingsViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val highlightedIndex: Int? = intent.extras?.getInt(EXTRA_NEW_SETTING_KEY)
 
         val userPrefsRepo = UserPreferencesRepository(this)
 
@@ -74,7 +77,7 @@ class SettingsActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    MainScreen(this@SettingsActivity, viewModel)
+                    MainScreen(this@SettingsActivity, viewModel, highlightedIndex)
 
                     // Preferences dialog
                     // Language
@@ -157,6 +160,7 @@ class SettingsActivity : ComponentActivity() {
 private fun MainScreen(
     activity: Activity? = null,
     viewModel: SettingsViewModel,
+    highlightedIndex: Int?,
 ) {
     Scaffold(
         topBar = { SettingsTopAppBar(activity) },
@@ -167,6 +171,7 @@ private fun MainScreen(
                 PreferenceDialogRow(
                     title = stringResource(R.string.pref_title_language),
                     description = stringResource(R.string.pref_desc_language),
+                    isSpecial = highlightedIndex == 0,
                     onClickHelp = null,
                     onClickRow = { viewModel.onClickLanguage() }
                 )
@@ -176,8 +181,9 @@ private fun MainScreen(
                 PreferenceToggleRow(
                     title = stringResource(R.string.pref_title_simple_mode),
                     description = stringResource(R.string.pref_desc_simple_mode),
-                    onClickHelp = { viewModel.onClickSimpleViewHelp() },
                     checked = viewModel.isSimplified,
+                    isSpecial = highlightedIndex == 1,
+                    onClickHelp = { viewModel.onClickSimpleViewHelp() },
                     onCheckedChange = { isChecked -> viewModel.updateSimpleViewEnabled(isChecked) }
                 )
 
@@ -186,8 +192,9 @@ private fun MainScreen(
                 PreferenceToggleRow(
                     title = stringResource(R.string.pref_title_auto_refresh),
                     description = stringResource(R.string.pref_desc_auto_refresh),
-                    onClickHelp = { viewModel.onClickAutoRefreshHelp() },
                     checked = viewModel.isAutoRefresh,
+                    isSpecial = highlightedIndex == 2,
+                    onClickHelp = { viewModel.onClickAutoRefreshHelp() },
                     onCheckedChange = { isChecked -> viewModel.updateAutoRefreshEnabled(isChecked) },
                 )
 
@@ -195,8 +202,9 @@ private fun MainScreen(
                 PreferenceToggleRow(
                     title = stringResource(R.string.pref_title_daybreak_mode),
                     description = stringResource(R.string.pref_desc_daybreak_mode),
-                    onClickHelp = { viewModel.onClickDaybreakHelp() },
                     checked = viewModel.isDaybreak,
+                    isSpecial = highlightedIndex == 3,
+                    onClickHelp = { viewModel.onClickDaybreakHelp() },
                     onCheckedChange = { isChecked -> viewModel.updateDaybreakEnabled(isChecked) },
                 )
 
@@ -204,8 +212,9 @@ private fun MainScreen(
                 PreferenceToggleRow(
                     title = stringResource(R.string.pref_title_preset_regions),
                     description = stringResource(R.string.pref_desc_preset_regions),
-                    onClickHelp = { viewModel.onClickPresetRegionHelp() },
                     checked = viewModel.isPresetRegion,
+                    isSpecial = highlightedIndex == 4,
+                    onClickHelp = { viewModel.onClickPresetRegionHelp() },
                     onCheckedChange = { isChecked -> viewModel.updatePresetRegionEnabled(isChecked) },
                 )
             }
@@ -321,17 +330,22 @@ fun PreferenceDialogRow(
     enabled: Boolean = true,
     title: String,
     description: String,
+    isSpecial: Boolean = false,
     onClickHelp: (() -> Unit)? = null,
     onClickRow: () -> Unit
 ) {
-    val clickableMod = if (enabled) Modifier.clickable { onClickRow() } else Modifier
+    val isHighlighted = rememberSaveable{ mutableStateOf(isSpecial) }
+    val clickableMod = if (enabled) Modifier.clickable {
+        onClickRow()
+        isHighlighted.value = false
+    } else Modifier
 
     Column(modifier = clickableMod) {
         Row(
             modifier = Modifier.padding(ROW_PADDING.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PreferenceRowHeader(enabled, title, description, onClickHelp)
+            PreferenceRowHeader(enabled, title, description, isHighlighted.value, onClickHelp = onClickHelp)
         }
         SettingsDivider()
     }
@@ -342,10 +356,13 @@ fun PreferenceToggleRow(
     enabled: Boolean = true,
     title: String,
     description: String,
-    onClickHelp: (() -> Unit)?,
+    isSpecial: Boolean = false,
     checked: Boolean,
+    onClickHelp: (() -> Unit)?,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val isHighlighted = rememberSaveable{ mutableStateOf(isSpecial) }
+
     Column {
         Row(
             modifier = Modifier
@@ -355,9 +372,14 @@ fun PreferenceToggleRow(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(modifier = Modifier.weight(1f)) {
-                PreferenceRowHeader(enabled, title, description, onClickHelp)
+                PreferenceRowHeader(enabled, title, description, isHighlighted.value, onClickHelp = onClickHelp)
             }
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
+            Switch(enabled = enabled, checked = checked,
+                onCheckedChange = {
+                    onCheckedChange(it)
+                    isHighlighted.value = false
+                }
+            )
         }
         SettingsDivider()
     }
@@ -368,10 +390,13 @@ private fun PreferenceRowHeader(
     enabled: Boolean,
     title: String,
     description: String,
+    isSpecial: Boolean,
+    highlightedDotSize: Dp = 8.dp,
     onClickHelp: (() -> Unit)? = null,
 ) {
     val disabledAlpha = 0.6f
     val titleMaxFraction = 0.85
+    val highlightedDotPadding = 3.dp
 
     Column {
         val titleStyle = if (enabled) {
@@ -398,6 +423,13 @@ private fun PreferenceRowHeader(
                 modifier = Modifier.widthIn(max = (LocalConfiguration.current.screenWidthDp * titleMaxFraction).dp)
             )
             if (onClickHelp != null) HelpButton(onClickHelp)
+            if (isSpecial) Box(
+                modifier = Modifier
+                    .padding(horizontal = highlightedDotPadding)
+                    .size(highlightedDotSize)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colors.secondary)
+            )
         }
 
         Text(
@@ -515,7 +547,7 @@ fun RadioSelectDialog(
 
 class RadioItem(val code: Int, val title: String, val desc: String? = null)
 
-@Preview(showBackground = true)
+//@Preview(showBackground = true)
 @Composable
 fun RadioDialogPreview() {
     BetterThanYesterdayTheme {
@@ -547,22 +579,24 @@ fun SettingsRowPreview() {
                 }
                 PreferenceDialogRow(
                     title = "Language",
+                    isSpecial = true,
                     description = "Hide titles and descriptions to give a neat look. Recommended after the numbers got familiar to you, as it might be hard to interpret information.",
                     onClickHelp = { }) {
                 }
                 PreferenceToggleRow(
                     title = "Hide titles and descriptions to give a neat look",
                     description = "Hide titles and descriptions to give a neat look. Recommended after the numbers got familiar to you, as it might be hard to interpret information.",
-                    onClickHelp = { },
                     checked = true,
+                    onClickHelp = { },
                     onCheckedChange = { }
                 )
                 PreferenceToggleRow(
                     enabled = false,
                     title = "Simple View Mode",
                     description = "Hide",
-                    onClickHelp = { },
                     checked = true,
+                    isSpecial = true,
+                    onClickHelp = { },
                     onCheckedChange = { }
                 )
             }

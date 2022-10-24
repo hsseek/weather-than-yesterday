@@ -108,6 +108,9 @@ class WeatherActivity : ComponentActivity() {
                 CoordinatesXy(prefs.forecastRegionNx, prefs.forecastRegionNy)
             )
             viewModel.initiateForecastRegions(region, getString(R.string.region_auto))
+
+            // Whether a notice should be drawn.
+            viewModel.initiateConsumedSnackBar(this@WeatherActivity, prefs.consumedSnackBar)
         }
 
         // Observe to Preferences changes.
@@ -475,21 +478,40 @@ class WeatherActivity : ComponentActivity() {
                 }
             }
 
-            // A SnackBar
-            val snackBarContent = viewModel.snackBarMessage.collectAsState().value.getContentIfNotHandled()
-            if (snackBarContent?.messageId != null) {
-                LaunchedEffect(scaffoldState.snackbarHostState, viewModel.snackBarMessage.collectAsState().value) {
-                    val actionLabel = if (snackBarContent.actionId == null) null else getString(snackBarContent.actionId)
+            // A SnackBar for Exceptions
+            val exceptionSnackBarContent = viewModel.exceptionSnackBarEvent.collectAsState().value.getContentIfNotHandled()
+            if (exceptionSnackBarContent?.messageId != null) {
+                LaunchedEffect(scaffoldState.snackbarHostState, viewModel.exceptionSnackBarEvent.collectAsState().value) {
+                    val actionLabel = if (exceptionSnackBarContent.actionId == null) null else getString(exceptionSnackBarContent.actionId)
 
                     val snackBarResult = scaffoldState.snackbarHostState.showSnackbar(
-                        message = getString(snackBarContent.messageId),
+                        message = getString(exceptionSnackBarContent.messageId),
                         actionLabel = actionLabel,
                         duration = SnackbarDuration.Long,
                     )
 
                     when (snackBarResult) {
                         SnackbarResult.Dismissed -> { }  // Nothing to do.
-                        SnackbarResult.ActionPerformed -> { snackBarContent.action() }
+                        SnackbarResult.ActionPerformed -> { exceptionSnackBarContent.action() }
+                    }
+                }
+            }
+
+            // A SnackBar for notices
+            val noticeSnackBarContent = viewModel.noticeSnackBarEvent.collectAsState().value.getContentIfNotHandled()
+            if (noticeSnackBarContent?.messageId != null) {
+                LaunchedEffect(scaffoldState.snackbarHostState, viewModel.noticeSnackBarEvent.collectAsState().value) {
+                    val actionLabel = if (noticeSnackBarContent.actionId == null) null else getString(noticeSnackBarContent.actionId)
+
+                    val snackBarResult = scaffoldState.snackbarHostState.showSnackbar(
+                        message = getString(noticeSnackBarContent.messageId),
+                        actionLabel = actionLabel,
+                        duration = SnackbarDuration.Long,
+                    )
+
+                    when (snackBarResult) {
+                        SnackbarResult.Dismissed -> { }  // Nothing to do.
+                        SnackbarResult.ActionPerformed -> { noticeSnackBarContent.action() }
                     }
                 }
             }

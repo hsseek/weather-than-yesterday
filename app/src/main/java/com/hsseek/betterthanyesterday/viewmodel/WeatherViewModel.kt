@@ -1,6 +1,7 @@
 package com.hsseek.betterthanyesterday.viewmodel
 
 import android.Manifest
+import android.app.Activity
 import android.app.Application
 import android.content.Intent
 import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
@@ -19,9 +20,9 @@ import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
+import com.google.gson.JsonSyntaxException
 import com.google.gson.stream.MalformedJsonException
-import com.hsseek.betterthanyesterday.BuildConfig
-import com.hsseek.betterthanyesterday.R
+import com.hsseek.betterthanyesterday.*
 import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.Language
 import com.hsseek.betterthanyesterday.data.PresetRegion
@@ -56,12 +57,15 @@ private const val NETWORK_TIMEOUT_MAX = 6_400L
 private const val NETWORK_PAUSE = 150L
 private const val NETWORK_MAX_RETRY = 12
 
+private const val CODED_SNACK_BAR_ID = 0
+private const val HIGHLIGHTED_SETTING_ROW = 1  // If out of index, none will be highlighted.
+
 class WeatherViewModel(
     application: Application,
     private val userPrefsRepo: UserPreferencesRepository,
 ) : AndroidViewModel(application) {
     val autoRegionCoordinate: CoordinatesXy = PresetRegion.Auto.xy
-    val adNumber = (1..100).random()
+
     private val context = application
     private val stringForNull = context.getString(R.string.null_value)
 
@@ -163,11 +167,16 @@ class WeatherViewModel(
     private val _rainfallStatus: MutableStateFlow<Sky> = MutableStateFlow(Sky.Undetermined)
     val rainfallStatus = _rainfallStatus.asStateFlow()
 
+    val adNumber = (1..100).random()
+
     private val _toastMessage = MutableStateFlow(ToastEvent(0))
     val toastMessage = _toastMessage.asStateFlow()
 
-    private val _snackBarEvent = MutableStateFlow(SnackBarEvent(SnackBarContent(null, null) {} ))
-    val snackBarMessage = _snackBarEvent.asStateFlow()
+    private val _exceptionSnackBarEvent = MutableStateFlow(SnackBarEvent(SnackBarContent(null, null) {} ))
+    val exceptionSnackBarEvent = _exceptionSnackBarEvent.asStateFlow()
+
+    private val _noticeSnackBarEvent = MutableStateFlow(SnackBarEvent(SnackBarContent(null, null) {} ))
+    val noticeSnackBarEvent = _noticeSnackBarEvent.asStateFlow()
 
     /**
      * Update [forecastRegion], either retrieved from [startLocationUpdate] or directly from a fixed location.
@@ -732,20 +741,25 @@ class WeatherViewModel(
                             adjustTodayCharTemp()
                             buildDailyTemps()
                             if (isNullInfoIncluded()) {
-                                _snackBarEvent.value = SnackBarEvent(SnackBarContent(R.string.snack_bar_error_kma_na))
+                                _exceptionSnackBarEvent.value = SnackBarEvent(
+                                    getErrorReportSnackBarContent(R.string.snack_bar_error_kma_na, dataReport)
+                                )
                                 lastSuccessfulTime = null  // Incomplete data
                             }
                         }
                         break
                     } catch (e: Exception) {
-                        if (e is TimeoutCancellationException || e is MalformedJsonException) {  // Worth retrying.
+                        if (e is TimeoutCancellationException ||
+                            e is MalformedJsonException ||
+                            e is JsonSyntaxException
+                        ) {  // Worth retrying.
                             if (++trialCount < NETWORK_MAX_RETRY) {
                                 Log.w(TAG, "(Retrying) $e")
                                 runBlocking { delay(NETWORK_PAUSE) }
                             } else {  // Maximum count of trials has been reached.
                                 Log.e(TAG, "Stop trying after reaching timeout $NETWORK_MAX_RETRY times.\n$e")
                                 val trace = e.stackTraceToString()
-                                _snackBarEvent.value = SnackBarEvent(
+                                _exceptionSnackBarEvent.value = SnackBarEvent(
                                     getErrorReportSnackBarContent(
                                         R.string.snack_bar_weather_error_general,
                                         dataReport + reportSeparator + trace
@@ -761,7 +775,7 @@ class WeatherViewModel(
                                 is UnknownHostException -> _toastMessage.value = ToastEvent(R.string.toast_weather_failure_network)
                                 else -> {
                                     Log.e(TAG, "Cannot retrieve weather data.", e)
-                                    _snackBarEvent.value = SnackBarEvent(
+                                    _exceptionSnackBarEvent.value = SnackBarEvent(
                                         getErrorReportSnackBarContent(
                                             R.string.snack_bar_weather_error_general,
                                             dataReport + if (dataReport.isNotBlank()) reportSeparator else "" + trace
@@ -1074,7 +1088,7 @@ class WeatherViewModel(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error while refreshWeatherData()", e)
-            _snackBarEvent.value = SnackBarEvent(
+            _exceptionSnackBarEvent.value = SnackBarEvent(
                 getErrorReportSnackBarContent(
                     R.string.snack_bar_weather_error_general,
                     e.stackTraceToString()
@@ -1392,6 +1406,24 @@ class WeatherViewModel(
             region
         )
         updateRepresentedCityName(region)
+    }
+
+    fun initiateConsumedSnackBar(activity: Activity, lastConsumedSnackBar: Int) {
+        if (lastConsumedSnackBar < CODED_SNACK_BAR_ID) {
+            // Update Preferences not to show the SnackBar on the next launch.
+            viewModelScope.launch { userPrefsRepo.updateConsumedSnackBar(CODED_SNACK_BAR_ID) }
+
+            _noticeSnackBarEvent.value = SnackBarEvent(SnackBarContent(
+                R.string.snack_bar_new_setting,
+                R.string.snack_bar_go_setting_action
+            ) {
+                val intent = Intent(activity, SettingsActivity::class.java).apply {
+                    putExtra(EXTRA_NEW_SETTING_KEY, HIGHLIGHTED_SETTING_ROW)
+                }
+                activity.startActivity(intent)
+            }
+            ) 
+        }
     }
 
     fun invalidateSearchDialog() {

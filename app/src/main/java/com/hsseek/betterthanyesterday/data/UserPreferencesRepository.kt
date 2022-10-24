@@ -18,6 +18,7 @@ private const val TAG = "UserPreferencesRepository"
 
 class UserPreferencesRepository(private val context: Context) {
     private object PreferencesKeys {
+        val CONSUMED_SNACK_BAR = intPreferencesKey("consumed_snack_bar")
         val FORECAST_REGION_AUTO = booleanPreferencesKey("forecast_region_auto")
         val FORECAST_REGION_ADDRESS = stringPreferencesKey("forecast_region_address")
         val FORECAST_REGION_NX = intPreferencesKey("forecast_region_nx")
@@ -33,6 +34,7 @@ class UserPreferencesRepository(private val context: Context) {
         .catch { e ->
             if (e is IOException) emit(emptyPreferences()) else throw e
         }.map { preferences ->
+            val consumedSnackBar = preferences[PreferencesKeys.CONSUMED_SNACK_BAR] ?: 0
             val isForecastRegionAuto = preferences[PreferencesKeys.FORECAST_REGION_AUTO] ?: true
             val forecastRegionAddress= preferences[PreferencesKeys.FORECAST_REGION_ADDRESS] ?: "서울특별시 중구"
             val forecastRegionNx = preferences[PreferencesKeys.FORECAST_REGION_NX] ?: SEOUL.nx
@@ -44,6 +46,7 @@ class UserPreferencesRepository(private val context: Context) {
             val isPresetRegion = preferences[PreferencesKeys.PRESET_REGION] ?: false
 
             UserPreferences(
+                consumedSnackBar,
                 isForecastRegionAuto,
                 forecastRegionAddress,
                 forecastRegionNx,
@@ -55,6 +58,13 @@ class UserPreferencesRepository(private val context: Context) {
                 isPresetRegion,
             )
         }
+
+    suspend fun updateConsumedSnackBar(snackBarId: Int) {
+        context.dataStore.edit { preferences ->
+            Log.d(TAG, "Consumed SnackBar: $snackBarId")
+            preferences[PreferencesKeys.CONSUMED_SNACK_BAR] = snackBarId
+        }
+    }
 
     suspend fun updateAutoRegionEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
@@ -109,6 +119,7 @@ class UserPreferencesRepository(private val context: Context) {
 }
 
 data class UserPreferences(
+    val consumedSnackBar: Int,
     val isForecastRegionAuto: Boolean,
     val forecastRegionAddress: String,
     val forecastRegionNx: Int,
