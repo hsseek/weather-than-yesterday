@@ -915,7 +915,16 @@ class WeatherViewModel(
         val cal = getCurrentKoreanDateTime().also {
             it.add(Calendar.DAY_OF_YEAR, -2)
         }
-        val locale = getLocaleFromCode(languageCode)
+        val isoCode: String = when (languageCode) {
+            Language.English.code -> Language.English.iso
+            Language.Korean.code -> Language.Korean.iso
+            else -> {
+                // Not system locale:
+                // if the system locale is Japanese, for example, the weekdays will be displayed in Japanese.
+                Language.English.iso
+            }
+        }
+        val locale = Locale(isoCode)
 
         val dailyTempsBuilder: ArrayList<DailyTemperature> = arrayListOf()
         for (i in highestTemps.indices) {

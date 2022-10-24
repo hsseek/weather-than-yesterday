@@ -524,7 +524,7 @@ class WeatherActivity : ComponentActivity() {
         intent: Intent = Intent(this, WebViewActivity::class.java),
     ) {
         val ad = if (viewModel.adNumber <= 30) {
-            Ad.Sci
+            Ad.Eng
         } else {
             Ad.Eng
         }

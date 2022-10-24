@@ -27,7 +27,7 @@
     <string name="desc_edit_location">날씨 정보 위치 수정</string>
     <string name="dialog_dismiss_cancel">취소</string>
     <string name="dialog_dismiss_ok">확인</string>
-    <string name="region_auto">현재 위치</string>
+    <string name="region_auto">자동 설정</string>
     <string name="examples_auto">자동 설정</string>
     <string name="region_capital">서울\u00B7인천\u00B7경기 지역</string>
     <string name="region_gangwon">강원 지역</string>

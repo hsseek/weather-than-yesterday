@@ -31,7 +31,7 @@
     <string name="dialog_dismiss_ok">OK</string>
     <string name="dialog_dismiss_close">Close</string>
 
-    <string name="region_auto">Current location</string>
+    <string name="region_auto">Automatically set</string>
     <string name="region_capital">Capital region</string>
     <string name="region_gangwon">Gangwon region</string>
     <string name="region_south_gs">South Gyeongsang region</string>
