@@ -73,6 +73,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.*
+import kotlin.math.abs
 import kotlin.system.measureTimeMillis
 
 private const val TAG = "WeatherActivityLog"
@@ -718,7 +719,7 @@ class WeatherActivity : ComponentActivity() {
 
         val positiveEmoji = positiveEmojiCodes.random().toEmojiString()
         val nowDescription = if (tempDiff != null && tempDiff != 0) {
-            "\"${getString(getTempDiffDescription(tempDiff), tempDiff)}\" $positiveEmoji"
+            "\"${getString(getTempDiffDescription(tempDiff), abs(tempDiff))}\" $positiveEmoji"
         } else {
             "\"${getString(R.string.share_app_now_good_higher, 1)}\" $positiveEmoji"
         }
