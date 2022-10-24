@@ -48,8 +48,6 @@ val Typography = Typography(
     */
 )
 
-val circleFamily = FontFamily(
-    Font(R.font.circle_l, FontWeight.Thin),
-    Font(R.font.circle_m, FontWeight.Normal),
-    Font(R.font.circle_b, FontWeight.Bold),
+val euljiro = FontFamily(
+    Font(R.font.euljiro, FontWeight.Normal)
 )

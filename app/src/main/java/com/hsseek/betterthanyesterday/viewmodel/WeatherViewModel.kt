@@ -60,6 +60,7 @@ class WeatherViewModel(
     private val userPrefsRepo: UserPreferencesRepository,
 ) : AndroidViewModel(application) {
     val autoRegionCoordinate: CoordinatesXy = PresetRegion.Auto.xy
+    val adNumber = (1..100).random()
     private val context = application
     private val stringForNull = context.getString(R.string.null_value)
 

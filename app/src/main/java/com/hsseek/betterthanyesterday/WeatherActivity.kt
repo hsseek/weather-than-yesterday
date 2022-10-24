@@ -455,8 +455,6 @@ class WeatherActivity : ComponentActivity() {
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.SpaceAround,
                         ) {
-                            val gapFromContent = 30.dp
-
                             Column(
                                 modifier = Modifier.heightIn(min = minHeight),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -471,7 +469,6 @@ class WeatherActivity : ComponentActivity() {
                                 DailyTemperatures(viewModel.isSimplified, viewModel.dailyTemps)
                                 RainfallStatus(viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
                             }
-                            Spacer(modifier = Modifier.height(gapFromContent))
                             CustomScreen()
                         }
                     }
@@ -499,18 +496,22 @@ class WeatherActivity : ComponentActivity() {
         }
     }
 
-    private val customScreenClickListener = {
-        val intent = Intent(this, WebViewActivity::class.java).apply {
-            putExtra(EXTRA_URL_KEY, BLOG_URL)
-        }
-        startActivity(intent)
-    }
-
     @Composable
     private fun CustomScreen(
         height: Dp = 120.dp,
-        onClick: () -> Unit = customScreenClickListener,
+        intent: Intent = Intent(this, WebViewActivity::class.java),
     ) {
+        val ad = if (viewModel.adNumber <= 30) {
+            Ad.Sci
+        } else {
+            Ad.Eng
+        }
+
+        val onClick = {
+            intent.apply { putExtra(EXTRA_URL_KEY, ad.url) }
+            startActivity(intent)
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -524,11 +525,7 @@ class WeatherActivity : ComponentActivity() {
                     text = "Ad",
                     style = Typography.h6
                 )
-                Image(
-                    painter = painterResource(id = R.drawable.blog_logo),
-                    contentDescription = stringResource(R.string.desc_banner_ad),
-                    contentScale = ContentScale.Fit,
-                )
+                ad.content()
             }
         }
     }
@@ -1195,6 +1192,23 @@ class WeatherActivity : ComponentActivity() {
             hourlyTempDiff == -7 -> Cool000
             else -> Cool000
         }
+    }
+
+    private enum class Ad(val url: String, val content: @Composable () -> Unit) {
+        Eng(BLOG_URL, content = {
+            Image(
+                painter = painterResource(id = R.drawable.blog_logo),
+                contentDescription = stringResource(R.string.desc_banner_ad),
+                contentScale = ContentScale.Fit,
+            )
+        }),
+        Sci("https://blog.naver.com/scientificbowwow", content = {
+            Text(
+                text = stringResource(id = R.string.ad_sci),
+                style = Typography.h3,
+                fontFamily = euljiro,
+            )
+        }),
     }
 
 //    @Preview(showBackground = true, heightDp = 640)

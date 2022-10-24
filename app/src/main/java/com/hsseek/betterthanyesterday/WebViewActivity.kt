@@ -47,6 +47,11 @@ class WebViewActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStop() {
+        super.onStop()
+        finish()  // When returning, it will be confusing if a web page is shown.
+    }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
