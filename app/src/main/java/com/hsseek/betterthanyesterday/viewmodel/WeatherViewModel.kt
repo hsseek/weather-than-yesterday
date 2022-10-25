@@ -27,9 +27,7 @@ import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.Language
 import com.hsseek.betterthanyesterday.data.PresetRegion
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
-import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
-import com.hsseek.betterthanyesterday.location.CoordinatesXy
-import com.hsseek.betterthanyesterday.location.KoreanGeocoder
+import com.hsseek.betterthanyesterday.location.*
 import com.hsseek.betterthanyesterday.location.convertToXy
 import com.hsseek.betterthanyesterday.network.ForecastResponse
 import com.hsseek.betterthanyesterday.network.WeatherApi
@@ -43,6 +41,7 @@ import retrofit2.Response
 import java.io.IOException
 import java.net.UnknownHostException
 import java.util.*
+import kotlin.collections.HashSet
 import kotlin.math.roundToInt
 
 private const val TAG = "WeatherViewModel"
@@ -229,10 +228,11 @@ class WeatherViewModel(
     }
 
     private fun updateRepresentedCityName(region: ForecastRegion) {
+        Log.d(TAG, "updateRepresentedCityName(...) called.")
         _cityName.value = getCityName(region.address).removeSpecialCitySuffix()
             ?: getGeneralCityName(region.address)
         _districtName.value =
-            getDistrictName(region.address) ?: getGeneralDistrictName(region.address) ?: ""
+            getSuitableAddress(region.address, includeSi = false, toTrim = true) ?: ""
     }
 
     private fun nullifyWeatherInfo() {
@@ -1233,7 +1233,7 @@ class WeatherViewModel(
         if ((xy.nx in (NX_MIN..NX_MAX)) && (xy.ny in (NY_MIN..NY_MAX))) {
             KoreanGeocoder(context).updateAddresses(coordinates) { addresses ->
                 if (addresses != null) {
-                    val locatedRegion = ForecastRegion(address = getSuitableAddress(addresses), xy = xy)
+                    val locatedRegion = ForecastRegion(address = getFirstSuitableAddress(addresses), xy = xy)
                     updateForecastRegion(locatedRegion, isSecondary)
                 } else showLocationError(coordinates)
             }
@@ -1242,29 +1242,18 @@ class WeatherViewModel(
         }
     }
 
-    private fun getSuitableAddress(addresses: List<Address>): String {
-        val validAddresses = getValidAddressSet(addresses).toList()
-        val greedyRegex = Regex("(\\S.+[시도군구동읍면리])(?:\\s|$)")
-        var suitableAddress = validAddresses[0]  // The first item is the best bet.
-
-        val dongs = validAddresses.filter { address ->
-            getDistrictName(address) != null
+    /**
+     * Returns the first suitable address from [addresses],
+     * expecting that the front elements are the ones people are more familiar with.
+     * */
+    private fun getFirstSuitableAddress(addresses: List<Address>): String {
+        for (address in addresses) {
+            val addressLine = address.getAddressLine(0)
+            val suitableAddress = getSuitableAddress(addressLine, includeSi = false, toTrim = false)
+            if (suitableAddress != null) return suitableAddress
         }
-        if (dongs.isNotEmpty()) {
-            val fullAddress = dongs[0]
-            suitableAddress = greedyRegex.find(fullAddress)?.groupValues?.get(1) ?: fullAddress
-        } else {
-            val gus = validAddresses.filter { address ->
-                getGeneralDistrictName(address) != null
-            }
-            if (gus.isNotEmpty()) {
-                val fullAddress = gus[0]
-                suitableAddress = greedyRegex.find(fullAddress)?.groupValues?.get(1) ?: fullAddress
-            }
+            return removeTailingNumbers(addresses[0].getAddressLine(0))
         }
-        Log.d(TAG, "The most suitable address: $suitableAddress")
-        return suitableAddress.replace("대한민국 ", "")
-    }
 
     private fun showLocationError(coordinates: CoordinatesLatLon) {
         Log.e(LOCATION_TAG, "Error retrieving a city name(${coordinates.lat}, ${coordinates.lon}).")
@@ -1353,7 +1342,7 @@ class WeatherViewModel(
         _isRefreshing.value = false
     }
 
-    fun searchRegionCandidateDebounced(query: String, delay: Long = 250) {
+    fun searchRegionCandidateDebounced(query: String, delay: Long = 160) {
         searchRegionJob?.cancel()
         searchRegionJob = viewModelScope.launch {
             delay(delay)
@@ -1364,41 +1353,45 @@ class WeatherViewModel(
     fun searchRegionCandidate(query: String, isExplicit: Boolean = true) {
         searchRegionJob = viewModelScope.launch(defaultDispatcher) {
             try {
-                if (isExplicit) _toShowSearchRegionDialogLoading.value = true
-                val geoCoder = KoreanGeocoder(context)
-                geoCoder.updateLatLng(query) { coordinateList ->
-                    if (coordinateList != null) {
-                        val searchResults = mutableListOf<ForecastRegion>()
-                        for (coordinate in coordinateList) {
-                            // Operations with the same coordinate
-                            val xy = convertToXy(CoordinatesLatLon(coordinate.lat, coordinate.lon))
+                if (query.isBlank()) {
+                    onNoRegionCandidates(isExplicit)
+                } else {
+                    if (isExplicit) _toShowSearchRegionDialogLoading.value = true
+                    val geoCoder = KoreanGeocoder(context)
+                    geoCoder.updateLatLng(query) { coordinateList ->
+                        if (coordinateList != null) {
+                            val searchResults = mutableListOf<ForecastRegion>()
+                            for (coordinate in coordinateList) {
+                                // Operations with the same coordinate
+                                val xy = convertToXy(CoordinatesLatLon(coordinate.lat, coordinate.lon))
 
-                            geoCoder.updateAddresses(coordinate) { addresses ->
-                                if (addresses != null) {
-                                    // A clean set of addresses: Not RDS, takes < 40 ms
-                                    val validAddresses = getValidAddressSet(addresses)
-                                    for (address in validAddresses) {  // Add everyone.
-                                        val region = ForecastRegion(
-                                            address = address,
-                                            xy = xy,
-                                        )
-                                        searchResults.add(region)
+                                geoCoder.updateAddresses(coordinate) { addresses ->
+                                    if (addresses != null) {
+                                        // A clean set of addresses: Not RDS, takes < 40 ms
+                                        val addressCandidates = getValidAddressSet(addresses).matchingQuery(query)
+                                        for (address in addressCandidates) {  // Add everyone.
+                                            val region = ForecastRegion(
+                                                address = address,
+                                                xy = xy,
+                                            )
+                                            searchResults.add(region)
+                                        }
+                                    } else {
+                                        onNoRegionCandidates(isExplicit)
                                     }
-                                } else {
-                                    onNoRegionCandidates(isExplicit)
                                 }
                             }
-                        }
-                        // Operations with the coordinates done. All results have been collected.
-                        if (searchResults.isEmpty()) {
-                            onNoRegionCandidates(isExplicit)
+                            // Operations with the coordinates done. All results have been collected.
+                            if (searchResults.isEmpty()) {
+                                onNoRegionCandidates(isExplicit)
+                            } else {
+                                searchResults.sortBy { it.address }
+                                _forecastRegionCandidates.value = searchResults
+                                _selectedForecastRegionIndex.value = 0
+                            }
                         } else {
-                            searchResults.sortBy { it.address }
-                            _forecastRegionCandidates.value = searchResults
-                            _selectedForecastRegionIndex.value = 0
+                            onNoRegionCandidates(isExplicit)
                         }
-                    } else {
-                        onNoRegionCandidates(isExplicit)
                     }
                 }
             } catch (e: IOException) {
@@ -1420,36 +1413,11 @@ class WeatherViewModel(
         val addressCandidates = mutableSetOf<String>()
         // Remove practically duplicate items.
         for (address in addresses) {
-            val fullName = address.getAddressLine(0).replace("대한민국 ", "")
+            val fullAddress = address.getAddressLine(0)
 
-            if (Regex("[시도군구동읍면리]$").containsMatchIn(fullName)) {
-                val withNumber = Regex("(.+)\\d{1,2}([동리])").find(fullName)?.destructured
-                if (withNumber == null) {
-                    // No practically duplicate items.
-                    addressCandidates.add(fullName)
-                } else {
-                    val regexJae = Regex("(.+)제\\d{1,2}([동리])")
-                    if (!regexJae.containsMatchIn(fullName)) {
-                        // We can safely remove the number
-                        val withoutNumber = withNumber.toList().joinToString("")
-                        addressCandidates.add(withoutNumber)
-                    } else {
-                        val matchJae = regexJae.find(fullName)?.destructured
-
-                        // Check whether it's safe to remove the '제1', '제2', ...
-                        val withoutJae: String = matchJae!!.toList().joinToString("")
-                        if (addressCandidates.contains(withoutJae)) {
-                            // It's a duplicate. (목제1동, but 목동 already in the Set)
-                            Log.d(TAG, "$fullName is a duplicate.")
-                            // To be precise, we should check the candidates with '제\d' match the new address.
-                            // However, omit it for the performance.
-                        } else {
-                            // Likely to be a different element. (홍제1동, 홍동 not in the Set)
-                            Log.d(TAG, "$fullName added.(suspicious)")
-                            addressCandidates.add(fullName)
-                        }
-                    }
-                }
+            if (Regex("[시도군구동읍면리]$").containsMatchIn(fullAddress)) {
+                val suitableAddress = getSuitableAddress(fullAddress, includeSi = true, toTrim = false)
+                if (suitableAddress != null) addressCandidates.add(suitableAddress)
             }
         }
         return addressCandidates
@@ -1516,6 +1484,20 @@ class WeatherViewModel(
         private const val REQUEST_INTERVAL: Long = 60 * 60 * 1000
         val currentLocationRequest: LocationRequest = LocationRequest.Builder(REQUEST_INTERVAL).build()
     }
+}
+
+private fun Set<String>.matchingQuery(query: String): Set<String> {
+    var isMatching = false
+    val trimmedQuery = query.trim()
+    for (candidate in this) {
+        if (candidate.trim().endsWith(trimmedQuery)) {
+            isMatching = true
+            break
+        }
+    }
+    return if (isMatching) {
+        this.filterTo(HashSet()) { it.trim().endsWith(trimmedQuery) }
+    } else this  // Waste of time
 }
 
 enum class CharacteristicTempType(val descriptor: String) {

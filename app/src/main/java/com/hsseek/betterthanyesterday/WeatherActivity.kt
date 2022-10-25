@@ -20,6 +20,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -1221,13 +1222,13 @@ class WeatherActivity : ComponentActivity() {
                 contentScale = ContentScale.Fit,
             )
         }),
-        Sci("https://blog.naver.com/scientificbowwow", content = {
+        /*Sci("https://blog.naver.com/scientificbowwow", content = {
             Text(
                 text = stringResource(id = R.string.ad_sci),
                 style = Typography.h3,
                 fontFamily = euljiro,
             )
-        }),
+        }),*/
     }
 
 //    @Preview(showBackground = true, heightDp = 640)
@@ -1278,6 +1279,9 @@ fun SearchRegionDialog(
                         },
                         placeholder = { Text(text = stringResource(R.string.dialog_search_region_hint)) },
                         keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(
+                            onSearch = { onClickSearch(query.value) }
+                        ),
                     )
                     IconButton(onClick = { onClickSearch(query.value) }) {
                         Icon(

@@ -128,40 +128,6 @@ suspend fun logCoroutineContext(msg: String = "") {
     Log.d(tag, msg + "\nThread: ${Thread.currentThread().name}" + "\nScope: $coroutineContext")
 }
 
-fun getCityName(address: String): String? {
-    val regex = Regex("(.+?[시군])(?:\\s|$)")
-    return regex.find(address)?.groupValues?.get(1)
-}
-
-fun getGeneralCityName(address: String): String {
-    return address.replace("대한민국 ", "")  // Always 대한민국, so omit it.
-        .split(" ").first()  // The most upper class name
-}
-
-fun String?.removeSpecialCitySuffix(): String? {
-    this?.let {
-        if (Regex("시(?:\\s|$)").containsMatchIn(this)) {
-            for (special in listOf("특별시", "광역시", "특별자치시")) {
-                if (this.contains(special)) {
-                    return this.replace(special, "")  // e.g. "서울특별시" -> "서울"
-                }
-            }
-        }
-        return this
-    }
-    return null
-}
-
-fun getDistrictName(address: String): String? {
-    val regex = Regex("\\s(\\S+?[동리])(?:\\s|$)")
-    return regex.find(address)?.groupValues?.get(1)
-}
-
-fun getGeneralDistrictName(address: String): String? {
-    val generalRegex = Regex("\\s(\\S+?[구읍면])(?:\\s|$)")
-    return generalRegex.find(address)?.groupValues?.get(1)
-}
-
 suspend fun createConfigurationWithStoredLocale(context: Context): Configuration {
     // Get the stored Locale(the code, to be exact).
     val userPrefsRepo = UserPreferencesRepository(context)
