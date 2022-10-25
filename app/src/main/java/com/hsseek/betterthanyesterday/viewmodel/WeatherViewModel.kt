@@ -20,6 +20,8 @@ import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
+import com.google.gson.JsonSyntaxException
+import com.google.gson.stream.MalformedJsonException
 import com.hsseek.betterthanyesterday.*
 import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.Language
@@ -32,8 +34,8 @@ import com.hsseek.betterthanyesterday.location.convertToXy
 import com.hsseek.betterthanyesterday.network.ForecastResponse
 import com.hsseek.betterthanyesterday.network.WeatherApi
 import com.hsseek.betterthanyesterday.util.*
-import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.HOUR
-import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.VILLAGE
+import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.Hour
+import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.Village
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -213,8 +215,8 @@ class WeatherViewModel(
             Log.d(TAG, "ViewModel doesn't hold any data.")
             true
         } else {
-            val lastBaseTime = getKmaBaseTime(cal = lastCheckedCal, roundOff = HOUR)
-            val currentBaseTime = getKmaBaseTime(roundOff = HOUR)
+            val lastBaseTime = getKmaBaseTime(cal = lastCheckedCal, roundOff = Hour)
+            val currentBaseTime = getKmaBaseTime(cal = getCurrentKoreanDateTime(), roundOff = Hour)
 
             if (currentBaseTime.isLaterThan(lastBaseTime)) {
                 Log.d(TAG, "New data are available.(${lastBaseTime.hour} -> ${currentBaseTime.hour})")
@@ -253,20 +255,22 @@ class WeatherViewModel(
         return false
     }
 
-    private fun requestAllWeatherData() {
+    private fun requestAllWeatherData(cal: Calendar = getCurrentKoreanDateTime()) {
         Log.d(TAG, "requestAllWeatherData() called.")
         nullifyWeatherInfo()
-
-        val reportSeparator = "\n────────────────\n"
-        val reportHeader = reportSeparator +
-                "App version: ${BuildConfig.VERSION_CODE}\n" +
-                "SDK version:${android.os.Build.VERSION.SDK_INT}" +
-                reportSeparator +
-                "Data retrieved from KMA\n"
+        val calValue = cal.clone() as Calendar
 
         viewModelScope.launch(defaultDispatcher) {
             kmaJob?.cancelAndJoin()
             var trialCount = 0
+            var isCalModified = false
+
+            val reportSeparator = "\n────────────────\n"
+            val reportHeader = reportSeparator +
+                    "App version: ${BuildConfig.VERSION_CODE}\n" +
+                    "SDK version:${android.os.Build.VERSION.SDK_INT}" +
+                    reportSeparator +
+                    "Data retrieved from KMA\n"
 
             _isRefreshing.value = true
             kmaJob = launch(defaultDispatcher) {
@@ -278,15 +282,15 @@ class WeatherViewModel(
                         withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
                             val networkJob = launch(defaultDispatcher) {
                                 val today: String = formatToKmaDate(getCurrentKoreanDateTime())
-                                val latestVillageBaseTime = getKmaBaseTime(roundOff = VILLAGE)  // 2:00 for 2:11 ~ 5:10
-                                val latestHourlyBaseTime = getKmaBaseTime(roundOff = HOUR)  // 2:00 for 3:00 ~ 3:59
+                                val latestVillageBaseTime = getKmaBaseTime(cal = calValue, roundOff = Village)  // 2:00 for 2:11 ~ 5:10
+                                val latestHourlyBaseTime = getKmaBaseTime(cal = calValue, roundOff = Hour)  // 2:00 for 3:00 ~ 3:59
                                 dataReport += "${latestHourlyBaseTime.toTimeString()}." +
                                         "${latestVillageBaseTime.hour.toInt()/100}." +
                                         "${forecastRegion.xy.nx}.${forecastRegion.xy.ny}\n"
 
-                                val cal = getCurrentKoreanDateTime()
-                                cal.add(Calendar.DAY_OF_YEAR, -1)
-                                val yesterday: String = formatToKmaDate(cal)
+                                val yesterdayCal = calValue.clone() as Calendar
+                                yesterdayCal.add(Calendar.DAY_OF_YEAR, -1)
+                                val yesterday: String = formatToKmaDate(yesterdayCal)
 
                                 val t1hPageNo = 5
                                 val rowCountShort = 6
@@ -452,7 +456,7 @@ class WeatherViewModel(
                                 }
 
                                 val yesterdayHourlyTempResponse = async(retrofitDispatcher) {
-                                    val yesterdayHourlyBaseTime = getKmaBaseTime(dayOffset = -1, roundOff = HOUR)
+                                    val yesterdayHourlyBaseTime = getKmaBaseTime(cal = calValue, dayOffset = -1, roundOff = Hour)
 
                                     WeatherApi.service.getShortTermWeather(
                                         baseDate = yesterdayHourlyBaseTime.date,
@@ -466,8 +470,10 @@ class WeatherViewModel(
 
                                 // Occasionally, short-term temperatures are not available for the hour. A backup data for that such cases.
                                 val yesterdayHourlyTempBackupResponse = async(retrofitDispatcher) {
-                                    val yesterdayCal = getYesterdayVillageCalendar()
-                                    val yesterdayVillageBaseTime = getKmaBaseTime(cal = yesterdayCal, roundOff = VILLAGE)
+                                    val yesterdayVillageBaseTime = getKmaBaseTime(
+                                        cal = getYesterdayVillageCalendar(cal = calValue),
+                                        roundOff = Village
+                                    )
 
                                     // At 3:00, the latest data start from fcstTime of 3:00, of which data are on the 1st page.
                                     // At 4:00, the latest data start from fcstTime of 3:00, of which data are on the 2nd page.
@@ -751,16 +757,49 @@ class WeatherViewModel(
                                 lastSuccessfulTime = null  // Incomplete data
                             }
                         }
+                        if (isCalModified) {
+                            lastSuccessfulTime = null  // Not really successful
+                            Log.w(TAG, "Data retrieved for the modified baseTime: ${
+                                getKmaBaseTime(calValue, roundOff = Hour).toTimeString()
+                            }")
+                        }
                         break
                     } catch (e: Exception) {
-                        if (e is TimeoutCancellationException
-                            // || e is MalformedJsonException || e is JsonSyntaxException
-                        ) {  // Worth retrying.
+                        if (e is TimeoutCancellationException) {  // Worth retrying.
                             if (++trialCount < NETWORK_MAX_RETRY) {
                                 Log.w(TAG, "(Retrying) $e")
                                 runBlocking { delay(NETWORK_PAUSE) }
                             } else {  // Maximum count of trials has been reached.
-                                Log.e(TAG, "Stop trying after reaching timeout $NETWORK_MAX_RETRY times.\n$e")
+                                Log.e(TAG, "Stopped retrying after $NETWORK_MAX_RETRY times.\n$e")
+                                val trace = e.stackTraceToString()
+                                if (trace.isNotBlank()) {
+                                    dataReport += reportSeparator + trace
+                                }
+                                _exceptionSnackBarEvent.value = SnackBarEvent(
+                                    getErrorReportSnackBarContent(
+                                        R.string.snack_bar_weather_error_general,
+                                        dataReport
+                                    )
+                                )
+                                lastSuccessfulTime = null
+                                break
+                            }
+                        } else if (
+                            e is MalformedJsonException ||
+                            e is JsonSyntaxException
+                        ) {  // Worth retrying, with different baseTime
+                            if (++trialCount < NETWORK_MAX_RETRY) {
+                                Log.w(TAG, "(Retrying) $e")
+                                val additionalRetry = 2
+                                if (trialCount < NETWORK_MAX_RETRY - additionalRetry) { // Retry twice more.
+                                    trialCount = NETWORK_MAX_RETRY - additionalRetry
+                                }
+
+                                runBlocking { delay(NETWORK_PAUSE) }
+                                if (!isCalModified) calValue.add(Calendar.HOUR_OF_DAY, -1)
+                                isCalModified = true
+                            } else {  // Maximum count of trials has been reached.
+                                Log.e(TAG, "Stopped retrying", e)
                                 val trace = e.stackTraceToString()
                                 if (trace.isNotBlank()) {
                                     dataReport += reportSeparator + trace
@@ -1041,7 +1080,7 @@ class WeatherViewModel(
         yesterdayHourlyTempData: List<ForecastResponse.Item>,
         yesterdayHourlyTempBackupData: List<ForecastResponse.Item>,
     ) {
-        val cal = Calendar.getInstance()
+        val cal = getCurrentKoreanDateTime()
         cal.add(Calendar.HOUR_OF_DAY, 1)
         val nextHour = formatToKmaHour(cal).toInt()
 

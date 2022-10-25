@@ -64,7 +64,7 @@ fun getCurrentKoreanDateTime(): Calendar {
  * Note that the returned value may be a future time, at which data are not available yet.
  * */
 fun getKmaBaseTime(
-    cal: Calendar = getCurrentKoreanDateTime(),
+    cal: Calendar,
     dayOffset: Int = 0,
     hourOffset: Int = 0,
     roundOff: KmaHourRoundOff,
@@ -74,7 +74,7 @@ fun getKmaBaseTime(
     if (dayOffset != 0) calValues.add(Calendar.DAY_OF_YEAR, dayOffset)
     if (hourOffset != 0) calValues.add(Calendar.HOUR_OF_DAY, hourOffset)
 
-    val isHourAvailable: Boolean = if (roundOff == KmaHourRoundOff.VILLAGE) calValues.minute() > 10 else false
+    val isHourAvailable: Boolean = if (roundOff == KmaHourRoundOff.Village) calValues.minute() > 10 else false
 
     if (!isHourAvailable) {
         // The data for the current hour are not available. Use the previous hour.
@@ -82,8 +82,8 @@ fun getKmaBaseTime(
     }
 
     when (roundOff) {
-        KmaHourRoundOff.HOUR -> { }  // Nothing to do
-        KmaHourRoundOff.VILLAGE -> {
+        KmaHourRoundOff.Hour -> { }  // Nothing to do
+        KmaHourRoundOff.Village -> {
             // Only 0200, 0500, ..., 2300 are accepted as query
             val hour = calValues.hour()
             val hourAdjustment: Int = when (hour % VILLAGE_HOUR_INTERVAL) {
@@ -106,7 +106,7 @@ fun getKmaBaseTime(
 fun formatToKmaDate(cal: Calendar = getCurrentKoreanDateTime()): String = SimpleDateFormat(DATE_FORMAT, Locale.KOREA).format(cal.time)
 fun formatToKmaHour(cal: Calendar = getCurrentKoreanDateTime()): String = SimpleDateFormat(HOUR_FORMAT, Locale.KOREA).format(cal.time)
 
-fun getYesterdayVillageCalendar(cal: Calendar = getCurrentKoreanDateTime()): Calendar {
+fun getYesterdayVillageCalendar(cal: Calendar): Calendar {
     val calValue = cal.clone() as Calendar
     calValue.add(Calendar.DAY_OF_YEAR, -1)  // Yesterday
 
@@ -197,4 +197,4 @@ fun Boolean.toEnablementString(): String = if (this) "enabled" else "disabled"
 fun ForecastRegion.toRegionString(): String = "${this.address} (${this.xy.nx}, ${this.xy.ny})"
 fun KmaTime.toTimeString(): String = "${this.date}-${this.hour}"
 
-enum class KmaHourRoundOff { HOUR, VILLAGE }
+enum class KmaHourRoundOff { Hour, Village }

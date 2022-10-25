@@ -34,7 +34,7 @@ class UnitTest {
     fun village_time_correct() {
         val cal = Calendar.getInstance()
         cal.set(2022, 8, 16, 2, 5)
-        val time = getKmaBaseTime(cal = cal, roundOff = VILLAGE)
+        val time = getKmaBaseTime(cal = cal, roundOff = Village)
         assertEquals("20220915", time.date)
         assertEquals("2300", time.hour)
     }
@@ -46,7 +46,7 @@ class UnitTest {
 
         val longTermBaseTime = getKmaBaseTime(
             cal = cal,
-            roundOff = VILLAGE,
+            roundOff = Village,
         )
         val numOfHours: Int = if (longTermBaseTime.hour == "2300") {
             24  // 23:00 of the previous day: whole day's data should be examined.
@@ -63,7 +63,7 @@ class UnitTest {
         val cal = Calendar.getInstance()
         cal.set(2022, 9, 19, 2, 20)
         val yesterdayCal = getYesterdayVillageCalendar(cal = cal)
-        val yesterdayVillageBaseTime = getKmaBaseTime(cal = yesterdayCal, roundOff = VILLAGE)
+        val yesterdayVillageBaseTime = getKmaBaseTime(cal = yesterdayCal, roundOff = Village)
         assertEquals(yesterdayVillageBaseTime.date, "20221017")
         assertEquals(yesterdayVillageBaseTime.hour, "2300")
     }
