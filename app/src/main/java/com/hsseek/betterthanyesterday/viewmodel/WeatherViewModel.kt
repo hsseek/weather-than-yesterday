@@ -84,7 +84,7 @@ class WeatherViewModel(
     private var lastSuccessfulTime: Calendar? = null
         private set(value) {
             field = value
-            Log.d(TAG, "last successful data retrieving hour: ${value?.get(Calendar.HOUR_OF_DAY)}")
+            if (DEBUG_FLAG) Log.d(TAG, "last successful data retrieving hour: ${value?.get(Calendar.HOUR_OF_DAY)}")
         }
 
     var lastImplicitlyCheckedTime: Calendar? = null
@@ -182,7 +182,7 @@ class WeatherViewModel(
      * [isSecondary] is true when it was a (confirming) result from the [locationCallback].
      * */
     private fun updateForecastRegion(region: ForecastRegion, isSecondary: Boolean = false) {
-        Log.d(TAG, "updateForecastRegion(...) called.")
+        if (DEBUG_FLAG) Log.d(TAG, "updateForecastRegion(...) called.")
         // Store the selection.
         viewModelScope.launch {
             userPrefsRepo.updateForecastRegion(region)
@@ -195,13 +195,13 @@ class WeatherViewModel(
         // Check if the location changed before reassigning.
         val isSameCoordinate = region.xy == forecastRegion.xy
         forecastRegion = region
-        Log.d(TAG, "forecastRegion: ${forecastRegion.toRegionString()}")
+        if (DEBUG_FLAG) Log.d(TAG, "forecastRegion: ${forecastRegion.toRegionString()}")
 
         if (isSameCoordinate) {
-            Log.d(TAG, "The same coordinates.")
+            if (DEBUG_FLAG) Log.d(TAG, "The same coordinates.")
             checkTimeThenRequest(isSecondary)
         } else {
-            Log.d(LOCATION_TAG, "A new coordinates\t: (${region.xy.nx}, ${region.xy.ny})")
+            if (DEBUG_FLAG) Log.d(LOCATION_TAG, "A new coordinates\t: (${region.xy.nx}, ${region.xy.ny})")
 
             // No need to check time, request the new data for the location.
             requestAllWeatherData()
@@ -209,26 +209,26 @@ class WeatherViewModel(
     }
 
     private fun isNewDataReleasedAfter(lastCheckedCal: Calendar?): Boolean {
-        Log.d(TAG, "isNewDataReleased(Calendar) called.")
+        if (DEBUG_FLAG) Log.d(TAG, "isNewDataReleased(Calendar) called.")
         return if (lastCheckedCal == null) {
-            Log.d(TAG, "ViewModel doesn't hold any data.")
+            if (DEBUG_FLAG) Log.d(TAG, "ViewModel doesn't hold any data.")
             true
         } else {
             val lastBaseTime = getKmaBaseTime(cal = lastCheckedCal, roundOff = Hour)
             val currentBaseTime = getKmaBaseTime(cal = getCurrentKoreanDateTime(), roundOff = Hour)
 
             if (currentBaseTime.isLaterThan(lastBaseTime)) {
-                Log.d(TAG, "New data are available.(${lastBaseTime.hour} -> ${currentBaseTime.hour})")
+                if (DEBUG_FLAG) Log.d(TAG, "New data are available.(${lastBaseTime.hour} -> ${currentBaseTime.hour})")
                 true
             } else {
-                Log.d(TAG, "No new data available.")
+                if (DEBUG_FLAG) Log.d(TAG, "No new data available.")
                 false
             }
         }
     }
 
     private fun updateRepresentedCityName(region: ForecastRegion) {
-        Log.d(TAG, "updateRepresentedCityName(...) called.")
+        if (DEBUG_FLAG) Log.d(TAG, "updateRepresentedCityName(...) called.")
         _cityName.value = getCityName(region.address).removeSpecialCitySuffix()
             ?: getGeneralCityName(region.address)
         _districtName.value =
@@ -256,7 +256,7 @@ class WeatherViewModel(
     }
 
     private fun requestAllWeatherData(cal: Calendar = getCurrentKoreanDateTime()) {
-        Log.d(TAG, "requestAllWeatherData() called.")
+        if (DEBUG_FLAG) Log.d(TAG, "requestAllWeatherData() called.")
         nullifyWeatherInfo()
         val calValue = cal.clone() as Calendar
 
@@ -274,7 +274,7 @@ class WeatherViewModel(
 
             _isRefreshing.value = true
             kmaJob = launch(defaultDispatcher) {
-                Log.d(TAG, "kmaJob launched.")
+                if (DEBUG_FLAG) Log.d(TAG, "kmaJob launched.")
                 lastSuccessfulTime = getCurrentKoreanDateTime()
                 while (trialCount < NETWORK_MAX_RETRY) {
                     var dataReport = reportHeader
@@ -415,7 +415,7 @@ class WeatherViewModel(
                                     } else {  // After baseTime became 800, the lowest temperature won't be renewed.
                                         getRowCount(characteristicTempHourSpan)  // Full span: 3:00, ..., 7:00
                                     }
-                                    Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$numOfRows rows")
+                                    if (DEBUG_FLAG) Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", "$numOfRows rows")
 
                                     todayLowTempResponse = async(retrofitDispatcher) {
                                         WeatherApi.service.getVillageWeather(
@@ -433,7 +433,7 @@ class WeatherViewModel(
                                     } else {  // After baseTime became 1700, the highest temperature won't be renewed.
                                         getRowCount(characteristicTempHourSpan)  // Full span: 12:00, ..., 16:00
                                     }
-                                    Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$numOfRows rows")
+                                    if (DEBUG_FLAG) Log.d("D${DayOfInterest.Today.dayOffset}-${CharacteristicTempType.Highest.descriptor}", "$numOfRows rows")
                                     todayHighTempResponse = async(retrofitDispatcher) {
                                         WeatherApi.service.getVillageWeather(
                                             baseDate = today,
@@ -759,7 +759,7 @@ class WeatherViewModel(
                         }
                         if (isCalModified) {
                             lastSuccessfulTime = null  // Not really successful
-                            Log.w(TAG, "Data retrieved for the modified baseTime: ${
+                            if (DEBUG_FLAG) Log.w(TAG, "Data retrieved for the modified baseTime: ${
                                 getKmaBaseTime(calValue, roundOff = Hour).toTimeString()
                             }")
                         }
@@ -767,7 +767,7 @@ class WeatherViewModel(
                     } catch (e: Exception) {
                         if (e is TimeoutCancellationException) {  // Worth retrying.
                             if (++trialCount < NETWORK_MAX_RETRY) {
-                                Log.w(TAG, "(Retrying) $e")
+                                if (DEBUG_FLAG) Log.w(TAG, "(Retrying) $e")
                                 runBlocking { delay(NETWORK_PAUSE) }
                             } else {  // Maximum count of trials has been reached.
                                 Log.e(TAG, "Stopped retrying after $NETWORK_MAX_RETRY times.\n$e")
@@ -789,7 +789,7 @@ class WeatherViewModel(
                             e is JsonSyntaxException
                         ) {  // Worth retrying, with different baseTime
                             if (++trialCount < NETWORK_MAX_RETRY) {
-                                Log.w(TAG, "(Retrying) $e")
+                                if (DEBUG_FLAG) Log.w(TAG, "(Retrying) $e")
                                 val additionalRetry = 2
                                 if (trialCount < NETWORK_MAX_RETRY - additionalRetry) { // Retry twice more.
                                     trialCount = NETWORK_MAX_RETRY - additionalRetry
@@ -819,7 +819,7 @@ class WeatherViewModel(
                                 dataReport += reportSeparator + trace
                             }
                             when (e) {
-                                is CancellationException -> Log.d(TAG, "Retrieving weather data cancelled.")
+                                is CancellationException -> if (DEBUG_FLAG) Log.d(TAG, "Retrieving weather data cancelled.")
                                 is UnknownHostException -> _toastMessage.value = ToastEvent(R.string.toast_weather_failure_network)
                                 else -> {
                                     Log.e(TAG, "Cannot retrieve weather data.", e)
@@ -843,7 +843,7 @@ class WeatherViewModel(
 
             kmaJob?.invokeOnCompletion {
                 if (kmaJob?.isCancelled == false) {
-                    Log.d(TAG, "kmaJob completed without cancelled.")
+                    if (DEBUG_FLAG) Log.d(TAG, "kmaJob completed without cancelled.")
                     _isRefreshing.value = false
                     _showLandingScreen.value = false
                 }
@@ -852,7 +852,7 @@ class WeatherViewModel(
     }
 
     private fun String.appendAndLog(tag: String, message: String): String {
-        Log.d(tag, message)
+        if (DEBUG_FLAG) Log.d(tag, message)
         return this + "\n$tag\t\t$message"
     }
 
@@ -924,7 +924,7 @@ class WeatherViewModel(
         val rainingHours = arrayListOf<Int>()
         val snowingHours = arrayListOf<Int>()
         for (i in rainfallData) {
-            Log.d(RAIN_TAG, "$i")
+            if (DEBUG_FLAG) Log.d(RAIN_TAG, "$i")
             val status = i.fcstValue.toInt()  // Must be integers of 0 through 7
             if (
                 status == RainfallType.Raining.code ||
@@ -957,7 +957,7 @@ class WeatherViewModel(
             }
         }
 
-        Log.d(TAG, "PTY: ${_rainfallStatus.value::class.simpleName}\t(${hours.minOrNull()} ~ ${hours.maxOrNull()})")
+        if (DEBUG_FLAG) Log.d(TAG, "PTY: ${_rainfallStatus.value::class.simpleName}\t(${hours.minOrNull()} ~ ${hours.maxOrNull()})")
     }
 
     private fun buildDailyTemps() {
@@ -1111,7 +1111,7 @@ class WeatherViewModel(
             yesterdayTemp?.let { yt -> if (yt > ht) yesterdayTemp = ht }
         }
 
-        Log.d(TAG, "T1H(at ${nextHour / 100}): $yesterdayTemp -> $todayTemp")
+        if (DEBUG_FLAG) Log.d(TAG, "T1H(at ${nextHour / 100}): $yesterdayTemp -> $todayTemp")
 
         todayTemp?.let { tt ->
             _hourlyTempToday.value = tt
@@ -1131,20 +1131,20 @@ class WeatherViewModel(
             highestTemps[index]?.let { ht ->
                 if (tt > ht) {
                     highestTemps[index] = tt
-                    Log.w(TAG, "Overridden by $HOURLY_TEMPERATURE_TAG: $ht -> $tt")
+                    if (DEBUG_FLAG) Log.w(TAG, "Overridden by $HOURLY_TEMPERATURE_TAG: $ht -> $tt")
                 }
             }
             lowestTemps[index]?.let { lt ->
                 if (tt < lt) {
                     lowestTemps[index] = tt
-                    Log.w(TAG, "Overridden by $HOURLY_TEMPERATURE_TAG: $lt -> $tt")
+                    if (DEBUG_FLAG) Log.w(TAG, "Overridden by $HOURLY_TEMPERATURE_TAG: $lt -> $tt")
                 }
             }
         }
     }
 
     fun onClickRefresh(region: ForecastRegion = forecastRegion) {
-        Log.d(TAG, "onClickRefresh() called.")
+        if (DEBUG_FLAG) Log.d(TAG, "onClickRefresh() called.")
         _isRefreshing.value = true
         try {
             if (isForecastRegionAuto) {  // Need to update the location.
@@ -1162,7 +1162,7 @@ class WeatherViewModel(
                 )
             )
         } finally {
-            Log.d(TAG, "kmaJob is ${kmaJob?.status()}")
+            if (DEBUG_FLAG) Log.d(TAG, "kmaJob is ${kmaJob?.status()}")
             if (kmaJob?.isCompleted == true) {
                 _isRefreshing.value = false
             }
@@ -1174,8 +1174,12 @@ class WeatherViewModel(
             requestAllWeatherData()
         } else {
             if (!isSecondary) {
-                if (kmaJob?.isCompleted == true) _isRefreshing.value = false
-                _toastMessage.value = ToastEvent(R.string.toast_refresh_up_to_date)
+                viewModelScope.launch(defaultDispatcher) {
+                    _isRefreshing.value = true
+                    delay((200..280).random().toLong())
+                    if (kmaJob?.isCompleted == true) _isRefreshing.value = false
+                    _toastMessage.value = ToastEvent(R.string.toast_refresh_up_to_date)
+                }
             }
         }
     }
@@ -1184,7 +1188,7 @@ class WeatherViewModel(
      * Start location update and eventually retrieve new weather data based on the location.
      * */
     private fun startLocationUpdate() {
-        Log.d(TAG, "startLocationUpdated() called.")
+        if (DEBUG_FLAG) Log.d(TAG, "startLocationUpdated() called.")
         if (context.checkSelfPermission(
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
@@ -1193,12 +1197,12 @@ class WeatherViewModel(
 
             locationClient.lastLocation.addOnSuccessListener {
                 if (it != null) {
-                    Log.d(LOCATION_TAG, "Last location: (${it.latitude}, ${it.longitude})")
+                    if (DEBUG_FLAG) Log.d(LOCATION_TAG, "Last location: (${it.latitude}, ${it.longitude})")
                     val coordinate = CoordinatesLatLon(lat = it.latitude, lon = it.longitude)
                     requestAutoForecastRegion(coordinate, false)
                 } else {
                     // e.g. On the very first boot of the device
-                    Log.w(LOCATION_TAG, "FusedLocationProviderClient.lastLocation is null.")
+                    if (DEBUG_FLAG) Log.w(LOCATION_TAG, "FusedLocationProviderClient.lastLocation is null.")
                 }
             }
 
@@ -1264,7 +1268,7 @@ class WeatherViewModel(
         override fun onLocationResult(locationResult: LocationResult) {
             super.onLocationResult(locationResult)
             locationResult.lastLocation?.let {
-                Log.d(LOCATION_TAG, "Current location: (${it.latitude}, ${it.longitude})")
+                if (DEBUG_FLAG) Log.d(LOCATION_TAG, "Current location: (${it.latitude}, ${it.longitude})")
                 requestAutoForecastRegion(CoordinatesLatLon(it.latitude, it.longitude), isSecondary = true)
             }
         }
@@ -1288,22 +1292,22 @@ class WeatherViewModel(
     }
 
     fun updateSimplifiedEnabled(enabled: Boolean) {
-        Log.d(TAG, "Simple View: ${enabled.toEnablementString()}")
+        if (DEBUG_FLAG) Log.d(TAG, "Simple View: ${enabled.toEnablementString()}")
         _isSimplified.value = enabled
     }
 
     fun updateAutoRefreshEnabled(enabled: Boolean) {
-        Log.d(TAG, "Auto refresh: ${enabled.toEnablementString()}")
+        if (DEBUG_FLAG) Log.d(TAG, "Auto refresh: ${enabled.toEnablementString()}")
         isAutoRefresh = enabled
     }
 
     fun updateDaybreakEnabled(enabled: Boolean) {
-        Log.d(TAG, "Daybreak mode: ${enabled.toEnablementString()}")
+        if (DEBUG_FLAG) Log.d(TAG, "Daybreak mode: ${enabled.toEnablementString()}")
         _isDaybreakMode.value = enabled
     }
 
     fun updatePresetRegionEnabled(enabled: Boolean) {
-        Log.d(TAG, "PresetRegion mode: ${enabled.toEnablementString()}")
+        if (DEBUG_FLAG) Log.d(TAG, "PresetRegion mode: ${enabled.toEnablementString()}")
         _forecastRegionCandidates.value = defaultRegionCandidates.toList()
         _isPresetRegion.value = enabled
     }
@@ -1320,7 +1324,7 @@ class WeatherViewModel(
      * Update [isForecastRegionAuto] only, without requesting data.
      * */
     fun updateAutoRegionEnabled(enabled: Boolean, isExplicit: Boolean = true) {
-        Log.d(TAG, "Auto region: ${enabled.toEnablementString()}")
+        if (DEBUG_FLAG) Log.d(TAG, "Auto region: ${enabled.toEnablementString()}")
         isForecastRegionAuto = enabled
         _selectedForecastRegionIndex.value = if (enabled) 0 else 1
         if (isExplicit) {  // No need to feed back to Preferences.
@@ -1331,7 +1335,7 @@ class WeatherViewModel(
     }
 
     fun stopRefreshing() {
-        Log.d(TAG, "Refresh cancelled.")
+        if (DEBUG_FLAG) Log.d(TAG, "Refresh cancelled.")
 
         // Cancel searching ForecastRegion. Indicator will be dismissed in the finally block.
         searchRegionJob?.cancel()
@@ -1395,7 +1399,7 @@ class WeatherViewModel(
                     }
                 }
             } catch (e: IOException) {
-                Log.w(TAG, "Invalid IO", e)
+                if (DEBUG_FLAG) Log.w(TAG, "Invalid IO", e)
                 onNoRegionCandidates(isExplicit)
             } catch (e: Exception) {
                 Log.e(TAG, "Cannot retrieve Locations.", e)
@@ -1424,7 +1428,7 @@ class WeatherViewModel(
     }
 
     private fun onNoRegionCandidates(isExplicit: Boolean) {
-        Log.d(TAG, "No region candidate.")
+        if (DEBUG_FLAG) Log.d(TAG, "No region candidate.")
         if (isExplicit) {
             _toastMessage.value = ToastEvent(R.string.dialog_search_region_no_result)
         } else {

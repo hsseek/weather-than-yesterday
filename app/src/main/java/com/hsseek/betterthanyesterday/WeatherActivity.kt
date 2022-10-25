@@ -86,7 +86,7 @@ class WeatherActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val start = System.currentTimeMillis()
-        Log.d(TAG, "onCreated() called.")
+        if (DEBUG_FLAG) Log.d(TAG, "onCreated() called.")
 
         val defaultDispatcher = Dispatchers.Default
         val prefsRepo = UserPreferencesRepository(this)
@@ -167,7 +167,7 @@ class WeatherActivity : ComponentActivity() {
                                     val time = measureTimeMillis {
                                         viewModel.searchRegionCandidate(query)
                                     }
-                                    Log.d(TAG, "Region search done in $time ms")
+                                    if (DEBUG_FLAG) Log.d(TAG, "Region search done in $time ms")
                                     // Toast.makeText(this, "Done in $time ms", Toast.LENGTH_SHORT).show()
                                 },
                                 onClickNegative = { viewModel.invalidateSearchDialog() },
@@ -199,7 +199,7 @@ class WeatherActivity : ComponentActivity() {
     }
 
     private fun onSelectedForecastRegion(forecastRegion: ForecastRegion) {
-        Log.d(TAG, "Selected ForecastRegion: ${forecastRegion.address}")
+        if (DEBUG_FLAG) Log.d(TAG, "Selected ForecastRegion: ${forecastRegion.address}")
 
         // Weather it is permitted or not, the user intended to use the locating method. Respect the selection.
         val isAutoRegion = forecastRegion.xy == viewModel.autoRegionCoordinate
@@ -239,9 +239,9 @@ class WeatherActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        Log.d(TAG, "onStart() called.")
+        if (DEBUG_FLAG) Log.d(TAG, "onStart() called.")
         if (viewModel.isLanguageChanged) {  // Restart activity
-            Log.d(TAG, "Language changed, recreate the Activity.")
+            if (DEBUG_FLAG) Log.d(TAG, "Language changed, recreate the Activity.")
             // Turn of the flag and recreate the Activity.
             viewModel.isLanguageChanged = false
             recreate()
@@ -256,14 +256,14 @@ class WeatherActivity : ComponentActivity() {
     }
 
     override fun attachBaseContext(newBase: Context?) {
-        Log.d(TAG, "attachBaseContext(Context) called.")
+        if (DEBUG_FLAG) Log.d(TAG, "attachBaseContext(Context) called.")
         newBase?.also { context ->
             runBlocking {
                 val config = createConfigurationWithStoredLocale(context)
                 super.attachBaseContext(context.createConfigurationContext(config))
             }
         } ?: kotlin.run {
-            Log.w(TAG, "newBase is null.")
+            if (DEBUG_FLAG) Log.w(TAG, "newBase is null.")
             super.attachBaseContext(null)
         }
     }
@@ -287,7 +287,7 @@ class WeatherActivity : ComponentActivity() {
             // Implicit request, on the previously selected ForecastRegion.
             checkPermissionThenRefresh()
         } else {
-            Log.d(TAG, "Too soon, skip refresh. (Last checked at ${lastChecked.get(Calendar.HOUR_OF_DAY)}:${lastChecked.get(Calendar.MINUTE)}, while interval is ${minInterval / 1000}s)")
+            if (DEBUG_FLAG) Log.d(TAG, "Too soon, skip refresh. (Last checked at ${lastChecked.get(Calendar.HOUR_OF_DAY)}:${lastChecked.get(Calendar.MINUTE)}, while interval is ${minInterval / 1000}s)")
         }
     }
 
@@ -306,7 +306,7 @@ class WeatherActivity : ComponentActivity() {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 return true  // Permission required to perform the task, but already granted.
             } else {
-                Log.w(TAG, "Permission required.")
+                if (DEBUG_FLAG) Log.w(TAG, "Permission required.")
                 return false  // The bad case
             }
         } else true  // Always possible to calculate for fixed coordinates
@@ -337,7 +337,7 @@ class WeatherActivity : ComponentActivity() {
             } catch (e: Resources.NotFoundException) {
                 Log.e(TAG, "Toast res id invalid.")
             } catch (e: Exception) {
-                Log.d(TAG, "Error while toastOnUiThread(Int)", e)
+                if (DEBUG_FLAG) Log.d(TAG, "Error while toastOnUiThread(Int)", e)
             }
         }
     }
@@ -346,7 +346,7 @@ class WeatherActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            Log.d(TAG, "Permission granted.")
+            if (DEBUG_FLAG) Log.d(TAG, "Permission granted.")
             viewModel.onClickRefresh()  // It is equivalent to click Refresh.
         } else {
             viewModel.stopLocationUpdate()

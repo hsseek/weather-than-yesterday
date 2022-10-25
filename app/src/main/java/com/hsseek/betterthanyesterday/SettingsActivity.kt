@@ -42,6 +42,7 @@ import kotlinx.coroutines.runBlocking
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.Dp
+import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
 
 private const val ROW_PADDING = 14
 private const val TAG = "SettingsActivity"
@@ -151,7 +152,7 @@ class SettingsActivity : ComponentActivity() {
                 super.attachBaseContext(context.createConfigurationContext(config))
             }
         } ?: kotlin.run {
-            Log.w(TAG, "newBase is null.")
+            if (DEBUG_FLAG) Log.w(TAG, "newBase is null.")
             super.attachBaseContext(null)
         }
     }

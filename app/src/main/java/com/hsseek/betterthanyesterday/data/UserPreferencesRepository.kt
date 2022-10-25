@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.*
 import com.hsseek.betterthanyesterday.App.Companion.dataStore
 import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
+import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
 import com.hsseek.betterthanyesterday.util.SEOUL
 import com.hsseek.betterthanyesterday.util.toEnablementString
 import com.hsseek.betterthanyesterday.util.toRegionString
@@ -61,21 +62,21 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateConsumedSnackBar(snackBarId: Int) {
         context.dataStore.edit { preferences ->
-            Log.d(TAG, "Consumed SnackBar: $snackBarId")
+            if (DEBUG_FLAG) Log.d(TAG, "Consumed SnackBar: $snackBarId")
             preferences[PreferencesKeys.CONSUMED_SNACK_BAR] = snackBarId
         }
     }
 
     suspend fun updateAutoRegionEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
-            Log.d(TAG, "Automatic region stored: ${enabled.toEnablementString()}")
+            if (DEBUG_FLAG) Log.d(TAG, "Automatic region stored: ${enabled.toEnablementString()}")
             preferences[PreferencesKeys.FORECAST_REGION_AUTO] = enabled
         }
     }
 
     suspend fun updateForecastRegion(region: ForecastRegion) {
         context.dataStore.edit { preferences ->
-            Log.d(TAG, "ForecastRegion stored: ${region.toRegionString()}")
+            if (DEBUG_FLAG) Log.d(TAG, "ForecastRegion stored: ${region.toRegionString()}")
             preferences[PreferencesKeys.FORECAST_REGION_ADDRESS] = region.address
             preferences[PreferencesKeys.FORECAST_REGION_NX] = region.xy.nx
             preferences[PreferencesKeys.FORECAST_REGION_NY] = region.xy.ny
@@ -84,35 +85,35 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateLanguage(selectedCode: Int) {
         context.dataStore.edit { preferences ->
-            Log.d(TAG, "Language code stored: $selectedCode")
+            if (DEBUG_FLAG) Log.d(TAG, "Language code stored: $selectedCode")
             preferences[PreferencesKeys.LANGUAGE_CODE] = selectedCode
         }
     }
 
     suspend fun updateSimpleViewEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
-            Log.d(TAG, "Simple mode stored: ${enabled.toEnablementString()}")
+            if (DEBUG_FLAG) Log.d(TAG, "Simple mode stored: ${enabled.toEnablementString()}")
             preferences[PreferencesKeys.SIMPLE_VIEW] = enabled
         }
     }
 
     suspend fun updateAutoRefreshEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
-            Log.d(TAG, "Auto refresh stored: ${enabled.toEnablementString()}")
+            if (DEBUG_FLAG) Log.d(TAG, "Auto refresh stored: ${enabled.toEnablementString()}")
             preferences[PreferencesKeys.AUTO_REFRESH] = enabled
         }
     }
 
     suspend fun updateDaybreakEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
-            Log.d(TAG, "Daybreak mode stored: ${enabled.toEnablementString()}")
+            if (DEBUG_FLAG) Log.d(TAG, "Daybreak mode stored: ${enabled.toEnablementString()}")
             preferences[PreferencesKeys.DAYBREAK] = enabled
         }
     }
 
     suspend fun updatePresetRegionEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
-            Log.d(TAG, "Preset location mode stored: ${enabled.toEnablementString()}")
+            if (DEBUG_FLAG) Log.d(TAG, "Preset location mode stored: ${enabled.toEnablementString()}")
             preferences[PreferencesKeys.PRESET_REGION] = enabled
         }
     }

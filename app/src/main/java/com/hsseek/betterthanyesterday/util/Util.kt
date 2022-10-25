@@ -3,6 +3,7 @@ package com.hsseek.betterthanyesterday.util
 import android.content.Context
 import android.content.res.Configuration
 import android.util.Log
+import com.hsseek.betterthanyesterday.BuildConfig
 import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.Language
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
@@ -27,6 +28,7 @@ const val NX_MIN = 21
 const val NX_MAX = 144
 const val NY_MIN = 8
 const val NY_MAX = 147
+val DEBUG_FLAG = BuildConfig.DEBUG
 val SEOUL = CoordinatesXy(60, 127)
 
 
@@ -120,12 +122,12 @@ fun getYesterdayVillageCalendar(cal: Calendar): Calendar {
 fun logElapsedTime(tag: String, task: String, startTime: Long) {
     val elapsedSec = (System.currentTimeMillis() - startTime) / 1000.0
     val formatter = DecimalFormat("#.00")
-    Log.d(tag, "$task took ${formatter.format(elapsedSec)}\"")
+    if (DEBUG_FLAG) Log.d(tag, "$task took ${formatter.format(elapsedSec)}\"")
 }
 
 suspend fun logCoroutineContext(msg: String = "") {
     val tag = "Coroutine"
-    Log.d(tag, msg + "\nThread: ${Thread.currentThread().name}" + "\nScope: $coroutineContext")
+    if (DEBUG_FLAG) Log.d(tag, msg + "\nThread: ${Thread.currentThread().name}" + "\nScope: $coroutineContext")
 }
 
 suspend fun createConfigurationWithStoredLocale(context: Context): Configuration {

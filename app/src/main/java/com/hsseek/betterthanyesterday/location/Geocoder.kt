@@ -4,6 +4,7 @@ import android.content.Context
 import android.location.Address
 import android.location.Geocoder
 import android.util.Log
+import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
 import com.hsseek.betterthanyesterday.util.logElapsedTime
 import java.util.*
 
@@ -28,7 +29,7 @@ class KoreanGeocoder(context: Context) {
                             if (addresses.size > 0) {
                                 onSuccessLatLon(convertToLatLonList(addresses))
                             } else {
-                                Log.d(TAG, "0 result from getFromLocationName(...)")
+                                if (DEBUG_FLAG) Log.d(TAG, "0 result from getFromLocationName(...)")
                                 onSuccessLatLon(null)
                             }
                         }
@@ -48,7 +49,7 @@ class KoreanGeocoder(context: Context) {
                     if (addresses != null && addresses.size > 0) {
                         onSuccessLatLon(convertToLatLonList(addresses))
                     } else {
-                        Log.d(TAG, "0 result from getFromLocationName(...) [Deprecated]")
+                        if (DEBUG_FLAG) Log.d(TAG, "0 result from getFromLocationName(...) [Deprecated]")
                         onSuccessLatLon(null)
                     }
                 }
@@ -109,7 +110,7 @@ class KoreanGeocoder(context: Context) {
     private fun logLatLon(addresses: List<Address>?) {
         addresses?.also {
             for (address in it) {
-                Log.d(TAG, "Lat, Lon candidate: ${address.latitude}, ${address.longitude}")
+                if (DEBUG_FLAG) Log.d(TAG, "Lat, Lon candidate: ${address.latitude}, ${address.longitude}")
             }
         } ?: kotlin.run {
             Log.e(TAG, "Addresses null.")
@@ -119,7 +120,7 @@ class KoreanGeocoder(context: Context) {
     private fun logAddress(addresses: List<Address>?) {
         addresses?.also {
             for (address in it) {
-                Log.d(TAG, "Address candidate: ${address.getAddressLine(0)}(${address.latitude}, ${address.longitude})")
+                if (DEBUG_FLAG) Log.d(TAG, "Address candidate: ${address.getAddressLine(0)}(${address.latitude}, ${address.longitude})")
             }
         } ?: kotlin.run {
             Log.e(TAG, "Addresses null.")
@@ -194,7 +195,7 @@ fun getSuitableAddress(
                         val groups = matches?.groupValues
                         groups?.get(2) + groups?.get(3)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Cannot process 'O제1동', $e")
+                        if (DEBUG_FLAG) Log.w(TAG, "Cannot process 'O제1동', $e")
                         null
                     }
                 } else {
@@ -218,7 +219,7 @@ fun getSuitableAddress(
             }
         } else null
     }
-    Log.d(TAG, "Suitable address: $modifiedAddress -> $suitableAddress")
+    if (DEBUG_FLAG) Log.d(TAG, "Suitable address: $modifiedAddress -> $suitableAddress")
     return suitableAddress
 }
 
