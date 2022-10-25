@@ -332,7 +332,7 @@ class WeatherActivity : ComponentActivity() {
         if (id > 0) {
             try {
                 activity.runOnUiThread {
-                    Toast.makeText(activity, activity.getString(id), Toast.LENGTH_LONG).show()
+                    Toast.makeText(activity, activity.getString(id), Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Resources.NotFoundException) {
                 Log.e(TAG, "Toast res id invalid.")
@@ -898,7 +898,7 @@ class WeatherActivity : ComponentActivity() {
                     stringResource(R.string.hourly_temp_value_simple, hourString, hourlyTemp)
                 }
             }
-            val title = if (!isSimplified) {
+            val title = if (!isSimplified && hourlyTemp != null) {
                 "${stringResource(R.string.hourly_temp_title)}\n($hourAndTemp)"
             } else hourAndTemp
 

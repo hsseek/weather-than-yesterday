@@ -129,7 +129,8 @@ class KoreanGeocoder(context: Context) {
 }
 
 fun getCityName(address: String): String? {
-    return Regex("(\\S+?[시도])(?:\\s|$)").find(address)?.groupValues?.get(1)
+    return Regex("(\\S+?[시])(?:\\s|$)").find(address)?.groupValues?.get(1)
+        ?: Regex("(\\S+?[도])(?:\\s|$)").find(address)?.groupValues?.get(1)
 }
 
 fun getGeneralCityName(address: String): String {
