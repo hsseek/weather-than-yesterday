@@ -3,11 +3,12 @@
     <string name="app_name">어제보다</string>
     <string name="dialog_title_location_permission">위치정보 이용권한 설정</string>
     <string name="dialog_message_location_permission">현재 위치의 날씨 정보를 얻기 위해 위치정보 이용권한이 필요합니다(권한을 부여하지 않더라도 수동 위치 설정이 가능합니다.)</string>
-    <string name="current_temp_title">온도 정보</string>
-    <string name="current_temp_higher">어제보다 기온이 높습니다.</string>
-    <string name="current_temp_lower">어제보다 기온이 낮습니다.</string>
-    <string name="current_temp_same">어제와 기온이 같습니다.</string>
-    <string name="current_temp_value">현재</string>
+    <string name="hourly_temp_title">온도 정보</string>
+    <string name="hourly_temp_higher">어제보다 기온이 높습니다.</string>
+    <string name="hourly_temp_lower">어제보다 기온이 낮습니다.</string>
+    <string name="hourly_temp_same">어제와 기온이 같습니다.</string>
+    <string name="hourly_temp_value">%1$s 기준 %2$d\u2103</string>
+    <string name="hourly_temp_value_simple">%1$s, %2$d\u2103</string>
     <string name="daily_today">(오늘)</string>
     <string name="desc_rainfall_status">강우 정보 아이콘</string>
     <string name="hour_noon">정오</string>
@@ -68,7 +69,6 @@
     <string name="pref_desc_simple_mode">다음 업데이트에 추가</string>
     <string name="pref_help_simple_view">더 단순한 화면 구성을 위해 제목과 일부 설명을 숨깁니다. 앱에 표시되는 숫자들에 익숙해진 후 사용하는 것을 권장합니다.</string>
     <string name="dialog_dismiss_close">닫기</string>
-    <string name="current_temp_time">예보 시각:</string>
     <string name="pref_title_auto_refresh">자동 새로고침</string>
     <string name="pref_desc_auto_refresh">1분 경과 시 앱으로 복귀할 때 새로고침</string>
     <string name="pref_help_auto_refresh">앱이 종료된 후 다시 가동되는 경우는 물론, 창 전환 또는 홈 화면에서 복귀하는 경우에도 앱이 새로고침 됩니다.\n\n마지막 확인 이후 1분 내에 다시 앱으로 복귀한 경우 자동 새로고침이 되지 않지만, 앱 종료 후 재가동 또는 수동 새로고침은 언제든 예외 없이 이루어집니다.\n\n새로고침을 하더라도 새로운 기상청 데이터가 공개되지 않았다면 날씨 정보는 갱신되지 않습니다(매 시간마다 공개).</string>

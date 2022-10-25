@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Resources
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -428,10 +429,10 @@ class WeatherActivity : ComponentActivity() {
                                         .weight(weight),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    CurrentTemperature(
+                                    HourlyTemperature(
                                         isSimplified = viewModel.isSimplified,
                                         hourlyTempDiff = viewModel.hourlyTempDiff,
-                                        currentTemp = viewModel.hourlyTempToday,
+                                        hourlyTemp = viewModel.hourlyTempToday,
                                         hugeFontSize = enlargedFontSize,
                                     )
                                 }
@@ -465,9 +466,9 @@ class WeatherActivity : ComponentActivity() {
                             ) {
                                 LocationInformation(viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.isForecastRegionAuto)
                                 if (viewModel.isSimplified) {
-                                    CurrentTemperature(viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday, enlargedFontSize)
+                                    HourlyTemperature(viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday, enlargedFontSize)
                                 } else {
-                                    CurrentTemperature(viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
+                                    HourlyTemperature(viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
                                 }
                                 DailyTemperatures(viewModel.isSimplified, viewModel.dailyTemps)
                                 RainfallStatus(viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
@@ -521,7 +522,6 @@ class WeatherActivity : ComponentActivity() {
     @Composable
     private fun CustomScreen(
         height: Dp = 120.dp,
-        intent: Intent = Intent(this, WebViewActivity::class.java),
     ) {
         val ad = if (viewModel.adNumber <= 30) {
             Ad.Eng
@@ -530,7 +530,9 @@ class WeatherActivity : ComponentActivity() {
         }
 
         val onClick = {
-            intent.apply { putExtra(EXTRA_URL_KEY, ad.url) }
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse(ad.url)
+            }
             startActivity(intent)
         }
 
@@ -713,7 +715,7 @@ class WeatherActivity : ComponentActivity() {
                 val intent = Intent(this@WeatherActivity, WebViewActivity::class.java).apply {
                     putExtra(EXTRA_URL_KEY, FAQ_URL)
                 }
-                this@WeatherActivity.startActivity(intent)
+                startActivity(intent)
             }) {
                 Text(text = stringResource(R.string.top_bar_help))
             }
@@ -722,7 +724,7 @@ class WeatherActivity : ComponentActivity() {
 
     private fun getSharingIntent(): Intent {
         val tempDiff = viewModel.hourlyTempDiff
-        val currentTemp = viewModel.hourlyTempToday
+        val hourlyTemp = viewModel.hourlyTempToday
 
         val negativeEmojiCodes = listOf(
             0x1F914,  // Thinking face 🤔
@@ -734,7 +736,7 @@ class WeatherActivity : ComponentActivity() {
         )
 
         val negativeEmoji = negativeEmojiCodes.random().toEmojiString()
-        val thenDescription = "\"${getString(R.string.share_app_bad_before, currentTemp ?: 18)}\" $negativeEmoji"
+        val thenDescription = "\"${getString(R.string.share_app_bad_before, hourlyTemp ?: 18)}\" $negativeEmoji"
 
         val positiveEmoji = positiveEmojiCodes.random().toEmojiString()
         val nowDescription = if (tempDiff != null && tempDiff != 0) {
@@ -863,10 +865,10 @@ class WeatherActivity : ComponentActivity() {
     }
 
     @Composable
-    fun CurrentTemperature(
+    fun HourlyTemperature(
         isSimplified: Boolean,
         hourlyTempDiff: Int?,
-        currentTemp: Int?,
+        hourlyTemp: Int?,
         hugeFontSize: TextUnit = Typography.h1.fontSize,
     ) {
         val columnTopPadding = 16.dp
@@ -877,19 +879,27 @@ class WeatherActivity : ComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // The title
-            val currentHour = getCurrentKoreanDateTime().get(Calendar.HOUR_OF_DAY)
+            val cal = Calendar.getInstance()
+            cal.add(Calendar.HOUR_OF_DAY, 1)
+            val nextHour = cal.get(Calendar.HOUR_OF_DAY)
             val hourString =
-                if (currentHour < 12) {
-                    stringResource(id = R.string.hour_am, currentHour)
-                } else if (currentHour > 12) {
-                    stringResource(id = R.string.hour_pm, currentHour - 12)
+                if (nextHour < 12) {
+                    stringResource(id = R.string.hour_am, nextHour)
+                } else if (nextHour > 12) {
+                    stringResource(id = R.string.hour_pm, nextHour - 12)
                 } else {
-                    stringResource(id = R.string.hour_pm, currentHour)  // i.e. 12 PM
+                    stringResource(id = R.string.hour_pm, nextHour)  // i.e. 12 PM
                 }
-
-            val title: String = if (!isSimplified) {
-                "${stringResource(R.string.current_temp_title)}\n(${stringResource(R.string.current_temp_time)} $hourString)"
-            } else hourString
+            val hourAndTemp = if (hourlyTemp == null) "" else {
+                if (!isSimplified) {
+                    stringResource(R.string.hourly_temp_value, hourString, hourlyTemp)
+                } else {
+                    stringResource(R.string.hourly_temp_value_simple, hourString, hourlyTemp)
+                }
+            }
+            val title = if (!isSimplified) {
+                "${stringResource(R.string.hourly_temp_title)}\n($hourAndTemp)"
+            } else hourAndTemp
 
             Text(
                 text = title,
@@ -897,28 +907,15 @@ class WeatherActivity : ComponentActivity() {
                 modifier = Modifier.padding(bottom = titleBottomPadding),
             )
 
-            // The current temperature
-            val currentTempString = if (currentTemp == null) {
-                ""
-            } else {
-                if (!isSimplified) {
-                    stringResource(R.string.current_temp_value) + " $currentTemp \u2103"
-                } else {
-                    "$currentTemp \u2103"
-                }
-            }
-
-            Text(text = currentTempString)
-
             if (!isSimplified) {  // A description
                 val description = if (hourlyTempDiff == null) {
                     stringResource(id = R.string.null_value)
                 } else if (hourlyTempDiff > 0) {
-                    stringResource(R.string.current_temp_higher)
+                    stringResource(R.string.hourly_temp_higher)
                 } else if (hourlyTempDiff < 0) {
-                    stringResource(R.string.current_temp_lower)
+                    stringResource(R.string.hourly_temp_lower)
                 } else {
-                    stringResource(R.string.current_temp_same)
+                    stringResource(R.string.hourly_temp_same)
                 }
 
                 Text(text = description)

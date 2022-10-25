@@ -2,12 +2,12 @@
     <string name="app_name">Better Than Yesterday</string>
     <string name="dialog_title_location_permission">Location Permission Required</string>
     <string name="dialog_message_location_permission">The permission is required to get the weather conditions of the current location(Otherwise, you can deny the request and set a location manually).</string>
-    <string name="current_temp_title">Temperature status</string>
-    <string name="current_temp_time">Forecast time:</string>
-    <string name="current_temp_value">Currently:</string>
-    <string name="current_temp_higher">It\'s higher than yesterday by</string>
-    <string name="current_temp_lower">It\'s lower than yesterday by</string>
-    <string name="current_temp_same">It\'s the same as yesterday.</string>
+    <string name="hourly_temp_title">Temperature status</string>
+    <string name="hourly_temp_value">At %1$s, %2$d\u2103</string>
+    <string name="hourly_temp_value_simple">%1$s, %2$d\u2103</string>
+    <string name="hourly_temp_higher">It\'s higher than yesterday by</string>
+    <string name="hourly_temp_lower">It\'s lower than yesterday by</string>
+    <string name="hourly_temp_same">It\'s the same as yesterday.</string>
     <string name="daily_today">(Today)</string>
     <string name="null_value" translatable="false">\-</string>
     <string name="desc_rainfall_status">Rainfall status icon</string>
@@ -68,7 +68,7 @@
     <string name="desc_back">Back</string>
     <string name="pref_title_simple_mode">Simple layout</string>
 <!--    <string name="pref_desc_simple_mode">Hide letters for a neat look.</string>-->
-    <string name="pref_desc_simple_mode">available on next release</string>
+    <string name="pref_desc_simple_mode">available on the next release</string>
     <string name="pref_help_simple_view">Hide titles and descriptions to give a neat look. Recommended after the numbers got familiar to you, as it might be hard to interpret information.</string>
     <string name="pref_title_auto_refresh">Auto refresh</string>
     <string name="pref_desc_auto_refresh">Refresh when returning to app after 1 minute.</string>

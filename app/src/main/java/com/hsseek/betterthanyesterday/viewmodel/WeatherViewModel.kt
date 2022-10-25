@@ -556,7 +556,7 @@ class WeatherViewModel(
                                 val yesterdayHighTempData = yesterdayHighTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
                                 val yesterdayLowTempData = yesterdayLowTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
                                 val yesterdayHourlyTempData = yesterdayHourlyTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
-                                val todayHourlyData = todayHourlyTempResponse.await().body()?.response?.body?.items?.item?.filter { it.fcstDate == today.toInt() } ?: emptyList()
+                                val todayHourlyData = todayHourlyTempResponse.await().body()?.response?.body?.items?.item ?: emptyList()
                                 val todayHighTempData = todayHighTempResponse?.await()?.body()?.response?.body?.items?.item ?: emptyList()
                                 val todayLowTempData = todayLowTempResponse?.await()?.body()?.response?.body?.items?.item ?: emptyList()
 
@@ -871,10 +871,11 @@ class WeatherViewModel(
         todayHourlyData: List<ForecastResponse.Item>,
         futureTodayData: List<ForecastResponse.Item>,
     ) {
+        val today: String = formatToKmaDate(getCurrentKoreanDateTime())
         val primaryCoveredHourMax: Int? = todayHourlyData.maxOfOrNull { it.fcstTime }
 
         // Remove duplicate data according to the priority (More recent data is preferred.)
-        val hourlyRainfallData = todayHourlyData.filter { it.category == RAIN_TAG }
+        val hourlyRainfallData = todayHourlyData.filter { it.category == RAIN_TAG && it.fcstDate == today.toInt() }
         val futureTodayRainfallData: List<ForecastResponse.Item> = futureTodayData.filter {
             (it.category == RAIN_TAG) and (it.fcstTime > (primaryCoveredHourMax ?: 0))
         }
@@ -983,7 +984,8 @@ class WeatherViewModel(
         todayHourlyData: List<ForecastResponse.Item>,
         futureTodayData: List<ForecastResponse.Item>,
     ) {
-        val data = todayHighTempData + todayLowTempData + todayHourlyData + futureTodayData
+        val today: String = formatToKmaDate(getCurrentKoreanDateTime())
+        val data = todayHighTempData + todayLowTempData + todayHourlyData.filter { it.fcstDate == today.toInt() } + futureTodayData
         var isPrimed = false
 
         // Using minOf(...) or maxOf(...) requires iterate each time, which is inefficient.
@@ -1039,19 +1041,22 @@ class WeatherViewModel(
         yesterdayHourlyTempData: List<ForecastResponse.Item>,
         yesterdayHourlyTempBackupData: List<ForecastResponse.Item>,
     ) {
-        val closestHour = todayHourlyData.minOf { it.fcstTime }
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.HOUR_OF_DAY, 1)
+        val nextHour = formatToKmaHour(cal).toInt()
+
         var todayTemp: Int? = null
         var yesterdayTemp: Int? = null
 
         for (i in todayHourlyData) {
-            if (i.fcstTime == closestHour && i.category == HOURLY_TEMPERATURE_TAG) {
+            if (i.fcstTime == nextHour && i.category == HOURLY_TEMPERATURE_TAG) {
                 todayTemp = i.fcstValue.toInt()
                 break
             }
         }
 
         for (i in yesterdayHourlyTempData + yesterdayHourlyTempBackupData) {
-            if (i.fcstTime == closestHour &&
+            if (i.fcstTime == nextHour &&
                 (i.category == HOURLY_TEMPERATURE_TAG || i.category == VILLAGE_TEMPERATURE_TAG)
             ) {
                 yesterdayTemp = i.fcstValue.toInt()
@@ -1063,11 +1068,11 @@ class WeatherViewModel(
         lowestTemps[0]?.let { lt ->
             yesterdayTemp?.let { yt -> if (yt < lt) yesterdayTemp = lt }
         }
-        highestTemps[0]?.let { lt ->
-            yesterdayTemp?.let { yt -> if (yt > lt) yesterdayTemp = lt }
+        highestTemps[0]?.let { ht ->
+            yesterdayTemp?.let { yt -> if (yt > ht) yesterdayTemp = ht }
         }
 
-        Log.d(TAG, "T1H(at ${closestHour / 100}): $yesterdayTemp -> $todayTemp")
+        Log.d(TAG, "T1H(at ${nextHour / 100}): $yesterdayTemp -> $todayTemp")
 
         todayTemp?.let { tt ->
             _hourlyTempToday.value = tt
@@ -1082,16 +1087,17 @@ class WeatherViewModel(
      * If the shown hourly value is higher than TMX than the user might doubt the reliability: adjust.
      */
     private fun adjustTodayCharTemp() {
+        val index = DayOfInterest.Today.dayOffset + 1
         hourlyTempToday?.let { tt ->
-            highestTemps[1]?.let { ht ->
+            highestTemps[index]?.let { ht ->
                 if (tt > ht) {
-                    highestTemps[1] = tt
+                    highestTemps[index] = tt
                     Log.w(TAG, "Overridden by $HOURLY_TEMPERATURE_TAG: $ht -> $tt")
                 }
             }
-            lowestTemps[1]?.let { lt ->
+            lowestTemps[index]?.let { lt ->
                 if (tt < lt) {
-                    lowestTemps[1] = tt
+                    lowestTemps[index] = tt
                     Log.w(TAG, "Overridden by $HOURLY_TEMPERATURE_TAG: $lt -> $tt")
                 }
             }
