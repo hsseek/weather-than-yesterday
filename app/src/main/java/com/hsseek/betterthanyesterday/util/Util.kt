@@ -164,5 +164,6 @@ fun Int.toEmojiString(): String = String(Character.toChars(this))
 fun Boolean.toEnablementString(): String = if (this) "enabled" else "disabled"
 fun ForecastRegion.toRegionString(): String = "${this.address} (${this.xy.nx}, ${this.xy.ny})"
 fun KmaTime.toTimeString(): String = "${this.date}-${this.hour}"
+fun Long.format(digits: Int) = "%.${digits}f".format(this)
 
 enum class KmaHourRoundOff { Hour, Village }

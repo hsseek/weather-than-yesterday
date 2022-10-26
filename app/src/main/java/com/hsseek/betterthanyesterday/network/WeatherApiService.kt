@@ -1,19 +1,35 @@
 package com.hsseek.betterthanyesterday.network
 
+import android.util.Log
 import com.google.gson.GsonBuilder
+import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
+import okhttp3.Interceptor
+import okhttp3.OkHttpClient
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
-
+import java.util.concurrent.TimeUnit
 
 private const val BASE_URL = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/"
 private const val DATA_TYPE_JSON = "JSON"
+private const val TIMEOUT = 5000L
+private const val TAG = "WeatherApiService"
+
+private val interceptor = KmaResponseInterceptor()
+
+private var client = OkHttpClient.Builder()
+    .readTimeout(TIMEOUT, TimeUnit.MILLISECONDS)
+    .connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS)
+    .addInterceptor(interceptor)
+    .build()
+
 private val gson = GsonBuilder().setLenient().create()
 private val retrofit = Retrofit.Builder()
-    .addConverterFactory(GsonConverterFactory.create(gson))
     .baseUrl(BASE_URL)
+    .client(client)
+    .addConverterFactory(GsonConverterFactory.create(gson))
     .build()
 
 
@@ -54,6 +70,7 @@ interface WeatherApiService {
      * It DIFFERS from the expected conditions of each hour.(e.g. Data created at 02:00 expecting 32 degrees at 13:00)
      * [baseDate] The date at which the data created. Must be in yyyyMMdd format.
      * */
+    @Suppress("unused")
     @GET("getUltraSrtNcst?serviceKey=$SERVICE_KEY")
     suspend fun getObservedWeather(
         @Query("dataType") dataType: String = DATA_TYPE_JSON,
@@ -98,5 +115,38 @@ object WeatherApi {
     // lazy initialization to avoid unnecessary use of resources
     val service: WeatherApiService by lazy {
         retrofit.create(WeatherApiService::class.java)
+    }
+    private val responseBuilder = interceptor.responseBuilder
+
+    fun getResponse(): CharSequence {
+        val string = responseBuilder.toString()
+        clearResponse()
+        return string
+    }
+    fun clearResponse() {
+        if (responseBuilder.isNotEmpty()) {
+            if (DEBUG_FLAG) Log.d(TAG, "Weather response cleared.")
+            responseBuilder.clear()
+        }
+    }
+}
+
+private class KmaResponseInterceptor: Interceptor {
+    val responseBuilder = StringBuilder()
+    override fun intercept(chain: Interceptor.Chain): okhttp3.Response {
+        val request = chain.request()
+
+        val t1 = System.currentTimeMillis()
+        if (DEBUG_FLAG) Log.d(TAG, "--> Sending request ${request.url} on ${chain.connection()} ${request.headers}")
+
+        val response: okhttp3.Response = chain.proceed(request)
+        val url = response.request.url.toString().replace(SERVICE_KEY, "")
+
+        val t2 = System.currentTimeMillis()
+        val responseSummary = "\n<- Received response in ${(t2 - t1)} ms\n${url}\n${response.peekBody(2048).string()}\n"
+        if (DEBUG_FLAG) Log.d(TAG, responseSummary)
+        responseBuilder.append(responseSummary)
+
+        return response
     }
 }
