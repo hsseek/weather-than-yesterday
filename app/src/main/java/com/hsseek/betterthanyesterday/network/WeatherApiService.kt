@@ -14,14 +14,14 @@ import java.util.concurrent.TimeUnit
 
 private const val BASE_URL = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/"
 private const val DATA_TYPE_JSON = "JSON"
-private const val TIMEOUT = 5000L
 private const val TAG = "WeatherApiService"
+const val NETWORK_TIMEOUT = 7_200L
 
 private val interceptor = KmaResponseInterceptor()
 
 private var client = OkHttpClient.Builder()
-    .readTimeout(TIMEOUT, TimeUnit.MILLISECONDS)
-    .connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS)
+    .readTimeout(NETWORK_TIMEOUT * 4, TimeUnit.MILLISECONDS)
+    .connectTimeout(NETWORK_TIMEOUT * 4, TimeUnit.MILLISECONDS)
     .addInterceptor(interceptor)
     .build()
 

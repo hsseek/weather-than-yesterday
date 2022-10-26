@@ -30,6 +30,7 @@ import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.*
 import com.hsseek.betterthanyesterday.location.convertToXy
 import com.hsseek.betterthanyesterday.network.ForecastResponse
+import com.hsseek.betterthanyesterday.network.NETWORK_TIMEOUT
 import com.hsseek.betterthanyesterday.network.WeatherApi
 import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.Hour
@@ -50,11 +51,8 @@ private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
 private const val HOURLY_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
-private const val NETWORK_TIMEOUT_MIN = 1_200L
-private const val NETWORK_ADDITIONAL_TIMEOUT = 400L
-private const val NETWORK_TIMEOUT_MAX = 6_400L
 private const val NETWORK_PAUSE = 150L
-private const val NETWORK_MAX_RETRY = 12
+private const val NETWORK_MAX_RETRY = 4
 
 private const val CODED_SNACK_BAR_ID = 0
 private const val HIGHLIGHTED_SETTING_ROW = 1  // If out of index, none will be highlighted.
@@ -124,9 +122,9 @@ class WeatherViewModel(
     private val _toShowSearchRegionDialog = mutableStateOf(false)
     val toShowSearchRegionDialog: Boolean
         get() = _toShowSearchRegionDialog.value
-    private val _toShowSearchRegionDialogLoading = mutableStateOf(false)
+    private val _toShowLoadingDialog = mutableStateOf(false)
     val toShowSearchRegionDialogLoading: Boolean
-        get() = _toShowSearchRegionDialogLoading.value
+        get() = _toShowLoadingDialog.value
 
     // Entries displayed as RadioItems
     private val _forecastRegionCandidates: MutableState<List<ForecastRegion>> = mutableStateOf(emptyList())
@@ -183,19 +181,27 @@ class WeatherViewModel(
      * */
     private fun updateForecastRegion(region: ForecastRegion, isSecondary: Boolean = false) {
         if (DEBUG_FLAG) Log.d(TAG, "updateForecastRegion(...) called.")
-        // Store the selection.
-        viewModelScope.launch {
-            userPrefsRepo.updateForecastRegion(region)
-            defaultRegionCandidates[1] = region
+        val isSameCoordinate: Boolean
+        if (region == forecastRegion) {
+            isSameCoordinate = true
+            if (DEBUG_FLAG) Log.d(TAG, "forecastRegion unchanged: ${forecastRegion.toRegionString()}")
+        } else {
+            // Store the selection.
+            viewModelScope.launch {
+                userPrefsRepo.updateForecastRegion(region)
+                defaultRegionCandidates[1] = region
+            }
+
+            if (region.address != forecastRegion.address) {
+                // Update the city name.
+                updateRepresentedCityName(region.address)
+            }
+
+            // Check if the location changed before reassigning.
+            isSameCoordinate = region.xy == forecastRegion.xy
+            forecastRegion = region
+            if (DEBUG_FLAG) Log.d(TAG, "forecastRegion changed: ${forecastRegion.toRegionString()}")
         }
-
-        // Update the city name.
-        updateRepresentedCityName(region)
-
-        // Check if the location changed before reassigning.
-        val isSameCoordinate = region.xy == forecastRegion.xy
-        forecastRegion = region
-        if (DEBUG_FLAG) Log.d(TAG, "forecastRegion: ${forecastRegion.toRegionString()}")
 
         if (isSameCoordinate) {
             if (DEBUG_FLAG) Log.d(TAG, "The same coordinates.")
@@ -227,9 +233,8 @@ class WeatherViewModel(
         }
     }
 
-    private fun updateRepresentedCityName(region: ForecastRegion) {
+    private fun updateRepresentedCityName(address: String) {
         if (DEBUG_FLAG) Log.d(TAG, "updateRepresentedCityName(...) called.")
-        val address = region.address
         _cityName.value = getSi(address, true).removeSpecialCitySuffix()
             ?: getGeneralCityName(address)
         _districtName.value = getDong(address, true) ?: getGu(address, true) ?: ""
@@ -282,7 +287,7 @@ class WeatherViewModel(
                     try {
                         // Clear the former response so that it always hold the last one.
                         WeatherApi.clearResponseString()
-                        withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
+                        withTimeout(NETWORK_TIMEOUT) {
                             val networkJob = launch(defaultDispatcher) {
                                 val today: String = formatToKmaDate(getCurrentKoreanDateTime())
                                 val latestVillageBaseTime = getKmaBaseTime(cal = calValue, roundOff = Village)  // 2:00 for 2:11 ~ 5:10
@@ -580,7 +585,9 @@ class WeatherViewModel(
                                 val yesterdayLowTempBackupData = if (yesterdayLowTempData.isEmpty()) {
                                     yesterdayLowTempBackupResponse.await().body()?.response?.body?.items?.item ?: emptyList()
                                 } else emptyList()
+                                logElapsedTime(TAG, "Fetching data", fetchingStartTime)
 
+                                val loggingStartTime = System.currentTimeMillis()
                                 // Log for debugging.
                                 launch(defaultDispatcher) {
                                     var size = 0
@@ -733,7 +740,7 @@ class WeatherViewModel(
                                         }
                                     }
 
-                                    logElapsedTime(TAG, "$size items", fetchingStartTime)
+                                    logElapsedTime(TAG, "Logging $size items", loggingStartTime)
                                 }
 
                                 // Refresh the highest/lowest temperatures
@@ -1192,15 +1199,18 @@ class WeatherViewModel(
         }
     }
 
+    /**
+     * [isSecondary] is true when it was a (confirming) result from the [locationCallback].
+     * */
     private fun checkTimeThenRequest(isSecondary: Boolean = false) {
         if (isNewDataReleasedAfter(lastSuccessfulTime)) {
             requestAllWeatherData()
         } else {
             if (!isSecondary) {
                 viewModelScope.launch(defaultDispatcher) {
-                    _isRefreshing.value = true
+                    /*_isRefreshing.value = true  // Fake loading
                     delay((200..280).random().toLong())
-                    if (kmaJob?.isCompleted == true) _isRefreshing.value = false
+                    if (kmaJob?.isCompleted == true) _isRefreshing.value = false*/
                     _toastMessage.value = ToastEvent(R.string.toast_refresh_up_to_date)
                 }
             }
@@ -1372,7 +1382,7 @@ class WeatherViewModel(
                 if (query.isBlank()) {
                     onNoRegionCandidates(isExplicit)
                 } else {
-                    if (isExplicit) _toShowSearchRegionDialogLoading.value = true
+                    if (isExplicit) _toShowLoadingDialog.value = true
                     val geoCoder = KoreanGeocoder(context)
                     geoCoder.updateLatLng(query) { coordinateList ->
                         if (coordinateList != null) {
@@ -1482,7 +1492,7 @@ class WeatherViewModel(
             ForecastRegion(autoTitle, autoRegionCoordinate),
             region
         )
-        updateRepresentedCityName(region)
+        updateRepresentedCityName(region.address)
     }
 
     fun initiateConsumedSnackBar(activity: Activity, lastConsumedSnackBar: Int) {
@@ -1518,7 +1528,7 @@ class WeatherViewModel(
     }
 
     fun dismissSearchRegionLoading() {
-        _toShowSearchRegionDialogLoading.value = false
+        _toShowLoadingDialog.value = false
     }
 
     companion object {
