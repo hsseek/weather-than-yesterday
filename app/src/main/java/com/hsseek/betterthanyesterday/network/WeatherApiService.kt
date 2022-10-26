@@ -118,12 +118,8 @@ object WeatherApi {
     }
     private val responseBuilder = interceptor.responseBuilder
 
-    fun getResponse(): CharSequence {
-        val string = responseBuilder.toString()
-        clearResponse()
-        return string
-    }
-    fun clearResponse() {
+    fun getResponseString(): String = responseBuilder.toString()
+    fun clearResponseString() {
         if (responseBuilder.isNotEmpty()) {
             if (DEBUG_FLAG) Log.d(TAG, "Weather response cleared.")
             responseBuilder.clear()

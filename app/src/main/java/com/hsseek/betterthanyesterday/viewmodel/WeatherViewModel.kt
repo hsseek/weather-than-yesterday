@@ -265,11 +265,11 @@ class WeatherViewModel(
             var trialCount = 0
             var isCalModified = false
 
-            val reportSeparator = "\n────────────────\n"
-            val reportHeader = reportSeparator +
+            val separator = "\n────────────────\n"
+            val reportHeader = separator +
                     "App version: ${BuildConfig.VERSION_CODE}\n" +
                     "SDK version:${android.os.Build.VERSION.SDK_INT}" +
-                    reportSeparator +
+                    separator +
                     "Weather data to compose the main screen\n"
             val dataReport = StringBuilder()
 
@@ -280,6 +280,8 @@ class WeatherViewModel(
                 while (trialCount < NETWORK_MAX_RETRY) {
                     dataReport.append(reportHeader)
                     try {
+                        // Clear the former response so that it always hold the last one.
+                        WeatherApi.clearResponseString()
                         withTimeout(minOf(NETWORK_TIMEOUT_MIN + trialCount * NETWORK_ADDITIONAL_TIMEOUT, NETWORK_TIMEOUT_MAX)) {
                             val networkJob = launch(defaultDispatcher) {
                                 val today: String = formatToKmaDate(getCurrentKoreanDateTime())
@@ -753,7 +755,7 @@ class WeatherViewModel(
                             if (isNullInfoIncluded()) {
                                 _exceptionSnackBarEvent.value = SnackBarEvent(
                                     getErrorReportSnackBarContent(R.string.snack_bar_error_kma_na,
-                                        dataReport.appendRawData(reportSeparator))
+                                        dataReport.appendRawData(separator))
                                 )
                                 lastSuccessfulTime = null  // Incomplete data
                             }
@@ -772,14 +774,11 @@ class WeatherViewModel(
                                 runBlocking { delay(NETWORK_PAUSE) }
                             } else {  // Maximum count of trials has been reached.
                                 Log.e(TAG, "Stopped retrying after $NETWORK_MAX_RETRY times.\n$e")
-                                val trace = e.stackTraceToString()
-                                if (trace.isNotBlank()) {
-                                    dataReport.append(reportSeparator + trace)
-                                }
+                                dataReport.appendStackTrace(separator, e)
                                 _exceptionSnackBarEvent.value = SnackBarEvent(
                                     getErrorReportSnackBarContent(
                                         R.string.snack_bar_weather_error_general,
-                                        dataReport.appendRawData(reportSeparator)
+                                        dataReport.appendRawData(separator)
                                     )
                                 )
                                 lastSuccessfulTime = null
@@ -801,24 +800,18 @@ class WeatherViewModel(
                                 isCalModified = true
                             } else {  // Maximum count of trials has been reached.
                                 Log.e(TAG, "Stopped retrying", e)
-                                val trace = e.stackTraceToString()
-                                if (trace.isNotBlank()) {
-                                    dataReport.append(reportSeparator + trace)
-                                }
+                                dataReport.appendStackTrace(separator, e)
                                 _exceptionSnackBarEvent.value = SnackBarEvent(
                                     getErrorReportSnackBarContent(
                                         R.string.snack_bar_weather_error_general,
-                                        dataReport.appendRawData(reportSeparator)
+                                        dataReport.appendRawData(separator)
                                     )
                                 )
                                 lastSuccessfulTime = null
                                 break
                             }
                         } else {  // Not worth retrying, just stop.
-                            val trace = e.stackTraceToString()
-                            if (trace.isNotBlank()) {
-                                dataReport.append(reportSeparator + trace)
-                            }
+                            dataReport.appendStackTrace(separator, e)
                             when (e) {
                                 is CancellationException -> if (DEBUG_FLAG) Log.d(TAG, "Retrieving weather data cancelled.")
                                 is UnknownHostException -> _toastMessage.value = ToastEvent(R.string.toast_weather_failure_network)
@@ -827,7 +820,7 @@ class WeatherViewModel(
                                     _exceptionSnackBarEvent.value = SnackBarEvent(
                                         getErrorReportSnackBarContent(
                                             R.string.snack_bar_weather_error_general,
-                                            dataReport.appendRawData(reportSeparator)
+                                            dataReport.appendRawData(separator)
                                         )
                                     )
                                 }
@@ -839,7 +832,6 @@ class WeatherViewModel(
                         // _isLoading.value = false   Called on every loops, which is not intended.
                         // kmaJob.cancelAndJoin()  Cannot be run here: https://kt.academy/article/cc-cancellation
                         dataReport.clear()
-                        WeatherApi.clearResponse()  // Discard the former records. It would be too long to read anyway.
                     }
                 }
             }
@@ -859,8 +851,15 @@ class WeatherViewModel(
         this.append("\n$tag\t\t$message")
     }
 
+    private fun StringBuilder.appendStackTrace(separator: String, e: Exception) {
+        val trace = e.stackTraceToString()
+        if (trace.isNotBlank()) {
+            this.append(separator + "Error trace\n" + trace)
+        }
+    }
+
     private fun StringBuilder.appendRawData(separator: String): String {
-        return this.append(separator + "Raw data\n" + WeatherApi.getResponse()).toString()
+        return this.append(separator + "Raw data\n" + WeatherApi.getResponseString()).toString()
     }
 
     fun updateLastImplicitChecked(cal: Calendar) {
@@ -872,24 +871,41 @@ class WeatherViewModel(
 
     private fun shareException(description: String): () -> Unit = {
         viewModelScope.launch {
-            // A modified Context with the Locale from Preferences
-            val modifiedContext = withContext(defaultDispatcher) {
-                val config = createConfigurationWithStoredLocale(context)
-                context.createConfigurationContext(config)
-            }
-            val title = "\"${modifiedContext.getString(R.string.app_name)}\" ${modifiedContext.getString(R.string.snack_bar_error_send_title)}"
-            val body = modifiedContext.getString(R.string.snack_bar_error_send_body) + "\n" + description
+            val chooser = getChooserIntent(R.string.snack_bar_error_send_opening, description)
+            context.startActivity(chooser)
+        }
+    }
 
-            val intent = Intent(Intent.ACTION_SENDTO).apply {
-                data = (Uri.parse("mailto:"))
-                putExtra(Intent.EXTRA_EMAIL, arrayOf(DEVELOPER_EMAIL))
-                putExtra(Intent.EXTRA_SUBJECT, title)
-                putExtra(Intent.EXTRA_TEXT, body)
-            }
+    private suspend fun getChooserIntent(openingId: Int, description: String): Intent? {
+        // A modified Context with the Locale from Preferences
+        val modifiedContext = withContext(defaultDispatcher) {
+            val config = createConfigurationWithStoredLocale(context)
+            context.createConfigurationContext(config)
+        }
 
-            val chooser = Intent.createChooser(intent, modifiedContext.getString(R.string.share_app_guide)).apply {
-                addFlags(FLAG_ACTIVITY_NEW_TASK)
-            }
+        val title =
+            "\"${modifiedContext.getString(R.string.app_name)}\" ${modifiedContext.getString(R.string.snack_bar_error_send_title)}"
+        val opening = modifiedContext.getString(openingId)
+        val body = opening + "\n" + description
+
+        val intent = Intent(Intent.ACTION_SENDTO).apply {
+            data = (Uri.parse("mailto:"))
+            putExtra(Intent.EXTRA_EMAIL, arrayOf(DEVELOPER_EMAIL))
+            putExtra(Intent.EXTRA_SUBJECT, title)
+            putExtra(Intent.EXTRA_TEXT, body)
+        }
+
+        val chooser =
+            Intent.createChooser(intent, modifiedContext.getString(R.string.share_app_guide))
+                .apply {
+                    addFlags(FLAG_ACTIVITY_NEW_TASK)
+                }
+        return chooser
+    }
+
+    fun onClickReportError(explanationId: Int) {
+        viewModelScope.launch {
+            val chooser = getChooserIntent(explanationId, WeatherApi.getResponseString())
             context.startActivity(chooser)
         }
     }

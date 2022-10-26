@@ -712,6 +712,12 @@ class WeatherActivity : ComponentActivity() {
             }
 
             DropdownMenuItem(onClick = {
+                viewModel.onClickReportError(R.string.top_bar_report_error_explanation)
+            }) {
+                Text(text = stringResource(R.string.top_bar_report_error))
+            }
+
+            DropdownMenuItem(onClick = {
                 onDismissRequest()
                 val intent = Intent(this@WeatherActivity, WebViewActivity::class.java).apply {
                     putExtra(EXTRA_URL_KEY, FAQ_URL)
