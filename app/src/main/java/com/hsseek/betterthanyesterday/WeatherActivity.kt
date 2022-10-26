@@ -165,7 +165,7 @@ class WeatherActivity : ComponentActivity() {
                                 onTextChanged = { viewModel.searchRegionCandidateDebounced(it) },
                                 onClickSearch = { query ->
                                     val time = measureTimeMillis {
-                                        viewModel.searchRegionCandidate(query)
+                                        viewModel.searchRegionCandidates(query)
                                     }
                                     if (DEBUG_FLAG) Log.d(TAG, "Region search done in $time ms")
                                     // Toast.makeText(this, "Done in $time ms", Toast.LENGTH_SHORT).show()

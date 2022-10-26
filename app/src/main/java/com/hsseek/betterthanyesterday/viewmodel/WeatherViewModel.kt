@@ -1350,11 +1350,11 @@ class WeatherViewModel(
         searchRegionJob?.cancel()
         searchRegionJob = viewModelScope.launch {
             delay(delay)
-            searchRegionCandidate(query, false)
+            searchRegionCandidates(query, false)
         }
     }
 
-    fun searchRegionCandidate(query: String, isExplicit: Boolean = true) {
+    fun searchRegionCandidates(query: String, isExplicit: Boolean = true) {
         searchRegionJob = viewModelScope.launch(defaultDispatcher) {
             try {
                 if (query.isBlank()) {
@@ -1373,12 +1373,26 @@ class WeatherViewModel(
                                     if (addresses != null) {
                                         // A clean set of addresses: Not RDS, takes < 40 ms
                                         val addressCandidates = getValidAddressSet(addresses).matchingQuery(query)
-                                        for (address in addressCandidates) {  // Add everyone.
-                                            val region = ForecastRegion(
-                                                address = address,
-                                                xy = xy,
-                                            )
-                                            searchResults.add(region)
+                                        for (address in addressCandidates) {
+                                            if (coordinateList.size > 1) {
+                                                // "제주" -> 이도2동, 연동 -> "제주시" with different xy.
+                                                // (different ForecastRegion with the same "address")
+                                                if (searchResults.isNotEmpty()) {
+                                                    var toAdd = true
+                                                    Log.i(TAG, "searched vs already-added")
+                                                    for (result in searchResults) {
+                                                        Log.i(TAG, "$address\t\t${result.address}")
+                                                        if (result.address == address) {
+                                                            // Duplicate addresses
+                                                            toAdd = false  // Not to add
+                                                            break  // No need to iterate further
+                                                        }
+                                                    }
+                                                    if (toAdd) addRegionToSet(address, xy, searchResults)
+                                                } else addRegionToSet(address, xy, searchResults)
+                                            } else {  // Single xy. No possibility of the same "address" with different xy.
+                                                addRegionToSet(address, xy, searchResults)
+                                            }
                                         }
                                     } else {
                                         onNoRegionCandidates(isExplicit)
@@ -1408,6 +1422,18 @@ class WeatherViewModel(
                 dismissSearchRegionLoading()
             }
         }
+    }
+
+    private fun addRegionToSet(
+        address: String,
+        xy: CoordinatesXy,
+        searchResults: MutableList<ForecastRegion>
+    ) {
+        val region = ForecastRegion(
+            address = address,
+            xy = xy,
+        )
+        searchResults.add(region)
     }
 
     /**
