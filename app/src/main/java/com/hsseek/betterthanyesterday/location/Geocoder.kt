@@ -74,6 +74,7 @@ class KoreanGeocoder(context: Context) {
                 val geocoderListener = object : Geocoder.GeocodeListener {
                     override fun onGeocode(addresses: MutableList<Address>) {
                         logElapsedTime(TAG, "Update addresses", start)  // Not RDS, takes < 50 ms.
+                        for (address in addresses) removeNation(address)
                         onSuccessAddress(addresses)
                         logAddress(addresses)
                     }
@@ -88,12 +89,20 @@ class KoreanGeocoder(context: Context) {
                 @Suppress("DEPRECATION")
                 val addresses = geoCoder.getFromLocation(position.lat, position.lon, maxResult)
                 logElapsedTime(TAG, "Update addresses", start)
+                if (addresses != null) {
+                    for (address in addresses) removeNation(address)
+                }
                 onSuccessAddress(addresses)
                 logAddress(addresses)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error while getFromLocation(...): ", e)
         }
+    }
+
+    private fun removeNation(address: Address) {
+        val withNation = address.getAddressLine(0)
+        address.setAddressLine(0, withNation.replace("대한민국 ", "").trim())
     }
 
     private fun convertToLatLonList(addresses: List<Address>): List<CoordinatesLatLon> {
@@ -128,14 +137,9 @@ class KoreanGeocoder(context: Context) {
     }
 }
 
-fun getCityName(address: String): String? {
-    return Regex("(\\S+?[시])(?:\\s|$)").find(address)?.groupValues?.get(1)
-        ?: Regex("(\\S+?[도])(?:\\s|$)").find(address)?.groupValues?.get(1)
-}
 
 fun getGeneralCityName(address: String): String {
-    return removeNation(address)  // Always 대한민국, so omit it.
-        .split(" ").first()  // The most upper class name
+    return address.split(" ").first()  // The most upper class name
 }
 
 fun String?.removeSpecialCitySuffix(): String? {
@@ -153,26 +157,21 @@ fun String?.removeSpecialCitySuffix(): String? {
 }
 
 fun removeTailingNumbers(address: String): String {
-    val modifiedAddress = removeNation(address)
-    return Regex("(\\S.+)\\s\\d-?\\d").find(modifiedAddress)?.groupValues?.get(1) ?: modifiedAddress
+    return Regex("(\\S.+)\\s\\d-?\\d").find(address)?.groupValues?.get(1) ?: address
 }
 
 /**
- * [toTrim] is true to return "OO동", "OO리" only, false to return the whole address.
+ * Returns null or String ending with 동 or 리.
+ * [toTrim]: If false, "XX시 OO구 ㅁㅁ동" is returned, for example. If true, "ㅁㅁ동" is returned.
+ * It also removes numbering from the name.
  * */
-fun getSuitableAddress(
-    address: String,
-    includeSi: Boolean,
-    toTrim: Boolean,
-): String? {
-    val modifiedAddress = removeNation(address)
+fun getDong(address: String, toTrim: Boolean): String? {
     val regexDong = Regex("(\\S.+\\s)(\\S+?[동리])(?:\\s|$)")
-    val regexGu = Regex("(\\S.+\\s)(\\S+?[군구읍면])(?:\\s|$)")
 
-    val suitableAddress = if (regexDong.containsMatchIn(modifiedAddress)) {
+    val dong = if (regexDong.containsMatchIn(address)) {
         val regexWithNumber = Regex("(\\S.+\\s)(\\S+?)\\d{1,2}([동리])(?:\\s|\$)")
-        if (!regexWithNumber.containsMatchIn(modifiedAddress)) {  // No numbers, no need to modify.
-            val matches = regexDong.find(modifiedAddress)
+        if (!regexWithNumber.containsMatchIn(address)) {  // No numbers, no need to modify.
+            val matches = regexDong.find(address)
             if (toTrim) {
                 matches?.groupValues?.get(2)
             } else {
@@ -180,8 +179,8 @@ fun getSuitableAddress(
             }
         } else {  // A number present
             val regexJae = Regex("(.+)제\\d{1,2}([동리])(?:\\s|\$)")
-            if (regexJae.containsMatchIn(modifiedAddress)) {
-                val matches = regexDong.find(modifiedAddress)
+            if (regexJae.containsMatchIn(address)) {
+                val matches = regexDong.find(address)
                 // Don't risk removing the number.(e.g. "흥제1동(흥제동)" vs "목제1동(목동)"
                 if (toTrim) {
                     matches?.groupValues?.get(2)
@@ -189,7 +188,7 @@ fun getSuitableAddress(
                     matches?.destructured?.toList()?.joinToString("")
                 }
             } else {
-                val matches = regexWithNumber.find(modifiedAddress)
+                val matches = regexWithNumber.find(address)
                 // We can safely remove the number.
                 if (toTrim) {
                     try {
@@ -204,29 +203,54 @@ fun getSuitableAddress(
                 }
             }
         }
-    } else if (regexGu.containsMatchIn(modifiedAddress)) {
-        val matches = regexGu.find(modifiedAddress)
+    } else null
+    return dong
+}
+
+/**
+ * Returns null or String ending with 군, 구, 읍, or 면.
+ * [toTrim]: If false, "XX시 OO구" is returned, for example. If true, "OO구" is returned.
+ * */
+fun getGu(address: String, toTrim: Boolean): String? {
+    val regexGu = Regex("(\\S.+\\s)(\\S+?[군구읍면])(?:\\s|$)")
+    val gu = if (regexGu.containsMatchIn(address)) {
+        val matches = regexGu.find(address)
         if (toTrim) {
             matches?.groupValues?.get(2)
         } else {
             matches?.destructured?.toList()?.joinToString("")
         }
-    } else {
-        if (includeSi) {
-            if (toTrim) null  // [시도] is not accepted.
-            else {
-                // Greedy to capture "OO도 XX시"
-                Regex("(\\S.+[시도])(?:\\s|$)").find(modifiedAddress)?.groupValues?.get(1)
-            }
-        } else null
-    }
-    if (DEBUG_FLAG) Log.d(TAG, "Suitable address: $modifiedAddress -> $suitableAddress")
-    return suitableAddress
+    } else null
+    return gu
 }
 
-private fun removeNation(address: String): String {
-    val nation = "대한민국"
-    return if (address.startsWith(nation)) {
-        address.replace("$nation ", "")
-    } else address
+/**
+ * Returns null or String ending with "OO시" or "OO도".
+ * For "XX도 OO시", "OO시" is returned without "XX도" if [toTrim] is true.
+ * */
+fun getSi(address: String, toTrim: Boolean): String? {
+    val si = if (toTrim) {
+        Regex("(\\S+?[시])(?:\\s|$)").find(address)?.groupValues?.get(1)
+            ?: Regex("(\\S+?[도])(?:\\s|$)").find(address)?.groupValues?.get(1)
+    } else {
+        // Greedy to capture "OO도 XX시"
+        Regex("(\\S.+[시도])(?:\\s|$)").find(address)?.groupValues?.get(1)
+    }
+    return si
+}
+
+fun getSuitableAddress(addresses: List<Address>): String {
+    for (address in addresses) {  // The first loop looking for 동, 리
+        val dong = getDong(address.getAddressLine(0), false)
+        if (dong != null) return dong
+    }
+    for (address in addresses) {  // The second loop looking for 군, 구, 읍, 면
+        val gu = getGu(address.getAddressLine(0), false)
+        if (gu != null) return gu
+    }
+    for (address in addresses) {  // The third loop looking for 시, 도
+        val si = getSi(address.getAddressLine(0), false)
+        if (si != null) return si
+    }
+    return removeTailingNumbers(addresses[0].getAddressLine(0))
 }

@@ -229,10 +229,10 @@ class WeatherViewModel(
 
     private fun updateRepresentedCityName(region: ForecastRegion) {
         if (DEBUG_FLAG) Log.d(TAG, "updateRepresentedCityName(...) called.")
-        _cityName.value = getCityName(region.address).removeSpecialCitySuffix()
-            ?: getGeneralCityName(region.address)
-        _districtName.value =
-            getSuitableAddress(region.address, includeSi = false, toTrim = true) ?: ""
+        val address = region.address
+        _cityName.value = getSi(address, true).removeSpecialCitySuffix()
+            ?: getGeneralCityName(address)
+        _districtName.value = getDong(address, true) ?: getGu(address, true) ?: ""
     }
 
     private fun nullifyWeatherInfo() {
@@ -1260,7 +1260,9 @@ class WeatherViewModel(
         if ((xy.nx in (NX_MIN..NX_MAX)) && (xy.ny in (NY_MIN..NY_MAX))) {
             KoreanGeocoder(context).updateAddresses(coordinates) { addresses ->
                 if (addresses != null) {
-                    val locatedRegion = ForecastRegion(address = getFirstSuitableAddress(addresses), xy = xy)
+                    val suitableAddress = getSuitableAddress(addresses)
+                    if (DEBUG_FLAG) Log.d(TAG, "Suitable address(located): $suitableAddress")
+                    val locatedRegion = ForecastRegion(address = suitableAddress, xy = xy)
                     updateForecastRegion(locatedRegion, isSecondary)
                 } else showLocationError(coordinates)
             }
@@ -1268,19 +1270,6 @@ class WeatherViewModel(
             showLocationError(coordinates)
         }
     }
-
-    /**
-     * Returns the first suitable address from [addresses],
-     * expecting that the front elements are the ones people are more familiar with.
-     * */
-    private fun getFirstSuitableAddress(addresses: List<Address>): String {
-        for (address in addresses) {
-            val addressLine = address.getAddressLine(0)
-            val suitableAddress = getSuitableAddress(addressLine, includeSi = false, toTrim = false)
-            if (suitableAddress != null) return suitableAddress
-        }
-            return removeTailingNumbers(addresses[0].getAddressLine(0))
-        }
 
     private fun showLocationError(coordinates: CoordinatesLatLon) {
         Log.e(LOCATION_TAG, "Error retrieving a city name(${coordinates.lat}, ${coordinates.lon}).")
@@ -1402,9 +1391,7 @@ class WeatherViewModel(
                                                 // (different ForecastRegion with the same "address")
                                                 if (searchResults.isNotEmpty()) {
                                                     var toAdd = true
-                                                    Log.i(TAG, "searched vs already-added")
                                                     for (result in searchResults) {
-                                                        Log.i(TAG, "$address\t\t${result.address}")
                                                         if (result.address == address) {
                                                             // Duplicate addresses
                                                             toAdd = false  // Not to add
@@ -1469,7 +1456,8 @@ class WeatherViewModel(
             val fullAddress = address.getAddressLine(0)
 
             if (Regex("[시도군구동읍면리]$").containsMatchIn(fullAddress)) {
-                val suitableAddress = getSuitableAddress(fullAddress, includeSi = true, toTrim = false)
+                val suitableAddress = getDong(fullAddress, false) ?: getGu(fullAddress, false) ?: getSi(fullAddress, false)
+                if (DEBUG_FLAG) Log.d(TAG, "Suitable address(searched): $suitableAddress")
                 if (suitableAddress != null) addressCandidates.add(suitableAddress)
             }
         }
