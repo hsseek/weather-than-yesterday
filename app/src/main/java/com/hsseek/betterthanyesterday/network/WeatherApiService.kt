@@ -15,13 +15,18 @@ import java.util.concurrent.TimeUnit
 private const val BASE_URL = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/"
 private const val DATA_TYPE_JSON = "JSON"
 private const val TAG = "WeatherApiService"
-const val NETWORK_TIMEOUT = 7_200L
+private const val RESPONSE_BODY_LOG_BYTE_MAX: Long = 40 * 1024
+const val NETWORK_TIMEOUT_MIN = 1_200L
+const val NETWORK_ADDITIONAL_TIMEOUT = 1_200L
+const val NETWORK_TIMEOUT_MAX = 7_200L
+const val NETWORK_PAUSE = 150L
+const val NETWORK_MAX_RETRY = 8
 
 private val interceptor = KmaResponseInterceptor()
 
 private var client = OkHttpClient.Builder()
-    .readTimeout(NETWORK_TIMEOUT * 4, TimeUnit.MILLISECONDS)
-    .connectTimeout(NETWORK_TIMEOUT * 4, TimeUnit.MILLISECONDS)
+    .readTimeout(NETWORK_TIMEOUT_MAX * 4, TimeUnit.MILLISECONDS)
+    .connectTimeout(NETWORK_TIMEOUT_MAX * 4, TimeUnit.MILLISECONDS)
     .addInterceptor(interceptor)
     .build()
 
@@ -139,7 +144,9 @@ private class KmaResponseInterceptor: Interceptor {
         val url = response.request.url.toString().replace(SERVICE_KEY, "")
 
         val t2 = System.currentTimeMillis()
-        val responseSummary = "\n<- Received response in ${(t2 - t1)} ms\n${url}\n${response.peekBody(2048).string()}\n"
+        val responseSummary = "\n<- Received response in ${(t2 - t1)} ms\n" +
+                "${url}\n" +
+                "${response.peekBody(RESPONSE_BODY_LOG_BYTE_MAX).string()}\n"
         if (DEBUG_FLAG) Log.d(TAG, responseSummary)
         responseBuilder.append(responseSummary)
 
