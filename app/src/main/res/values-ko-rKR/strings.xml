@@ -103,4 +103,5 @@
     <string name="snack_bar_go_setting_action">설정</string>
     <string name="top_bar_report_error">오류 신고</string>
     <string name="top_bar_report_error_explanation">아래는 서버로부터 가장 마지막으로 수신된 데이터입니다. 아래 데이터를 같이 보내주시면 문제 상황을 파악하는 데 큰 도움이 됩니다.</string>
+    <string name="toast_refreshing_ongoing">새로고침 중입니다</string>
 </resources>

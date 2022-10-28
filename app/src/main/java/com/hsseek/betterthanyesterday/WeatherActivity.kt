@@ -886,7 +886,7 @@ class WeatherActivity : ComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // The title
-            val cal = Calendar.getInstance()
+            val cal = viewModel.referenceCal
             cal.add(Calendar.HOUR_OF_DAY, 1)
             val nextHour = cal.get(Calendar.HOUR_OF_DAY)
             val hourString =
@@ -1135,13 +1135,18 @@ class WeatherActivity : ComponentActivity() {
                         hourDescription = ""
                     }
                     is Bad -> {
-                        if (sky.endingHour < getCurrentKoreanDateTime().get(Calendar.HOUR_OF_DAY)) {
+                        if (sky.endingHour < viewModel.referenceCal.get(Calendar.HOUR_OF_DAY)) {
                             // It has stopped. The rest of the day is sunny.
                             qualitative = stringResource(R.string.today_sunny)
                             hourDescription = ""
                         } else {
                             hourDescription =
-                                getRainfallHourDescription(this@WeatherActivity, sky.startingHour, sky.endingHour)
+                                getRainfallHourDescription(
+                                    this@WeatherActivity,
+                                    sky.startingHour,
+                                    sky.endingHour,
+                                    cal = viewModel.referenceCal
+                                )
                             qualitative = when (sky) {
                                 is Rainy -> stringResource(R.string.today_rainy)
                                 is Snowy -> stringResource(R.string.today_snowy)
@@ -1356,7 +1361,7 @@ internal fun getRainfallHourDescription(
     context: Context,
     startingHour: Int,
     endingHour: Int,
-    cal: Calendar = getCurrentKoreanDateTime(),
+    cal: Calendar,
 ): String {
     val openingString: String
     val closingString: String

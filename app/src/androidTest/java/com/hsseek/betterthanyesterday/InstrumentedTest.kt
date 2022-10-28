@@ -5,6 +5,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
 import com.hsseek.betterthanyesterday.location.KoreanGeocoder
+import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
 
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,7 +37,7 @@ class InstrumentedTest {
         val query = "서울"
 
         val time = measureTimeMillis { geo.updateLatLng(query, maxResult) {} }
-        Log.d(tag, "Done in $time ms")
+        if (DEBUG_FLAG) Log.d(tag, "Done in $time ms")
         // assertEquals(37.24293628036336, coordinate.lat, 1e-5)
         // assertEquals(131.8668420793528, coordinate.lon, 1e-5)
 
@@ -53,54 +54,54 @@ class InstrumentedTest {
         val time = measureTimeMillis {
             geo.updateAddresses(CoordinatesLatLon(lat, lon), maxResult) { }
         }
-        Log.d(tag,"Done in $time ms")
+        if (DEBUG_FLAG) Log.d(tag,"Done in $time ms")
     }
 
     @Test
     fun rainfallTest() {
         val tag = "Rainfall"
         val cal = Calendar.getInstance()
-        Log.d(tag, "23 ~ 23")
+        if (DEBUG_FLAG) Log.d(tag, "23 ~ 23")
         cal.set(2022, 10, 12, 21, 8)
-        Log.d(tag, getRainfallHourDescription(appContext, 2300, 2300, cal))
+        if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2300, 2300, cal))
 
         cal.set(2022, 10, 12, 23, 8)
-        Log.d(tag, getRainfallHourDescription(appContext, 2300, 2300, cal))
+        if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2300, 2300, cal))
 
-        Log.d(tag, "21 ~ 23")
+        if (DEBUG_FLAG) Log.d(tag, "21 ~ 23")
         cal.set(2022, 10, 12, 18, 8)
-        Log.d(tag, getRainfallHourDescription(appContext, 2100, 2300, cal))
+        if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2100, 2300, cal))
 
         cal.set(2022, 10, 12, 21, 8)
-        Log.d(tag, getRainfallHourDescription(appContext, 2100, 2300, cal))
+        if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2100, 2300, cal))
 
         cal.set(2022, 10, 12, 22, 8)
-        Log.d(tag, getRainfallHourDescription(appContext, 2100, 2300, cal))
+        if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2100, 2300, cal))
 
         cal.set(2022, 10, 12, 23, 8)
-        Log.d(tag, getRainfallHourDescription(appContext, 2100, 2300, cal))
+        if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2100, 2300, cal))
 
-        Log.d(tag, "22 ~ 22")
+        if (DEBUG_FLAG) Log.d(tag, "22 ~ 22")
         cal.set(2022, 10, 12, 18, 8)
-        Log.d(tag, getRainfallHourDescription(appContext, 2200, 2200, cal))
+        if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2200, 2200, cal))
 
         cal.set(2022, 10, 12, 22, 8)
-        Log.d(tag, getRainfallHourDescription(appContext, 2200, 2200, cal))
+        if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2200, 2200, cal))
 
         cal.set(2022, 10, 12, 23, 8)
-        Log.d(tag, getRainfallHourDescription(appContext, 2200, 2200, cal))
+        if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2200, 2200, cal))
 
-        Log.d(tag, "20 ~ 23")
+        if (DEBUG_FLAG) Log.d(tag, "20 ~ 23")
         cal.set(2022, 10, 12, 18, 8)
-        Log.d(tag, getRainfallHourDescription(appContext, 2000, 2200, cal))
+        if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2000, 2200, cal))
 
         cal.set(2022, 10, 12, 20, 8)
-        Log.d(tag, getRainfallHourDescription(appContext, 2000, 2200, cal))
+        if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2000, 2200, cal))
 
         cal.set(2022, 10, 12, 21, 8)
-        Log.d(tag, getRainfallHourDescription(appContext, 2000, 2200, cal))
+        if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2000, 2200, cal))
 
         cal.set(2022, 10, 12, 22, 8)
-        Log.d(tag, getRainfallHourDescription(appContext, 2000, 2200, cal))
+        if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2000, 2200, cal))
     }
 }

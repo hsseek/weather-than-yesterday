@@ -24,6 +24,7 @@ const val LOCATION_TAG = "Location"
 const val VILLAGE_ROWS_PER_HOUR = 12
 const val VILLAGE_EXTRA_ROWS = 2
 const val VILLAGE_HOUR_INTERVAL = 3
+const val VILLAGE_DELAYED_MINUTES = 10
 const val NX_MIN = 21
 const val NX_MAX = 144
 const val NY_MIN = 8
@@ -50,8 +51,13 @@ data class KmaTime(val date: String, val hour: String){
     }
 }
 
-
-fun Calendar.hour(): Int = this.get(Calendar.HOUR_OF_DAY)
+/**
+ * Returns hour of a day: 1, 2, ..., 24.(not including 0)
+ * */
+fun Calendar.hour(): Int {
+    val hour = this.get(Calendar.HOUR_OF_DAY)
+    return if (hour == 0) 24 else hour
+}
 private fun Calendar.minute(): Int = this.get(Calendar.MINUTE)
 
 fun getCurrentKoreanDateTime(): Calendar {
@@ -76,7 +82,7 @@ fun getKmaBaseTime(
     if (dayOffset != 0) calValues.add(Calendar.DAY_OF_YEAR, dayOffset)
     if (hourOffset != 0) calValues.add(Calendar.HOUR_OF_DAY, hourOffset)
 
-    val isHourAvailable: Boolean = if (roundOff == KmaHourRoundOff.Village) calValues.minute() > 10 else false
+    val isHourAvailable: Boolean = if (roundOff == KmaHourRoundOff.Village) calValues.minute() > VILLAGE_DELAYED_MINUTES else false
 
     if (!isHourAvailable) {
         // The data for the current hour are not available. Use the previous hour.
@@ -105,19 +111,8 @@ fun getKmaBaseTime(
     )
 }
 
-fun formatToKmaDate(cal: Calendar = getCurrentKoreanDateTime()): String = SimpleDateFormat(DATE_FORMAT, Locale.KOREA).format(cal.time)
-fun formatToKmaHour(cal: Calendar = getCurrentKoreanDateTime()): String = SimpleDateFormat(HOUR_FORMAT, Locale.KOREA).format(cal.time)
-
-fun getYesterdayVillageCalendar(cal: Calendar): Calendar {
-    val calValue = cal.clone() as Calendar
-    calValue.add(Calendar.DAY_OF_YEAR, -1)  // Yesterday
-
-    val hour = calValue.hour()
-    if (hour % 3 == 2) {
-        calValue.add(Calendar.HOUR_OF_DAY, -VILLAGE_HOUR_INTERVAL)  // 5:?? -> 2:?? -> 2:00
-    }
-    return calValue
-}
+fun formatToKmaDate(cal: Calendar): String = SimpleDateFormat(DATE_FORMAT, Locale.KOREA).format(cal.time)
+fun formatToKmaHour(cal: Calendar): String = SimpleDateFormat(HOUR_FORMAT, Locale.KOREA).format(cal.time)
 
 fun logElapsedTime(tag: String, task: String, startTime: Long) {
     val elapsedSec = (System.currentTimeMillis() - startTime) / 1000.0
@@ -164,6 +159,5 @@ fun Int.toEmojiString(): String = String(Character.toChars(this))
 fun Boolean.toEnablementString(): String = if (this) "enabled" else "disabled"
 fun ForecastRegion.toRegionString(): String = "${this.address} (${this.xy.nx}, ${this.xy.ny})"
 fun KmaTime.toTimeString(): String = "${this.date}-${this.hour}"
-fun Long.format(digits: Int) = "%.${digits}f".format(this)
 
 enum class KmaHourRoundOff { Hour, Village }

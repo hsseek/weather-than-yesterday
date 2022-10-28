@@ -16,7 +16,7 @@ private const val BASE_URL = "http://apis.data.go.kr/1360000/VilageFcstInfoServi
 private const val DATA_TYPE_JSON = "JSON"
 private const val TAG = "WeatherApiService"
 private const val RESPONSE_BODY_LOG_BYTE_MAX: Long = 40 * 1024
-const val NETWORK_TIMEOUT_MIN = 1_200L
+const val NETWORK_TIMEOUT_MIN = 2_400L
 const val NETWORK_ADDITIONAL_TIMEOUT = 1_200L
 const val NETWORK_TIMEOUT_MAX = 7_200L
 const val NETWORK_PAUSE = 150L
@@ -121,35 +121,39 @@ object WeatherApi {
     val service: WeatherApiService by lazy {
         retrofit.create(WeatherApiService::class.java)
     }
-    private val responseBuilder = interceptor.responseBuilder
+    private val responseBuilder = interceptor.responseBuffer
 
     fun getResponseString(): String = responseBuilder.toString()
     fun clearResponseString() {
         if (responseBuilder.isNotEmpty()) {
             if (DEBUG_FLAG) Log.d(TAG, "Weather response cleared.")
-            responseBuilder.clear()
+            responseBuilder.setLength(0)
         }
     }
 }
 
 private class KmaResponseInterceptor: Interceptor {
-    val responseBuilder = StringBuilder()
+    // StringBuilder is not synchronized and throws ArrayOutOfIndex Exception on Okhttp logging occasionally.
+    // Use StringBuffer instead.
+    val responseBuffer = StringBuffer()
     override fun intercept(chain: Interceptor.Chain): okhttp3.Response {
         val request = chain.request()
-
-        val t1 = System.currentTimeMillis()
-        if (DEBUG_FLAG) Log.d(TAG, "--> Sending request ${request.url} on ${chain.connection()} ${request.headers}")
-
         val response: okhttp3.Response = chain.proceed(request)
-        val url = response.request.url.toString().replace(SERVICE_KEY, "")
 
-        val t2 = System.currentTimeMillis()
-        val responseSummary = "\n<- Received response in ${(t2 - t1)} ms\n" +
-                "${url}\n" +
-                "${response.peekBody(RESPONSE_BODY_LOG_BYTE_MAX).string()}\n"
-        if (DEBUG_FLAG) Log.d(TAG, responseSummary)
-        responseBuilder.append(responseSummary)
+        try {
+            val t1 = System.currentTimeMillis()
+            if (DEBUG_FLAG) Log.d(TAG, "-> Sending request ${request.url} on ${chain.connection()} ${request.headers}")
+            val url = response.request.url.toString().replace(SERVICE_KEY, "")
 
+            val t2 = System.currentTimeMillis()
+            val responseSummary = "\n<- Received response in ${(t2 - t1)} ms\n" +
+                    "${url}\n" +
+                    "${response.peekBody(RESPONSE_BODY_LOG_BYTE_MAX).string()}\n"
+            if (DEBUG_FLAG) Log.d(TAG, responseSummary)
+            responseBuffer.append(responseSummary)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error while intercept(...).")
+        }
         return response
     }
 }

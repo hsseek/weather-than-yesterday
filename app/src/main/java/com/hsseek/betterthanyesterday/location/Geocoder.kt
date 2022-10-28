@@ -137,11 +137,6 @@ class KoreanGeocoder(context: Context) {
     }
 }
 
-
-fun getGeneralCityName(address: String): String {
-    return address.split(" ").first()  // The most upper class name
-}
-
 fun String?.removeSpecialCitySuffix(): String? {
     this?.let {
         if (Regex("시(?:\\s|$)").containsMatchIn(this)) {
@@ -167,8 +162,9 @@ fun removeTailingNumbers(address: String): String {
  * */
 fun getDong(address: String, toTrim: Boolean): String? {
     val regexDong = Regex("(\\S.+\\s)(\\S+?[동리])(?:\\s|$)")
+    val regexStreet = Regex("(\\S{2,}거리)(?:\\s|\$)")
 
-    val dong = if (regexDong.containsMatchIn(address)) {
+    val dong = if (regexDong.containsMatchIn(address) && !regexStreet.containsMatchIn(address)) {
         val regexWithNumber = Regex("(\\S.+\\s)(\\S+?)\\d{1,2}([동리])(?:\\s|\$)")
         if (!regexWithNumber.containsMatchIn(address)) {  // No numbers, no need to modify.
             val matches = regexDong.find(address)
@@ -237,6 +233,15 @@ fun getSi(address: String, toTrim: Boolean): String? {
         Regex("(\\S.+[시도])(?:\\s|$)").find(address)?.groupValues?.get(1)
     }
     return si
+}
+
+fun getGeneralCityName(address: String): String {
+    return if (
+        address.endsWith("지역") ||
+        address.endsWith("region", ignoreCase = true)
+    ) address else {
+        address.split(" ").first()  // The most upper class name
+    }
 }
 
 fun getSuitableAddress(addresses: List<Address>): String {

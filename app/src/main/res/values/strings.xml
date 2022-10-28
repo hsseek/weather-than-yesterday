@@ -107,4 +107,5 @@
     <string name="snack_bar_go_setting_action">Settings</string>
     <string name="top_bar_report_error">Report error</string>
     <string name="top_bar_report_error_explanation">The following is the last data received from the server. If you attach it, it greatly helps to identify the problem.</string>
+    <string name="toast_refreshing_ongoing">Refreshing ongoing</string>
 </resources>
