@@ -59,6 +59,12 @@ class UnitTest {
     }
 
     @Test
+    fun connection() {
+        assertEquals(true, isServerReachable())
+        assertEquals(false, isServerReachable("bad_url"))
+    }
+
+    @Test
     fun is_raining() {
         val RAIN_TAG = "PTY"
         val todayHourlyData = DUMMY_SHORT_TERM_FORECAST_SNOWY

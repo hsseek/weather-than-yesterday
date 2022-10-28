@@ -10,6 +10,8 @@ import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
+import java.net.URL
+import java.net.URLConnection
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -145,6 +147,20 @@ fun getLocaleFromCode(code: Int): Locale {
         else -> Locale.getDefault().language
     }
     return Locale(isoCode)
+}
+
+fun isServerReachable(
+    url: String = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst",
+    timeout: Int = 2000
+): Boolean {
+    return try {
+        val connection: URLConnection = URL(url).openConnection()
+        connection.connectTimeout = timeout
+        connection.connect()
+        true
+    } catch (e: Exception) {
+        false
+    }
 }
 
 fun Job.status(): String = when {

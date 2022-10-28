@@ -28,7 +28,6 @@ import com.hsseek.betterthanyesterday.data.Language
 import com.hsseek.betterthanyesterday.data.PresetRegion
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.*
-import com.hsseek.betterthanyesterday.location.convertToXy
 import com.hsseek.betterthanyesterday.network.*
 import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.Hour
@@ -40,8 +39,8 @@ import retrofit2.Response
 import java.io.IOException
 import java.net.UnknownHostException
 import java.util.*
-import kotlin.collections.HashSet
 import kotlin.math.roundToInt
+
 
 private const val TAG = "WeatherViewModel"
 private const val DATA_TAG = "KMA-Data"
@@ -1139,7 +1138,13 @@ class WeatherViewModel(
         } else {
             if (!isSecondary) {
                 viewModelScope.launch(defaultDispatcher) {
-                    _toastMessage.value = ToastEvent(R.string.toast_refresh_up_to_date)
+                    if (isServerReachable()) {
+                        _isRefreshing.value = true
+                        _toastMessage.value = ToastEvent(R.string.toast_refresh_up_to_date)
+                        _isRefreshing.value = false
+                    } else {
+                        _toastMessage.value = ToastEvent(R.string.toast_refresh_not_reachable)
+                    }
                 }
             }
         }
