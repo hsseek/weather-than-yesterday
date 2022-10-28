@@ -1347,10 +1347,12 @@ fun convertToRadioItemList(searchResults: List<ForecastRegion>): List<RadioItem>
 @Composable
 fun isWidthLong(): Boolean {
     val config = LocalConfiguration.current
-    val screenHeight = config.screenHeightDp
     val screenWidth = config.screenWidthDp
-    val ratio = (screenHeight/screenWidth.toFloat())
-    return ratio < 1.28
+    return if (screenWidth < 400) false else {
+        val screenHeight = config.screenHeightDp
+        val ratio = (screenHeight/screenWidth.toFloat())
+        ratio < 1.28
+    }
 }
 
 /**

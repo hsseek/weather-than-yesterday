@@ -178,30 +178,30 @@ private fun MainScreen(
                     onClickRow = { viewModel.onClickLanguage() }
                 )
 
-                // Disabled
                 // Simple View
                 PreferenceToggleRow(
                     title = stringResource(R.string.pref_title_simple_mode),
                     description = stringResource(R.string.pref_desc_simple_mode),
-                    enabled = DEBUG_FLAG,
                     checked = viewModel.isSimplified,
                     isSpecial = highlightedIndex == 1,
                     onClickHelp = { viewModel.onClickSimpleViewHelp() },
                     onCheckedChange = { isChecked -> viewModel.updateSimpleViewEnabled(isChecked) }
                 )
 
-                // To be released
+                // Disabled
                 // Auto Refresh
-                if (DEBUG_FLAG) {
-                    PreferenceToggleRow(
-                        title = stringResource(R.string.pref_title_auto_refresh),
-                        description = stringResource(R.string.pref_desc_auto_refresh),
-                        checked = viewModel.isAutoRefresh,
-                        isSpecial = highlightedIndex == 2,
-                        onClickHelp = { viewModel.onClickAutoRefreshHelp() },
-                        onCheckedChange = { isChecked -> viewModel.updateAutoRefreshEnabled(isChecked) },
-                    )
+                PreferenceToggleRow(
+                    title = stringResource(R.string.pref_title_auto_refresh),
+                    description = stringResource(R.string.pref_desc_auto_refresh),
+                    enabled = DEBUG_FLAG,
+                    checked = viewModel.isAutoRefresh,
+                    isSpecial = highlightedIndex == 2,
+                    onClickHelp = { viewModel.onClickAutoRefreshHelp() },
+                    onCheckedChange = { isChecked -> viewModel.updateAutoRefreshEnabled(isChecked) },
+                )
 
+                // To be released
+                if (DEBUG_FLAG) {
                     // Daybreak mode
                     PreferenceToggleRow(
                         title = stringResource(R.string.pref_title_daybreak_mode),
@@ -562,7 +562,7 @@ fun RadioSelectDialog(
 
 class RadioItem(val code: Int, val title: String, val desc: String? = null)
 
-//@Preview(showBackground = true)
+@Preview(showBackground = true)
 @Composable
 fun RadioDialogPreview() {
     BetterThanYesterdayTheme {
