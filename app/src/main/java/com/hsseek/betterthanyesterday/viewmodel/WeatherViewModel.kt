@@ -32,6 +32,10 @@ import com.hsseek.betterthanyesterday.network.*
 import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.Hour
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.Village
+import com.hsseek.betterthanyesterday.widget.RefreshCallback
+import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_HOURLY_TEMP
+import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_TEMP_DIFF
+import com.hsseek.betterthanyesterday.widget.TemperatureWidgetReceiver
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -1082,6 +1086,14 @@ class WeatherViewModel(
             _hourlyTempToday.value = tt
             yesterdayTemp?.let { yt ->
                 _hourlyTempDiff.value = tt - yt
+
+                // Sync numbers shown in Widgets.
+                val intent = Intent(context, TemperatureWidgetReceiver::class.java).apply {
+                    action = RefreshCallback.UPDATE_ACTION
+                    putExtra(EXTRA_TEMP_DIFF, tt - yt)
+                    putExtra(EXTRA_HOURLY_TEMP, tt)
+                }
+                context.sendBroadcast(intent)
             }
         }
     }

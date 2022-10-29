@@ -20,6 +20,8 @@ import com.hsseek.betterthanyesterday.location.CoordinatesXy
 import com.hsseek.betterthanyesterday.network.*
 import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.viewmodel.VILLAGE_TEMPERATURE_TAG
+import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_HOURLY_TEMP
+import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_TEMP_DIFF
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import java.util.*
@@ -45,8 +47,34 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (DEBUG_FLAG) Log.d(TAG, "onReceive() called.")
-        if (intent.action == RefreshCallback.UPDATE_ACTION) {
+
+        // Refresh data.
+        if (intent.action == RefreshCallback.REFRESH_ACTION) {
             requestData(context)
+        }
+
+        // Update Widget with the numbers from Extra
+        if (intent.action == RefreshCallback.UPDATE_ACTION) {
+            val tempDiff = intent.extras?.getInt(EXTRA_TEMP_DIFF)
+            val hourlyTemp = intent.extras?.getInt(EXTRA_HOURLY_TEMP)
+
+            if (tempDiff != null && hourlyTemp != null) {
+                coroutineScope.launch {
+                    val glanceIdList = GlanceAppWidgetManager(context).getGlanceIds(TemperatureWidget::class.java)
+                    for (glanceId in glanceIdList) {
+                        updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
+                            if (DEBUG_FLAG) Log.d(TAG, "Temperature difference: $tempDiff")
+                            pref.toMutablePreferences().apply {
+                                this[REFRESHING_KEY] = false
+                                this[VALID_DATA_KEY] = true
+                                this[HOURLY_TEMPERATURE_PREFS_KEY] = hourlyTemp
+                                this[TEMPERATURE_DIFF_PREFS_KEY] = tempDiff
+                            }
+                        }
+                        glanceAppWidget.update(context, glanceId)
+                    }
+                }
+            }
         }
     }
 
@@ -204,12 +232,15 @@ class RefreshCallback : ActionCallback {
         parameters: ActionParameters
     ) {
         val intent = Intent(context, TemperatureWidgetReceiver::class.java).apply {
-            action = UPDATE_ACTION
+            action = REFRESH_ACTION
         }
         context.sendBroadcast(intent)
     }
 
     companion object {
+        const val REFRESH_ACTION = "refresh_action"
         const val UPDATE_ACTION = "update_action"
+        const val EXTRA_HOURLY_TEMP = "extra_hourly_temp"
+        const val EXTRA_TEMP_DIFF = "extra_temp_diff"
     }
 }
