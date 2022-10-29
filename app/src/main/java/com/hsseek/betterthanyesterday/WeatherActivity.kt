@@ -877,6 +877,7 @@ class WeatherActivity : ComponentActivity() {
         hourlyTempDiff: Int?,
         hourlyTemp: Int?,
         hugeFontSize: TextUnit = Typography.h1.fontSize,
+        cal: Calendar = viewModel.referenceCal,
     ) {
         val columnTopPadding = 16.dp
         val titleBottomPadding = 4.dp
@@ -886,27 +887,8 @@ class WeatherActivity : ComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // The title
-            val cal = viewModel.referenceCal
             cal.add(Calendar.HOUR_OF_DAY, 1)
-            val nextHour = cal.get(Calendar.HOUR_OF_DAY)
-            val hourString =
-                if (nextHour < 12) {
-                    stringResource(id = R.string.hour_am, nextHour)
-                } else if (nextHour > 12) {
-                    stringResource(id = R.string.hour_pm, nextHour - 12)
-                } else {
-                    stringResource(id = R.string.hour_pm, nextHour)  // i.e. 12 PM
-                }
-            val hourAndTemp = if (hourlyTemp == null) "" else {
-                if (!isSimplified) {
-                    stringResource(R.string.hourly_temp_value, hourString, hourlyTemp)
-                } else {
-                    stringResource(R.string.hourly_temp_value_simple, hourString, hourlyTemp)
-                }
-            }
-            val title = if (!isSimplified && hourlyTemp != null) {
-                "${stringResource(R.string.hourly_temp_title)}\n($hourAndTemp)"
-            } else hourAndTemp
+            val title = getHourString(this@WeatherActivity, cal, hourlyTemp, isSimplified)
 
             Text(
                 text = title,
@@ -945,14 +927,10 @@ class WeatherActivity : ComponentActivity() {
         ) {
             if (hourlyTempDiff != null) {
                 // The temperature difference
-                val color: Color = getTemperatureColor(hourlyTempDiff)
-                val diffString: String = if (hourlyTempDiff > 0) {
-                    "\u25B4 $hourlyTempDiff"
-                } else if (hourlyTempDiff < 0) {
-                    "\u25BE ${-hourlyTempDiff}"
-                } else {
-                    "="
-                }
+                val color: Color = if (isSystemInDarkTheme()) {
+                    getDarkTemperatureColor(hourlyTempDiff)
+                } else getLightTemperatureColor(hourlyTempDiff)
+                val diffString: String = getTempDiffString(hourlyTempDiff)
 
                 Text(
                     text = diffString,
@@ -1182,49 +1160,6 @@ class WeatherActivity : ComponentActivity() {
         }
     }
 
-    @Composable
-    private fun getTemperatureColor(hourlyTempDiff: Int) = if (isSystemInDarkTheme()) {
-        when {
-            hourlyTempDiff > 8 -> Red000
-            hourlyTempDiff == 7 -> RedTint100
-            hourlyTempDiff == 6 -> RedTint200
-            hourlyTempDiff == 5 -> RedTint300
-            hourlyTempDiff == 4 -> RedTint400
-            hourlyTempDiff == 3 -> RedTint500
-            hourlyTempDiff == 2 -> RedTint600
-            hourlyTempDiff == 1 -> RedTint700
-            hourlyTempDiff == 0 -> White
-            hourlyTempDiff == -1 -> CoolTint700
-            hourlyTempDiff == -2 -> CoolTint600
-            hourlyTempDiff == -3 -> CoolTint500
-            hourlyTempDiff == -4 -> CoolTint400
-            hourlyTempDiff == -5 -> CoolTint300
-            hourlyTempDiff == -6 -> CoolTint200
-            hourlyTempDiff == -7 -> CoolTint100
-            else -> Cool000
-        }
-    } else {
-        when {
-            hourlyTempDiff > 8 -> Red000
-            hourlyTempDiff == 7 -> Red000
-            hourlyTempDiff == 6 -> Red000
-            hourlyTempDiff == 5 -> Red000
-            hourlyTempDiff == 4 -> RedShade100
-            hourlyTempDiff == 3 -> RedShade200
-            hourlyTempDiff == 2 -> RedShade200
-            hourlyTempDiff == 1 -> RedShade300
-            hourlyTempDiff == 0 -> Black
-            hourlyTempDiff == -1 -> CoolShade400
-            hourlyTempDiff == -2 -> CoolShade300
-            hourlyTempDiff == -3 -> CoolShade200
-            hourlyTempDiff == -4 -> CoolShade100
-            hourlyTempDiff == -5 -> Cool000
-            hourlyTempDiff == -6 -> Cool000
-            hourlyTempDiff == -7 -> Cool000
-            else -> Cool000
-        }
-    }
-
     private enum class Ad(val url: String, val content: @Composable () -> Unit) {
         Eng(BLOG_URL, content = {
             Image(
@@ -1334,6 +1269,86 @@ private fun ProgressIndicatorDialog(
     }
 }
 
+fun getHourString(
+    context: Context,
+    cal: Calendar,
+    hourlyTemp: Int?,
+    isSimplified: Boolean,
+): String {
+    val nextHour = cal.get(Calendar.HOUR_OF_DAY)
+    val hourString =
+        if (nextHour < 12) {
+            context.getString(R.string.hour_am, nextHour)
+        } else if (nextHour > 12) {
+            context.getString(R.string.hour_pm, nextHour - 12)
+        } else {
+            context.getString(R.string.hour_pm, nextHour)  // i.e. 12 PM
+        }
+    val hourAndTemp = if (hourlyTemp == null) "" else {
+        if (!isSimplified) {
+            context.getString(R.string.hourly_temp_value, hourString, hourlyTemp)
+        } else {
+            context.getString(R.string.hourly_temp_value_simple, hourString, hourlyTemp)
+        }
+    }
+    val title = if (!isSimplified && hourlyTemp != null) {
+        "${context.getString(R.string.hourly_temp_title)}\n($hourAndTemp)"
+    } else hourAndTemp
+    return title
+}
+
+@Composable
+fun getLightTemperatureColor(hourlyTempDiff: Int) = when {
+    hourlyTempDiff > 8 -> Red000
+    hourlyTempDiff == 7 -> Red000
+    hourlyTempDiff == 6 -> Red000
+    hourlyTempDiff == 5 -> Red000
+    hourlyTempDiff == 4 -> RedShade100
+    hourlyTempDiff == 3 -> RedShade200
+    hourlyTempDiff == 2 -> RedShade200
+    hourlyTempDiff == 1 -> RedShade300
+    hourlyTempDiff == 0 -> Black
+    hourlyTempDiff == -1 -> CoolShade400
+    hourlyTempDiff == -2 -> CoolShade300
+    hourlyTempDiff == -3 -> CoolShade200
+    hourlyTempDiff == -4 -> CoolShade100
+    hourlyTempDiff == -5 -> Cool000
+    hourlyTempDiff == -6 -> Cool000
+    hourlyTempDiff == -7 -> Cool000
+    else -> Cool000
+}
+
+@Composable
+fun getDarkTemperatureColor(hourlyTempDiff: Int) = when {
+    hourlyTempDiff > 8 -> Red000
+    hourlyTempDiff == 7 -> RedTint100
+    hourlyTempDiff == 6 -> RedTint200
+    hourlyTempDiff == 5 -> RedTint300
+    hourlyTempDiff == 4 -> RedTint400
+    hourlyTempDiff == 3 -> RedTint500
+    hourlyTempDiff == 2 -> RedTint600
+    hourlyTempDiff == 1 -> RedTint700
+    hourlyTempDiff == 0 -> White
+    hourlyTempDiff == -1 -> CoolTint700
+    hourlyTempDiff == -2 -> CoolTint600
+    hourlyTempDiff == -3 -> CoolTint500
+    hourlyTempDiff == -4 -> CoolTint400
+    hourlyTempDiff == -5 -> CoolTint300
+    hourlyTempDiff == -6 -> CoolTint200
+    hourlyTempDiff == -7 -> CoolTint100
+    else -> Cool000
+}
+
+fun getTempDiffString(hourlyTempDiff: Int): String {
+    val diffString: String = if (hourlyTempDiff > 0) {
+        "\u25B4 $hourlyTempDiff"
+    } else if (hourlyTempDiff < 0) {
+        "\u25BE ${-hourlyTempDiff}"
+    } else {
+        "="
+    }
+    return diffString
+}
 
 fun convertToRadioItemList(searchResults: List<ForecastRegion>): List<RadioItem> {
     val builder = mutableListOf<RadioItem>()

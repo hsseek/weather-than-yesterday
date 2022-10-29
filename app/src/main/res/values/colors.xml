@@ -2,8 +2,13 @@
 <resources>
     <color name="primary">#FFFFD54F</color>  <!--Amber300-->
     <color name="secondary">#FFEC407A</color>  <!--Pink400-->
-    <color name="background">#FFFFFF</color>
-    <color name="on_background">#000000</color>
-    <color name="grey">#808080</color>
+    <color name="background">#FFFFFFFF</color>
+    <color name="background_alpha">#E3FFFFFF</color>
+    <color name="on_background">#FF000000</color>
+    <color name="grey">#FF808080</color>
     <color name="icon_pink">#FFEC407A</color>
+    <color name="light_blue_50">#FFE1F5FE</color>
+    <color name="light_blue_200">#FF81D4FA</color>
+    <color name="light_blue_600">#FF039BE5</color>
+    <color name="light_blue_900">#FF01579B</color>
 </resources>

@@ -181,7 +181,7 @@ private fun MainScreen(
                 // Simple View
                 PreferenceToggleRow(
                     title = stringResource(R.string.pref_title_simple_mode),
-                    description = stringResource(R.string.pref_desc_simple_mode),
+                    description = if (DEBUG_FLAG) stringResource(R.string.pref_desc_simple_mode) else stringResource(id = R.string.pref_desc_next_release),
                     enabled = DEBUG_FLAG,
                     checked = viewModel.isSimplified,
                     isSpecial = highlightedIndex == 1,

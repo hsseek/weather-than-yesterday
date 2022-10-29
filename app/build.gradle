@@ -10,8 +10,8 @@ android {
         applicationId "com.hsseek.betterthanyesterday"
         minSdk 26
         targetSdk 33
-        versionCode 10
-        versionName "0.90.0"
+        versionCode 11
+        versionName "0.90.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -36,6 +36,7 @@ android {
     }
     buildFeatures {
         compose true
+        viewBinding true
     }
     composeOptions {
         kotlinCompilerExtensionVersion compose_compiler
@@ -81,4 +82,7 @@ dependencies {
 
     // Swipe Refresh
     implementation "com.google.accompanist:accompanist-swiperefresh:0.26.5-rc"
+
+    // Glance
+    implementation "androidx.glance:glance-appwidget:1.0.0-SNAPSHOT"
 }

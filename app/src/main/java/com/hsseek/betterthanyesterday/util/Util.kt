@@ -62,7 +62,7 @@ fun Calendar.hour(): Int {
 }
 private fun Calendar.minute(): Int = this.get(Calendar.MINUTE)
 
-fun getCurrentKoreanDateTime(): Calendar {
+fun getCurrentKoreanTime(): Calendar {
     val timeZoneKorea = TimeZone.getTimeZone(TIME_ZONE)
     return Calendar.getInstance(timeZoneKorea)
 }

@@ -44,7 +44,7 @@ import kotlin.math.roundToInt
 
 private const val TAG = "WeatherViewModel"
 private const val DATA_TAG = "KMA-Data"
-private const val VILLAGE_TEMPERATURE_TAG = "TMP"
+const val VILLAGE_TEMPERATURE_TAG = "TMP"
 private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
 private const val SHORT_TERM_TEMPERATURE_TAG = "T1H"
@@ -65,7 +65,7 @@ class WeatherViewModel(
         get() = field.clone() as Calendar
         private set
     private fun refreshReferenceCal(): Calendar {  // THE TIME MACHINE
-        val now = getCurrentKoreanDateTime()
+        val now = getCurrentKoreanTime()
         if (DEBUG_FLAG) Log.d(TAG, "Reference time: ${now.time}")
         return now
     }
@@ -531,7 +531,7 @@ class WeatherViewModel(
 
                                         // At 4:00, the latest data start from fcstTime of 3:00.
                                         // the data for the target hour(5 AM) are on the 3rd page, and so on...
-                                        val pageNo = hoursToShift + cal.hour() - yesterdayVillageBaseTime.hour.toInt()/100 + 1
+                                        val pageNo = hoursToShift + cal.hour() - yesterdayVillageBaseTime.hour.toInt() / 100 + 1
                                         WeatherApi.service.getVillageWeather(
                                             baseDate = yesterdayVillageBaseTime.date,
                                             baseTime = yesterdayVillageBaseTime.hour,

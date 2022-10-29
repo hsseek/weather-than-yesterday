@@ -21,6 +21,9 @@ const val NETWORK_ADDITIONAL_TIMEOUT = 1_200L
 const val NETWORK_TIMEOUT_MAX = 7_200L
 const val NETWORK_PAUSE = 150L
 const val NETWORK_MAX_RETRY = 8
+const val WIDGET_TIMEOUT = 1_800L
+const val WIDGET_MAX_RETRY = 4
+
 
 private val interceptor = KmaResponseInterceptor()
 
