@@ -233,34 +233,6 @@ class WeatherViewModel(
         _rainfallStatus.value = Sky.Undetermined
     }
 
-    private fun isNullInfoIncluded(): Boolean {
-        var isNullPresent = false
-        if (_hourlyTempToday.value == null) {
-            if (DEBUG_FLAG) Log.d(TAG, "hourlyTempToday is null.")
-            isNullPresent = true
-        }
-        if (_hourlyTempDiff.value == null) {
-            if (DEBUG_FLAG) Log.d(TAG, "hourlyTempDiff is null.")
-            isNullPresent = true
-        }
-        if (_rainfallStatus.value == Sky.Undetermined) {
-            if (DEBUG_FLAG) Log.d(TAG, "Rainfall status is null.")
-            isNullPresent = true
-        }
-
-        for (dailyTemp in _dailyTemps.value) {
-            if (dailyTemp.highest == stringForNull) {
-                isNullPresent = true
-                if (DEBUG_FLAG) Log.d(TAG, "${dailyTemp.day} ${CharacteristicTempType.Highest} is null.")
-            }
-            if (dailyTemp.lowest == stringForNull) {
-                if (DEBUG_FLAG) Log.d(TAG, "${dailyTemp.day} ${CharacteristicTempType.Lowest} is null.")
-                isNullPresent = true
-            }
-        }
-        return isNullPresent
-    }
-
     private fun isNewDataReleased(): Boolean {  // I know the word 'data' is plural, but...
         for (tst in lastSuccessfulTimeArray) {
             if (tst == null) return true  // No former data
@@ -303,7 +275,7 @@ class WeatherViewModel(
             val d2LowTempData = WeatherData(tst = WeatherDataTimeStamp("D${DayOfInterest.Day2.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", condition = true))
             val yesterdayHighTempData = WeatherData(tst = WeatherDataTimeStamp("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Highest.descriptor}", condition = true))
             val yesterdayLowTempData = WeatherData(tst = WeatherDataTimeStamp("D${DayOfInterest.Yesterday.dayOffset}-${CharacteristicTempType.Lowest.descriptor}", condition = true))
-            val yesterdayShortTermTempData = WeatherData(tst = WeatherDataTimeStamp("D${DayOfInterest.Yesterday.dayOffset}-$SHORT_TERM_TEMPERATURE_TAG", condition = true))
+            val yesterdayComparingTempData = WeatherData(tst = WeatherDataTimeStamp("D${DayOfInterest.Yesterday.dayOffset}-$SHORT_TERM_TEMPERATURE_TAG", condition = true))
             val todayShortTermData = WeatherData(tst = WeatherDataTimeStamp("D${DayOfInterest.Today.dayOffset}-${SHORT_TERM_TEMPERATURE_TAG}", condition = true))
             // Conditional data holders: They can be empty purposely.
             val todayHighTempData = WeatherData(tst = WeatherDataTimeStamp(
@@ -317,16 +289,12 @@ class WeatherViewModel(
 
             val weatherDataArray = arrayOf(
                 todayFutureData,
-                tomorrowHighTempData,
-                tomorrowLowTempData,
-                d2HighTempData,
-                d2LowTempData,
-                yesterdayHighTempData,
-                yesterdayLowTempData,
-                yesterdayShortTermTempData,
+                tomorrowHighTempData, tomorrowLowTempData,
+                d2HighTempData, d2LowTempData,
+                yesterdayHighTempData, yesterdayLowTempData,
+                yesterdayComparingTempData,
                 todayShortTermData,
-                todayHighTempData,
-                todayLowTempData,
+                todayHighTempData, todayLowTempData,
             )
 
             val separator = "\n────────────────\n"
@@ -394,81 +362,28 @@ class WeatherViewModel(
                                 }
 
                                 // Responses to extract the highest/lowest temperatures of tomorrow and D2
-                                val futureDayHourSpan = 4  // 300 ~ 700, 1200 ~ 1600
-                                val futureDayRowCount = futureDayHourSpan * VILLAGE_ROWS_PER_HOUR + VILLAGE_EXTRA_ROWS
-                                val baseTime1 = 1100
-                                val baseTime2 = 2300  // of yesterday
-                                val pagesPerDay: Int = 24 / futureDayHourSpan
-
-                                val futureDayBaseTime: String
-                                val futureDayBaseDate: String
-                                val tomorrowHighTempPageNo: Int
-                                val tomorrowLowTempPageNo: Int
-                                if (latestVillageBaseTime.hour.toInt() in baseTime1 until baseTime2) {
-                                    // fcstTime starts from today 12:00.
-                                    futureDayBaseDate = today
-                                    futureDayBaseTime = baseTime1.toString()
-                                    tomorrowLowTempPageNo = 5
-                                    tomorrowHighTempPageNo = 7
-                                } else {
-                                    // fcstTime starts from today 00:00.
-                                    futureDayBaseDate = yesterday
-                                    futureDayBaseTime = baseTime2.toString()
-                                    tomorrowLowTempPageNo = 8
-                                    tomorrowHighTempPageNo = 10
-                                }
-                                if (DEBUG_FLAG) Log.d(TAG, "future base: $futureDayBaseDate-$futureDayBaseTime")
-
-                                val tomorrowHighTempResponse = if (tomorrowHighTempData.isValidReferring(referenceCal)) null else {
-                                    async(retrofitDispatcher) {
-                                        WeatherApi.service.getVillageWeather(
-                                            baseDate = futureDayBaseDate,  // Yesterday(23:00 only) or today
-                                            baseTime = futureDayBaseTime,
-                                            numOfRows = futureDayRowCount,
-                                            pageNo = tomorrowHighTempPageNo,
-                                            nx = forecastRegion.xy.nx,
-                                            ny = forecastRegion.xy.ny,
-                                        )
-                                    }
-                                }
+                                val tomorrowHighTempResponse = if (
+                                    tomorrowHighTempData.isValidReferring(referenceCal)
+                                ) null else getFutureDayCharTempAsync(cal, 1, forecastRegion.xy,
+                                    CharacteristicTempType.Highest
+                                )
 
                                 val tomorrowLowTempResponse = if (tomorrowLowTempData.isValidReferring(referenceCal)) null else {
-                                    async(retrofitDispatcher) {
-                                        WeatherApi.service.getVillageWeather(
-                                            baseDate = futureDayBaseDate,  // Yesterday(23:00 only) or today
-                                            baseTime = futureDayBaseTime,
-                                            numOfRows = futureDayRowCount,
-                                            pageNo = tomorrowLowTempPageNo,
-                                            nx = forecastRegion.xy.nx,
-                                            ny = forecastRegion.xy.ny,
-                                        )
-                                    }
+                                    getFutureDayCharTempAsync(cal, 1, forecastRegion.xy,
+                                        CharacteristicTempType.Lowest
+                                    )
                                 }
 
                                 val d2HighTempResponse = if (d2HighTempData.isValidReferring(referenceCal)) null else {
-                                    async(retrofitDispatcher) {
-                                        WeatherApi.service.getVillageWeather(
-                                            baseDate = futureDayBaseDate,  // Yesterday(23:00 only) or today
-                                            baseTime = futureDayBaseTime,
-                                            numOfRows = futureDayRowCount,
-                                            pageNo = tomorrowHighTempPageNo + pagesPerDay,
-                                            nx = forecastRegion.xy.nx,
-                                            ny = forecastRegion.xy.ny,
-                                        )
-                                    }
+                                    getFutureDayCharTempAsync(cal, 2, forecastRegion.xy,
+                                        CharacteristicTempType.Highest
+                                    )
                                 }
 
                                 val d2LowTempResponse = if (d2LowTempData.isValidReferring(referenceCal)) null else {
-                                    async(retrofitDispatcher) {
-                                        WeatherApi.service.getVillageWeather(
-                                            baseDate = futureDayBaseDate,  // Yesterday(23:00 only) or today
-                                            baseTime = futureDayBaseTime,
-                                            numOfRows = futureDayRowCount,
-                                            pageNo = tomorrowLowTempPageNo + pagesPerDay,
-                                            nx = forecastRegion.xy.nx,
-                                            ny = forecastRegion.xy.ny,
-                                        )
-                                    }
+                                    getFutureDayCharTempAsync(cal, 2, forecastRegion.xy,
+                                        CharacteristicTempType.Lowest
+                                    )
                                 }
 
                                 val latestVillageHour = latestVillageBaseTime.hour.toInt()
@@ -524,9 +439,8 @@ class WeatherViewModel(
                                     }
                                 }
 
-                                // Not really hourly: VillageWeather with retaining the old name for readability.
-                                val yesterdayHourlyTempResponse = if (yesterdayShortTermTempData.isValidReferring(referenceCal)) null else {
-                                    getHourlyTempAsync(forecastRegion.xy, cal, dayOffset = -1, yesterdayShortTermTempData.tst.tag, isCalModified)
+                                val yesterdayComparingTempResponse = if (yesterdayComparingTempData.isValidReferring(referenceCal)) null else {
+                                    getHourlyTempAsync(forecastRegion.xy, cal, dayOffset = -1, yesterdayComparingTempData.tst.tag, isCalModified)
                                 }
 
                                 /* Deprecated: Short-term forecasts are not reliable: data absent, wrong data(20 C at 8 AM of the 26th of Oct).
@@ -631,7 +545,7 @@ class WeatherViewModel(
                                 d2LowTempResponse?.let { d2LowTempData.updateContents(it.await().body()?.response?.body?.items?.item ?: emptyList(), referenceCal) }
                                 yesterdayHighTempResponse?.let { yesterdayHighTempData.updateContents(it.await().body()?.response?.body?.items?.item ?: emptyList(), referenceCal) }
                                 yesterdayLowTempResponse?.let { yesterdayLowTempData.updateContents(it.await().body()?.response?.body?.items?.item ?: emptyList(), referenceCal) }
-                                yesterdayHourlyTempResponse?.let { yesterdayShortTermTempData.updateContents(it.await().body()?.response?.body?.items?.item ?: emptyList(), referenceCal) }
+                                yesterdayComparingTempResponse?.let { yesterdayComparingTempData.updateContents(it.await().body()?.response?.body?.items?.item ?: emptyList(), referenceCal) }
                                 todayShortTermResponse?.let { todayShortTermData.updateContents(it.await().body()?.response?.body?.items?.item ?: emptyList(), referenceCal) }
                                 todayHighTempResponse?.let { todayHighTempData.updateContents(it.await().body()?.response?.body?.items?.item ?: emptyList(), referenceCal) }
                                 todayLowTempResponse?.let { todayLowTempData.updateContents(it.await().body()?.response?.body?.items?.item ?: emptyList(), referenceCal) }
@@ -649,7 +563,10 @@ class WeatherViewModel(
                                         } else {
                                             for (item in it.contents) {
                                                 if (item.category == SHORT_TERM_TEMPERATURE_TAG ||
-                                                    item.category == VILLAGE_TEMPERATURE_TAG) {
+                                                    item.category == VILLAGE_TEMPERATURE_TAG ||
+                                                    item.category == HIGH_TEMPERATURE_TAG ||
+                                                    item.category == LOW_TEMPERATURE_TAG
+                                                ) {
                                                     dataReport.appendAndLog(it.tst.tag, "$item")
                                                 }
                                                 size++
@@ -666,7 +583,7 @@ class WeatherViewModel(
                                 launch {
                                     refreshCharacteristicTemp(DayOfInterest.Yesterday, yesterdayHighTempData.contents, yesterdayLowTempData.contents)
                                     // Refresh the hourly temperature and the difference(dependant to yesterday's highest/lowest temperature).
-                                    refreshHourlyTemp(cal, isCalModified, todayFutureData.contents, yesterdayShortTermTempData.contents)
+                                    refreshHourlyTemp(cal, isCalModified, todayFutureData.contents, yesterdayComparingTempData.contents)
                                 }
 
                                 // Refresh the rainfall status.
@@ -676,7 +593,16 @@ class WeatherViewModel(
                             adjustTodayCharTemp()
                             buildDailyTemps()
 
-                            if (isNullInfoIncluded()) throw JsonSyntaxException("No Data(Result code: 03)")
+                            // Check whether Views can be composed.
+                            checkNullInfo(
+                                todayFutureData,
+                                tomorrowHighTempData, tomorrowLowTempData,
+                                d2HighTempData, d2LowTempData,
+                                yesterdayHighTempData, yesterdayLowTempData,
+                                yesterdayComparingTempData,
+                                // todayShortTermData: WeatherData is not included.
+                                todayHighTempData, todayLowTempData,
+                            )
                         }
                         break
                     } catch (e: Exception) {
@@ -756,6 +682,78 @@ class WeatherViewModel(
                     }
                 }
             }
+        }
+    }
+
+    private fun checkNullInfo(
+        todayFutureData: WeatherData,
+        tomorrowHighTempData: WeatherData, tomorrowLowTempData: WeatherData,
+        d2HighTempData: WeatherData, d2LowTempData: WeatherData,
+        yesterdayHighTempData: WeatherData, yesterdayLowTempData: WeatherData,
+        yesterdayComparingTempData: WeatherData,
+        // todayShortTermData: WeatherData is not included.
+        todayHighTempData: WeatherData, todayLowTempData: WeatherData,
+    ) {
+        // Hourly temperatures
+        if (_hourlyTempToday.value == null) {
+            todayFutureData.invalidate()
+            throw JsonSyntaxException("No Data for today's hourly temp.")
+        } else if (_hourlyTempDiff.value == null) {
+            yesterdayComparingTempData.invalidate()
+            throw JsonSyntaxException("No Data for yesterday's hourly temp.")
+        }
+        // Rainfall status
+        if (_rainfallStatus.value == Sky.Undetermined) {
+            // todayShortTermData.invalidate()  "Safe mode" fetching Village data only
+            todayFutureData.invalidate()
+            throw JsonSyntaxException("No Data for rainfall status.")
+        }
+        // Daily temperatures,
+        // from yesterday,
+        if (dailyTemps[0].highest == stringForNull) {
+            if (DEBUG_FLAG) Log.d(
+                TAG,
+                "D${DayOfInterest.Yesterday.dayOffset} ${CharacteristicTempType.Highest} is null."
+            )
+            yesterdayHighTempData.invalidate()
+            throw JsonSyntaxException("No Data for yesterday's highest temperature.")
+        }
+        if (dailyTemps[0].lowest == stringForNull) {
+            if (DEBUG_FLAG) Log.d(
+                TAG,
+                "D${DayOfInterest.Yesterday.dayOffset} ${CharacteristicTempType.Lowest} is null."
+            )
+            yesterdayLowTempData.invalidate()
+            throw JsonSyntaxException("No Data for yesterday's lowest temperature.")
+        }
+        // today,
+        if (dailyTemps[1].highest == stringForNull) {
+            todayFutureData.invalidate()
+            if (todayHighTempData.tst.condition) todayHighTempData.invalidate()
+            throw JsonSyntaxException("No Data for today's highest temperature.")
+        }
+        if (dailyTemps[1].lowest == stringForNull && todayLowTempData.tst.condition) {
+            todayFutureData.invalidate()
+            if (todayLowTempData.tst.condition) todayLowTempData.invalidate()
+            throw JsonSyntaxException("No Data for today's lowest temperature.")
+        }
+        // tomorrow,
+        if (dailyTemps[2].highest == stringForNull) {
+            tomorrowHighTempData.invalidate()
+            throw JsonSyntaxException("No Data for tomorrow's highest temperature.")
+        }
+        if (dailyTemps[2].lowest == stringForNull) {
+            tomorrowLowTempData.invalidate()
+            throw JsonSyntaxException("No Data for tomorrow's lowest temperature.")
+        }
+        // and the day after tomorrow
+        if (dailyTemps[3].highest == stringForNull) {
+            d2HighTempData.invalidate()
+            throw JsonSyntaxException("No Data for the highest temperature of the day after tomorrow.")
+        }
+        if (dailyTemps[3].lowest == stringForNull) {
+            d2LowTempData.invalidate()
+            throw JsonSyntaxException("No Data for the lowest temperature of the day after tomorrow.")
         }
     }
 
@@ -848,21 +846,21 @@ class WeatherViewModel(
 
     /**
      * Update the rainfall status of today,
-     * based on [todayShortTermData] and [futureTodayData].
+     * based on [todayShortTermData] and [todayFutureData].
      * if there are data from the same base time, [todayShortTermData] take the priority.
      * Always called from a ViewModelScope.
      * */
     private fun refreshRainfall(
         cal: Calendar,
         todayShortTermData: List<ForecastResponse.Item>,
-        futureTodayData: List<ForecastResponse.Item>,
+        todayFutureData: List<ForecastResponse.Item>,
     ) {
         val today: String = formatToKmaDate(cal)
         val primaryCoveredHourMax: Int? = todayShortTermData.maxOfOrNull { it.fcstTime }
 
         // Remove duplicate data according to the priority (More recent data is preferred.)
         val hourlyRainfallData = todayShortTermData.filter { it.category == RAIN_TAG && it.fcstDate == today.toInt() }
-        val futureTodayRainfallData: List<ForecastResponse.Item> = futureTodayData.filter {
+        val futureTodayRainfallData: List<ForecastResponse.Item> = todayFutureData.filter {
             (it.category == RAIN_TAG) and (it.fcstTime > (primaryCoveredHourMax ?: 0))
         }
         val rainfallData: List<ForecastResponse.Item> = hourlyRainfallData + futureTodayRainfallData
@@ -968,10 +966,10 @@ class WeatherViewModel(
         cal: Calendar,
         todayHighTempData: List<ForecastResponse.Item>,
         todayLowTempData: List<ForecastResponse.Item>,
-        futureTodayData: List<ForecastResponse.Item>,
+        todayFutureData: List<ForecastResponse.Item>,
     ) {
         val today: String = formatToKmaDate(cal)
-        val data = todayHighTempData + todayLowTempData + futureTodayData
+        val data = todayHighTempData + todayLowTempData + todayFutureData
         var isPrimed = false
 
         // Using minOf(...) or maxOf(...) requires iterate each time, which is inefficient.
@@ -1474,10 +1472,12 @@ class WeatherViewModel(
             return isValid
         }
 
-        fun updateContents(contents: List<ForecastResponse.Item>, cal: Calendar) {
+        fun updateContents(contents: List<ForecastResponse.Item>, cal: Calendar?) {
             tst.lastSuccessfulTime = if (contents.isEmpty()) null else cal
             this.contents = contents
         }
+
+        fun invalidate() = updateContents(emptyList(), null)
     }
 
     class WeatherDataTimeStamp(
@@ -1522,6 +1522,58 @@ fun CoroutineScope.getHourlyTempAsync(
         baseTime = villageBaseTime.hour,
         numOfRows = VILLAGE_ROWS_PER_HOUR,
         pageNo = pageNo,
+        nx = xy.nx,
+        ny = xy.ny,
+    )
+}
+
+fun CoroutineScope.getFutureDayCharTempAsync(
+    cal: Calendar,
+    dayOffset: Int,
+    xy: CoordinatesXy,
+    type: CharacteristicTempType,
+) = async(Dispatchers.IO) {
+    if (dayOffset < 1) Log.w(TAG, "dayOffset is $dayOffset, not representing a future day.")
+    val calValue = cal.clone() as Calendar
+
+    val latestVillageBaseTime = getKmaBaseTime(cal = calValue, roundOff = Village)  // 2:00 for 2:11 ~ 5:10
+    val today: String = formatToKmaDate(calValue)
+    calValue.add(Calendar.DAY_OF_YEAR, -1)
+    val yesterday: String = formatToKmaDate(calValue)
+
+    val futureDayHourSpan = 4  // 300 ~ 700, 1200 ~ 1600
+    val futureDayRowCount = futureDayHourSpan * VILLAGE_ROWS_PER_HOUR + VILLAGE_EXTRA_ROWS
+    val baseTime1 = 1100
+    val baseTime2 = 2300  // of yesterday
+    val pagesPerDay: Int = 24 / futureDayHourSpan
+
+    val futureDayBaseTime: String
+    val futureDayBaseDate: String
+    val pageNo: Int
+    if (latestVillageBaseTime.hour.toInt() in baseTime1 until baseTime2) {
+        // fcstTime starts from today 12:00.
+        futureDayBaseDate = today
+        futureDayBaseTime = baseTime1.toString()
+        pageNo = when(type) {
+            CharacteristicTempType.Highest -> 1
+            CharacteristicTempType.Lowest -> -1
+        }
+    } else {
+        // fcstTime starts from today 00:00.
+        futureDayBaseDate = yesterday
+        futureDayBaseTime = baseTime2.toString()
+        pageNo = when(type) {
+            CharacteristicTempType.Highest -> 4
+            CharacteristicTempType.Lowest -> 2
+        }
+    }
+    if (DEBUG_FLAG) Log.d(TAG, "future base: $futureDayBaseDate-$futureDayBaseTime")
+
+    WeatherApi.service.getVillageWeather(
+        baseDate = futureDayBaseDate,  // Yesterday(23:00 only) or today
+        baseTime = futureDayBaseTime,
+        numOfRows = futureDayRowCount,
+        pageNo = pageNo + (dayOffset * pagesPerDay),
         nx = xy.nx,
         ny = xy.ny,
     )
