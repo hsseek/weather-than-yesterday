@@ -12,4 +12,6 @@
     android:targetCellWidth="2"
     android:targetCellHeight="2"
     android:widgetCategory="home_screen"
-    tools:targetApi="s" />
+    android:updatePeriodMillis = "1800000"
+    tools:targetApi="s"
+    />

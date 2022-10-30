@@ -13,19 +13,18 @@ import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
-import com.google.gson.JsonSyntaxException
-import com.google.gson.stream.MalformedJsonException
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
-import com.hsseek.betterthanyesterday.network.*
+import com.hsseek.betterthanyesterday.service.HourlyTempFetchingService
+import com.hsseek.betterthanyesterday.service.HourlyTempFetchingService.Companion.EXTRA_FORECAST_REGION_NX
+import com.hsseek.betterthanyesterday.service.HourlyTempFetchingService.Companion.EXTRA_FORECAST_REGION_NY
 import com.hsseek.betterthanyesterday.util.*
-import com.hsseek.betterthanyesterday.viewmodel.VILLAGE_TEMPERATURE_TAG
-import com.hsseek.betterthanyesterday.viewmodel.getHourlyTempAsync
+import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_DATA_VALID
 import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_HOURLY_TEMP
 import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_TEMP_DIFF
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
-import java.util.*
+
 
 private const val TAG = "TemperatureWidgetReceiver"
 
@@ -46,7 +45,7 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (DEBUG_FLAG) Log.d(TAG, "onReceive() called.")
+        if (DEBUG_FLAG) Log.d(TAG, "onReceive(...) called.(action: ${intent.action})")
 
         // Refresh data.
         if (intent.action == RefreshCallback.REFRESH_ACTION) {
@@ -54,25 +53,24 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
         }
 
         // Update Widget with the numbers from Extra
-        if (intent.action == RefreshCallback.UPDATE_ACTION) {
+        if (intent.action == RefreshCallback.DATA_RENEWED_ACTION) {
             val tempDiff = intent.extras?.getInt(EXTRA_TEMP_DIFF)
             val hourlyTemp = intent.extras?.getInt(EXTRA_HOURLY_TEMP)
+            val isValid = intent.extras?.getBoolean(EXTRA_DATA_VALID) ?: false
 
-            if (tempDiff != null && hourlyTemp != null) {
-                coroutineScope.launch {
-                    val glanceIdList = GlanceAppWidgetManager(context).getGlanceIds(TemperatureWidget::class.java)
-                    for (glanceId in glanceIdList) {
-                        updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
-                            if (DEBUG_FLAG) Log.d(TAG, "Temperature difference: $tempDiff")
-                            pref.toMutablePreferences().apply {
-                                this[REFRESHING_KEY] = false
-                                this[VALID_DATA_KEY] = true
-                                this[HOURLY_TEMPERATURE_PREFS_KEY] = hourlyTemp
-                                this[TEMPERATURE_DIFF_PREFS_KEY] = tempDiff
-                            }
+            coroutineScope.launch {
+                val glanceIdList = GlanceAppWidgetManager(context).getGlanceIds(TemperatureWidget::class.java)
+                for (glanceId in glanceIdList) {
+                    updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
+                        if (DEBUG_FLAG) Log.d(TAG, "Temperature difference: $tempDiff")
+                        pref.toMutablePreferences().apply {
+                            this[REFRESHING_KEY] = false
+                            this[VALID_DATA_KEY] = isValid
+                            if (hourlyTemp != null) this[HOURLY_TEMPERATURE_PREFS_KEY] = hourlyTemp
+                            if (tempDiff != null) this[TEMPERATURE_DIFF_PREFS_KEY] = tempDiff
                         }
-                        glanceAppWidget.update(context, glanceId)
                     }
+                    glanceAppWidget.update(context, glanceId)
                 }
             }
         }
@@ -91,12 +89,7 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
             val glanceIdList = GlanceAppWidgetManager(context).getGlanceIds(TemperatureWidget::class.java)
             for (glanceId in glanceIdList) {  // For each Widget
                 launch(defaultDispatcher) {  // A Job for each Widget
-                    var trialCount = 0
-                    var todayTemp: Int? = null
-                    var yesterdayTemp: Int? = null
-                    val cal = getCurrentKoreanTime()
-                    var isCalModified = false
-
+                    // Let the user know a job is ongoing.
                     updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
                         pref.toMutablePreferences().apply {
                             this[REFRESHING_KEY] = true
@@ -104,85 +97,13 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
                     }
                     glanceAppWidget.update(context, glanceId)
 
-                    withContext(defaultDispatcher) {
-                        while (trialCount < WIDGET_MAX_RETRY) {
-                            try {
-                                withTimeout(WIDGET_TIMEOUT) {
-                                    val todayResponse = getHourlyTempAsync(xy, cal, 0, TAG, false)
-                                    val yesterdayResponse = getHourlyTempAsync(xy, cal, -1, TAG, false)
-                                    todayTemp = todayResponse.await()
-                                        .body()?.response?.body?.items?.item?.first {
-                                            it.category == VILLAGE_TEMPERATURE_TAG
-                                        }?.fcstValue?.toInt()
-                                    yesterdayTemp = yesterdayResponse.await()
-                                        .body()?.response?.body?.items?.item?.first {
-                                            it.category == VILLAGE_TEMPERATURE_TAG
-                                        }?.fcstValue?.toInt()
-                                    if (DEBUG_FLAG) Log.d(TAG, "Temperature: $yesterdayTemp -> $todayTemp")
-                                }
-                                break
-                            } catch (e: Exception) {
-                                if (e is TimeoutCancellationException) {  // Worth retrying.
-                                    if (++trialCount < WIDGET_MAX_RETRY) {
-                                        if (DEBUG_FLAG) Log.w(TAG, "(Retrying) $e")
-                                        runBlocking { delay(NETWORK_PAUSE) }
-                                    } else {  // Maximum count of trials has been reached.
-                                        Log.e(TAG, "Stopped retrying after $WIDGET_MAX_RETRY times.\n$e")
-                                        break
-                                    }
-                                } else if (
-                                    e is MalformedJsonException ||
-                                    e is JsonSyntaxException
-                                ) {  // Worth retrying, with different baseTime
-                                    if (++trialCount < WIDGET_MAX_RETRY) {
-                                        if (DEBUG_FLAG) Log.w(TAG, "(Retrying) $e")
-                                        val additionalRetry = 2
-                                        if (trialCount < WIDGET_MAX_RETRY - additionalRetry) { // Retry twice more.
-                                            trialCount = WIDGET_MAX_RETRY - additionalRetry
-                                        }
-
-                                        runBlocking { delay(NETWORK_PAUSE) }
-                                        if (!isCalModified) cal.add(Calendar.HOUR_OF_DAY, -VILLAGE_HOUR_INTERVAL)
-                                        isCalModified = true
-                                    } else {  // Maximum count of trials has been reached.
-                                        Log.e(TAG, "Stopped retrying", e)
-                                        break
-                                    }
-                                } else {  // Not worth retrying, just stop.
-                                    when (e) {
-                                        is CancellationException -> if (DEBUG_FLAG) Log.d(TAG, "kmaJob cancelled.")
-                                        else -> Log.e(TAG, "Cannot retrieve weather data.", e)
-                                    }
-                                    break
-                                }
-                            }
-                        }
+                    // Start Service to fetch data.
+                    val intent = Intent(context, HourlyTempFetchingService::class.java).apply {
+                        putExtra(EXTRA_FORECAST_REGION_NX, xy.nx)
+                        putExtra(EXTRA_FORECAST_REGION_NY, xy.ny)
                     }
-
-                    val tt = todayTemp
-                    val yt = yesterdayTemp
-
-                    if (tt != null && yt != null) {  // Update Widget.
-                        updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
-                            val diff = tt - yt
-                            if (DEBUG_FLAG) Log.d(TAG, "Temperature difference: $diff")
-                            pref.toMutablePreferences().apply {
-                                this[REFRESHING_KEY] = false
-                                this[VALID_DATA_KEY] = true
-                                this[HOURLY_TEMPERATURE_PREFS_KEY] = tt
-                                this[TEMPERATURE_DIFF_PREFS_KEY] = tt - yt
-                            }
-                        }
-                        glanceAppWidget.update(context, glanceId)
-                    } else {  // Show the message for null data.
-                        updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
-                            pref.toMutablePreferences().apply {
-                                this[REFRESHING_KEY] = false
-                                this[VALID_DATA_KEY] = false
-                            }
-                        }
-                        glanceAppWidget.update(context, glanceId)
-                    }
+                    if (DEBUG_FLAG) Log.d(TAG, "Start Service with (${xy.nx}, ${xy.ny})")
+                    context.startForegroundService(intent)
                 }
             }
         }
@@ -210,8 +131,9 @@ class RefreshCallback : ActionCallback {
 
     companion object {
         const val REFRESH_ACTION = "refresh_action"
-        const val UPDATE_ACTION = "update_action"
+        const val DATA_RENEWED_ACTION = "data_renewed_action"
         const val EXTRA_HOURLY_TEMP = "extra_hourly_temp"
         const val EXTRA_TEMP_DIFF = "extra_temp_diff"
+        const val EXTRA_DATA_VALID = "extra_data_valid"
     }
 }

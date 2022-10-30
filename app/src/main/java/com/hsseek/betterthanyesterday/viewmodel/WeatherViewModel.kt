@@ -33,6 +33,7 @@ import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.Hour
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.Village
 import com.hsseek.betterthanyesterday.widget.RefreshCallback
+import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_DATA_VALID
 import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_HOURLY_TEMP
 import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_TEMP_DIFF
 import com.hsseek.betterthanyesterday.widget.TemperatureWidgetReceiver
@@ -1069,9 +1070,10 @@ class WeatherViewModel(
 
                 // Sync numbers shown in Widgets.
                 val intent = Intent(context, TemperatureWidgetReceiver::class.java).apply {
-                    action = RefreshCallback.UPDATE_ACTION
+                    action = RefreshCallback.DATA_RENEWED_ACTION
                     putExtra(EXTRA_TEMP_DIFF, tt - yt)
                     putExtra(EXTRA_HOURLY_TEMP, tt)
+                    putExtra(EXTRA_DATA_VALID, true)
                 }
                 context.sendBroadcast(intent)
             }
@@ -1429,7 +1431,7 @@ class WeatherViewModel(
                 }
                 activity.startActivity(intent)
             }
-            ) 
+            )
         }
     }
 
