@@ -20,6 +20,7 @@ import com.hsseek.betterthanyesterday.location.CoordinatesXy
 import com.hsseek.betterthanyesterday.network.*
 import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.viewmodel.VILLAGE_TEMPERATURE_TAG
+import com.hsseek.betterthanyesterday.viewmodel.getHourlyTempAsync
 import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_HOURLY_TEMP
 import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_TEMP_DIFF
 import kotlinx.coroutines.*
@@ -31,7 +32,6 @@ private const val TAG = "TemperatureWidgetReceiver"
 class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = TemperatureWidget()
     private val coroutineScope = MainScope()
-    private val networkDispatcher = Dispatchers.IO
     private val defaultDispatcher = Dispatchers.Default
 
     override fun onUpdate(
@@ -106,39 +106,10 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
 
                     withContext(defaultDispatcher) {
                         while (trialCount < WIDGET_MAX_RETRY) {
-                            val hoursToShift = if (isCalModified) VILLAGE_HOUR_INTERVAL else 0
                             try {
                                 withTimeout(WIDGET_TIMEOUT) {
-                                    val latestVillageBaseTime = getKmaBaseTime(
-                                        cal = cal,
-                                        roundOff = KmaHourRoundOff.Village
-                                    )
-                                    val yesterdayVillageBaseTime = getKmaBaseTime(
-                                        cal = cal, dayOffset = -1,
-                                        roundOff = KmaHourRoundOff.Village
-                                    )
-                                    val pageNo = hoursToShift + cal.hour() - latestVillageBaseTime.hour.toInt() / 100 + 1
-
-                                    val todayResponse = async(networkDispatcher) {
-                                        WeatherApi.service.getVillageWeather(
-                                            baseDate = latestVillageBaseTime.date,  // Yesterday(23:00 only) or today
-                                            baseTime = latestVillageBaseTime.hour,
-                                            numOfRows = VILLAGE_ROWS_PER_HOUR,
-                                            pageNo = pageNo,
-                                            nx = xy.nx,
-                                            ny = xy.ny,
-                                        )
-                                    }
-                                    val yesterdayResponse = async(networkDispatcher) {
-                                        WeatherApi.service.getVillageWeather(
-                                            baseDate = yesterdayVillageBaseTime.date,
-                                            baseTime = yesterdayVillageBaseTime.hour,
-                                            numOfRows = VILLAGE_ROWS_PER_HOUR,
-                                            pageNo = pageNo,
-                                            nx = xy.nx,
-                                            ny = xy.ny,
-                                        )
-                                    }
+                                    val todayResponse = getHourlyTempAsync(xy, cal, 0, TAG, false)
+                                    val yesterdayResponse = getHourlyTempAsync(xy, cal, -1, TAG, false)
                                     todayTemp = todayResponse.await()
                                         .body()?.response?.body?.items?.item?.first {
                                             it.category == VILLAGE_TEMPERATURE_TAG

@@ -346,9 +346,6 @@ class WeatherViewModel(
                     if (isCalModified) {
                         if (DEBUG_FLAG) Log.w(TAG, "Retrieving data for modified reference time: ${cal.time}")
                     }
-                    // If the frame has been shifted, the page on the target data are shifted as well.
-                    val hoursToShift = if (isCalModified) VILLAGE_HOUR_INTERVAL else 0
-
                     dataReport.append(reportHeader)
                     try {
                         // Clear the former response so that it always hold the last one.
@@ -529,22 +526,7 @@ class WeatherViewModel(
 
                                 // Not really hourly: VillageWeather with retaining the old name for readability.
                                 val yesterdayHourlyTempResponse = if (yesterdayShortTermTempData.isValidReferring(referenceCal)) null else {
-                                    async(retrofitDispatcher) {
-                                        val yesterdayVillageBaseTime = getKmaBaseTime(cal = cal, dayOffset = -1, roundOff = Village)
-                                        if (DEBUG_FLAG) Log.d(yesterdayShortTermTempData.tst.tag, "baseTime: ${yesterdayVillageBaseTime.toTimeString()}")
-
-                                        // At 4:00, the latest data start from fcstTime of 3:00.
-                                        // the data for the target hour(5 AM) are on the 3rd page, and so on...
-                                        val pageNo = hoursToShift + cal.hour() - yesterdayVillageBaseTime.hour.toInt() / 100 + 1
-                                        WeatherApi.service.getVillageWeather(
-                                            baseDate = yesterdayVillageBaseTime.date,
-                                            baseTime = yesterdayVillageBaseTime.hour,
-                                            numOfRows = VILLAGE_ROWS_PER_HOUR,
-                                            pageNo = pageNo,
-                                            nx = forecastRegion.xy.nx,
-                                            ny = forecastRegion.xy.ny,
-                                        )
-                                    }
+                                    getHourlyTempAsync(forecastRegion.xy, cal, dayOffset = -1, yesterdayShortTermTempData.tst.tag, isCalModified)
                                 }
 
                                 /* Deprecated: Short-term forecasts are not reliable: data absent, wrong data(20 C at 8 AM of the 26th of Oct).
@@ -1259,22 +1241,18 @@ class WeatherViewModel(
     }
 
     fun updateSimplifiedEnabled(enabled: Boolean) {
-        if (DEBUG_FLAG) Log.d(TAG, "Simple View: ${enabled.toEnablementString()}")
         _isSimplified.value = enabled
     }
 
     fun updateAutoRefreshEnabled(enabled: Boolean) {
-        if (DEBUG_FLAG) Log.d(TAG, "Auto refresh: ${enabled.toEnablementString()}")
         isAutoRefresh = enabled
     }
 
     fun updateDaybreakEnabled(enabled: Boolean) {
-        if (DEBUG_FLAG) Log.d(TAG, "Daybreak mode: ${enabled.toEnablementString()}")
         _isDaybreakMode.value = enabled
     }
 
     fun updatePresetRegionEnabled(enabled: Boolean) {
-        if (DEBUG_FLAG) Log.d(TAG, "PresetRegion mode: ${enabled.toEnablementString()}")
         _forecastRegionCandidates.value = defaultRegionCandidates.toList()
         _isPresetRegion.value = enabled
     }
@@ -1291,7 +1269,6 @@ class WeatherViewModel(
      * Update [isForecastRegionAuto] only, without requesting data.
      * */
     fun updateAutoRegionEnabled(enabled: Boolean, isExplicit: Boolean = true) {
-        if (DEBUG_FLAG) Log.d(TAG, "Auto region: ${enabled.toEnablementString()}")
         isForecastRegionAuto = enabled
         _selectedForecastRegionIndex.value = if (enabled) 0 else 1
         if (isExplicit) {  // No need to feed back to Preferences.
@@ -1520,6 +1497,36 @@ class WeatherViewModel(
     }
 }
 
+fun CoroutineScope.getHourlyTempAsync(
+    xy: CoordinatesXy,
+    cal: Calendar,
+    dayOffset: Int,
+    tag: String,
+    isCalModified: Boolean,
+) = async(Dispatchers.IO) {
+    val villageBaseTime = getKmaBaseTime(cal = cal, dayOffset = dayOffset, roundOff = Village)
+    if (DEBUG_FLAG) Log.d(tag, "baseTime: ${villageBaseTime.toTimeString()}")
+
+    val hourDiff = cal.hour() - villageBaseTime.hour.toInt() / 100
+    val correctedDiff =
+        if (hourDiff < 0) hourDiff + 24 else hourDiff  // At 1:00 AM, the latestVillageHour is 23.
+
+    // If the frame has been shifted, the page on the target data are shifted as well.
+    val hoursToShift = if (isCalModified) VILLAGE_HOUR_INTERVAL else 0
+
+    // At 4:00, the latest data start from fcstTime of 3:00.
+    // the data for the target hour(5 AM) are on the 3rd page, and so on...
+    val pageNo = hoursToShift + correctedDiff + 1
+    WeatherApi.service.getVillageWeather(
+        baseDate = villageBaseTime.date,
+        baseTime = villageBaseTime.hour,
+        numOfRows = VILLAGE_ROWS_PER_HOUR,
+        pageNo = pageNo,
+        nx = xy.nx,
+        ny = xy.ny,
+    )
+}
+
 private fun isNewDataReleasedAfter(tst: WeatherViewModel.WeatherDataTimeStamp, cal: Calendar): Boolean {
     return if (tst.condition) {
         checkBaseTime(tst, cal)
@@ -1543,7 +1550,7 @@ private fun checkBaseTime(tst: WeatherViewModel.WeatherDataTimeStamp, cal: Calen
             if (DEBUG_FLAG) Log.d(DATA_TAG, "($tag)\tNew data are available.(${lastBaseTime.hour} -> ${currentBaseTime.hour})")
             true
         } else {
-            if (cal.hour() > lastCheckedCal.hour()) {
+            if (cal.hour() != lastCheckedCal.hour()) {  // Hour changed.
                 if (DEBUG_FLAG) Log.d(DATA_TAG, "($tag)\tNew data are required.")
                 true
             } else {
