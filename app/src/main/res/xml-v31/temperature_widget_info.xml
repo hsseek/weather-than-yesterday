@@ -6,7 +6,10 @@
     android:minWidth="40dp"
     android:minHeight="40dp"
     android:previewImage="@drawable/appwidget_preview"
+    android:previewLayout="@layout/temperature_widget_preview"
     android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
     android:widgetCategory="home_screen"
     android:updatePeriodMillis="3600000"
     />

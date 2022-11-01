@@ -900,11 +900,11 @@ class WeatherActivity : ComponentActivity() {
                 val description = if (hourlyTempDiff == null) {
                     stringResource(id = R.string.null_value)
                 } else if (hourlyTempDiff > 0) {
-                    stringResource(R.string.hourly_temp_higher)
+                    stringResource(R.string.temp_status_higher)
                 } else if (hourlyTempDiff < 0) {
-                    stringResource(R.string.hourly_temp_lower)
+                    stringResource(R.string.temp_status_lower)
                 } else {
-                    stringResource(R.string.hourly_temp_same)
+                    stringResource(R.string.temp_status_same)
                 }
 
                 Text(text = description)
@@ -1286,13 +1286,13 @@ fun getHourString(
         }
     val hourAndTemp = if (hourlyTemp == null) "" else {
         if (!isSimplified) {
-            context.getString(R.string.hourly_temp_value, hourString, hourlyTemp)
+            context.getString(R.string.temp_status_value, hourString, hourlyTemp)
         } else {
-            context.getString(R.string.hourly_temp_value_simple, hourString, hourlyTemp)
+            context.getString(R.string.temp_status_value_simple, hourString, hourlyTemp)
         }
     }
     val title = if (!isSimplified && hourlyTemp != null) {
-        "${context.getString(R.string.hourly_temp_title)}\n($hourAndTemp)"
+        "${context.getString(R.string.temp_status_title)}\n($hourAndTemp)"
     } else hourAndTemp
     return title
 }

@@ -82,16 +82,13 @@ class TemperatureWidget : GlanceAppWidget() {
         }
     }
 
-    /*override fun onUpdate(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetIds: IntArray
-    ) {
-        // There may be multiple widgets active, so update all of them
-        for (appWidgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId)
-        }
-    }*/
+    class TemperatureWidgetUiState(
+        val valid: Boolean,
+        val refreshing: Boolean,
+        val tempDiff: Int?,
+        val hourlyTemperature: Int?,
+        val time: Calendar,
+    )
 }
 
 @Composable
@@ -199,25 +196,3 @@ fun TemperatureWidgetBody(
         }
     }
 }
-
-class TemperatureWidgetUiState(
-    val valid: Boolean,
-    val refreshing: Boolean,
-    val tempDiff: Int?,
-    val hourlyTemperature: Int?,
-    val time: Calendar,
-)
-
-/*internal fun updateAppWidget(
-    context: Context,
-    appWidgetManager: AppWidgetManager,
-    appWidgetId: Int
-) {
-    val widgetText = context.getString(R.string.appwidget_text)
-    // Construct the RemoteViews object
-    val views = RemoteViews(context.packageName, R.layout.weather_widget_preview)
-    views.setTextViewText(R.id.appwidget_text, widgetText)
-
-    // Instruct the widget manager to update the widget
-    appWidgetManager.updateAppWidget(appWidgetId, views)
-}*/

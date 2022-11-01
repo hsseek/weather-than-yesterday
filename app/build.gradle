@@ -85,4 +85,5 @@ dependencies {
 
     // Glance
     implementation "androidx.glance:glance-appwidget:1.0.0-SNAPSHOT"
+    implementation "androidx.work:work-runtime-ktx:2.7.1"
 }

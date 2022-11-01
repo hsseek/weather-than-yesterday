@@ -3,12 +3,12 @@
     <string name="app_name">어제보다</string>
     <string name="dialog_title_location_permission">위치정보 이용권한 설정</string>
     <string name="dialog_message_location_permission">현재 위치의 날씨 정보를 얻기 위해 위치정보 이용권한이 필요합니다(권한을 부여하지 않더라도 수동 위치 설정이 가능합니다.)</string>
-    <string name="hourly_temp_title">온도 정보</string>
-    <string name="hourly_temp_higher">어제보다 기온이 높습니다.</string>
-    <string name="hourly_temp_lower">어제보다 기온이 낮습니다.</string>
-    <string name="hourly_temp_same">어제와 기온이 같습니다.</string>
-    <string name="hourly_temp_value">%1$s 기준 %2$d\u2103</string>
-    <string name="hourly_temp_value_simple">%1$s, %2$d\u2103</string>
+    <string name="temp_status_title">온도 정보</string>
+    <string name="temp_status_higher">어제보다 기온이 높습니다.</string>
+    <string name="temp_status_lower">어제보다 기온이 낮습니다.</string>
+    <string name="temp_status_same">어제와 기온이 같습니다.</string>
+    <string name="temp_status_value">%1$s 기준 %2$d\u2103</string>
+    <string name="temp_status_value_simple">%1$s, %2$d\u2103</string>
     <string name="daily_today">(오늘)</string>
     <string name="desc_rainfall_status">강우 정보 아이콘</string>
     <string name="hour_noon">정오</string>
@@ -110,6 +110,4 @@
     <string name="widget_error">죄송합니다. 에러가 발생했습니다.</string>
     <string name="loading">새로고침 중</string>
     <string name="widget_example_temp_time">오후 2시, 18\\u2103</string>
-    <string name="service_notification_title">위젯 새로고침 중</string>
-    <string name="service_notification_channel_refreshing">위젯 새로고침</string>
 </resources>

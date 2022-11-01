@@ -60,6 +60,9 @@ fun Calendar.hour(): Int {
     val hour = this.get(Calendar.HOUR_OF_DAY)
     return if (hour == 0) 24 else hour
 }
+
+fun Calendar.hourInMillis(): Long = this.timeInMillis / 3_600_000
+
 private fun Calendar.minute(): Int = this.get(Calendar.MINUTE)
 
 fun getCurrentKoreanTime(): Calendar {

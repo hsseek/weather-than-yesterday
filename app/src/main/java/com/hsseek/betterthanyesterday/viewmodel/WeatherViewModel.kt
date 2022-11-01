@@ -567,9 +567,7 @@ class WeatherViewModel(
                                                     item.category == VILLAGE_TEMPERATURE_TAG ||
                                                     item.category == HIGH_TEMPERATURE_TAG ||
                                                     item.category == LOW_TEMPERATURE_TAG
-                                                ) {
-                                                    dataReport.appendAndLog(it.tst.tag, "$item")
-                                                }
+                                                ) dataReport.appendAndLog(it.tst.tag, "$item")
                                                 size++
                                             }
                                         }
@@ -975,7 +973,7 @@ class WeatherViewModel(
 
         // Using minOf(...) or maxOf(...) requires iterate each time, which is inefficient.
         data.forEach { item ->
-            if (item.fcstTime == today.toInt() &&  // If the Calendar has been modified, the first rows might include yesterday's data.
+            if (item.fcstDate == today.toInt() &&  // If the Calendar has been modified, the first rows might include yesterday's data.
                 item.category == VILLAGE_TEMPERATURE_TAG ||
                 item.category == SHORT_TERM_TEMPERATURE_TAG ||
                 item.category == HIGH_TEMPERATURE_TAG ||
@@ -1070,7 +1068,7 @@ class WeatherViewModel(
 
                 // Sync numbers shown in Widgets.
                 val intent = Intent(context, TemperatureWidgetReceiver::class.java).apply {
-                    action = RefreshCallback.DATA_RENEWED_ACTION
+                    action = RefreshCallback.ACTION_DATA_FETCHED
                     putExtra(EXTRA_TEMP_DIFF, tt - yt)
                     putExtra(EXTRA_HOURLY_TEMP, tt)
                     putExtra(EXTRA_DATA_VALID, true)
@@ -1090,13 +1088,13 @@ class WeatherViewModel(
             highestTemps[index]?.let { ht ->
                 if (tt > ht) {
                     highestTemps[index] = tt
-                    if (DEBUG_FLAG) Log.w(TAG, "Overridden by $SHORT_TERM_TEMPERATURE_TAG: $ht -> $tt")
+                    if (DEBUG_FLAG) Log.w(TAG, "Today's T_H overridden by $SHORT_TERM_TEMPERATURE_TAG: $ht -> $tt")
                 }
             }
             lowestTemps[index]?.let { lt ->
                 if (tt < lt) {
                     lowestTemps[index] = tt
-                    if (DEBUG_FLAG) Log.w(TAG, "Overridden by $SHORT_TERM_TEMPERATURE_TAG: $lt -> $tt")
+                    if (DEBUG_FLAG) Log.w(TAG, "Today's T_L overridden by $SHORT_TERM_TEMPERATURE_TAG: $lt -> $tt")
                 }
             }
         }
@@ -1604,7 +1602,7 @@ private fun checkBaseTime(tst: WeatherViewModel.WeatherDataTimeStamp, cal: Calen
             if (DEBUG_FLAG) Log.d(DATA_TAG, "($tag)\tNew data are available.(${lastBaseTime.hour} -> ${currentBaseTime.hour})")
             true
         } else {
-            if (cal.hour() != lastCheckedCal.hour()) {  // Hour changed.
+            if (cal.hourInMillis() != lastCheckedCal.hourInMillis()) {  // Hour changed.
                 if (DEBUG_FLAG) Log.d(DATA_TAG, "($tag)\tNew data are required.")
                 true
             } else {
