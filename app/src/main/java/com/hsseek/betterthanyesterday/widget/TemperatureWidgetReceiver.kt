@@ -1,9 +1,12 @@
 package com.hsseek.betterthanyesterday.widget
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.glance.GlanceId
@@ -19,13 +22,14 @@ import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_DAT
 import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_HOURLY_TEMP
 import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_TEMP_DIFF
 import kotlinx.coroutines.*
-import java.util.Calendar
+import java.util.*
 import java.util.concurrent.TimeUnit
 
 
 private const val TAG = "TemperatureWidgetReceiver"
 private const val TEMP_WORK_ID_IMMEDIATE = "TEMP_WORK_ID_IMMEDIATE"
 private const val TEMP_WORK_ID_PERIODIC = "TEMP_WORK_ID_PERIODIC"
+private const val DUMMY_PENDING_WORK = "TEMP_DUMMY_WORK"
 
 class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = TemperatureWidget()
@@ -53,6 +57,19 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
             AppWidgetManager.ACTION_APPWIDGET_DELETED -> stopTempWorks(context)
             else -> if (DEBUG_FLAG) Log.d(TAG, "Nothing to do with the action.")
         }
+    }
+
+    // To avoid infinite onUpdate() loop(https://stackoverflow.com/a/70685721/17198283)
+    override fun onEnabled(context: Context) {
+        val alwaysPendingWork = OneTimeWorkRequestBuilder<TemperatureFetchingWorker>()
+            .setInitialDelay(5000L, TimeUnit.DAYS)
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            DUMMY_PENDING_WORK,
+            ExistingWorkPolicy.KEEP,
+            alwaysPendingWork
+        )
     }
 
     private fun insertData(intent: Intent, context: Context) {
@@ -89,6 +106,24 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
         WorkManager.getInstance(context).also {
             it.enqueueUniquePeriodicWork(TEMP_WORK_ID_PERIODIC, ExistingPeriodicWorkPolicy.REPLACE, periodicWork)
         }
+
+        // A Notification for logging
+        if (DEBUG_FLAG) {
+            val channelId = "TEMP_CHANNEL_ID"
+            val channelName = "TEMP_CHANNEL_NAME"
+            val groupKey = "TEMP_GROUP_KEY"
+            val notificationChannel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
+
+            val notification = NotificationCompat.Builder(context, channelId)
+                .setContentText("Widget: $hourlyTemp($tempDiff)")
+                .setSmallIcon(android.R.drawable.ic_menu_day)
+                .setGroup(groupKey)
+                .build()
+
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(notificationChannel)
+            notificationManager.notify(Calendar.getInstance().timeInMillis.toInt(), notification)
+        }
     }
 
     private fun requestData(context: Context) {
@@ -118,6 +153,7 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
         WorkManager.getInstance(context).also {
             it.cancelUniqueWork(TEMP_WORK_ID_IMMEDIATE)
             it.cancelUniqueWork(TEMP_WORK_ID_PERIODIC)
+            it.cancelUniqueWork(DUMMY_PENDING_WORK)
         }
     }
 
