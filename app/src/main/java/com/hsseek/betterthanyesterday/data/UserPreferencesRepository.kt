@@ -29,6 +29,7 @@ class UserPreferencesRepository(private val context: Context) {
         val AUTO_REFRESH = booleanPreferencesKey("auto_refresh")
         val DAYBREAK = booleanPreferencesKey("daybreak")
         val PRESET_REGION = booleanPreferencesKey("preset_region")
+        val WIDGET_TIME = intPreferencesKey("widget_time")
     }
 
     val preferencesFlow: Flow<UserPreferences> = context.dataStore.data
@@ -45,6 +46,7 @@ class UserPreferencesRepository(private val context: Context) {
             val isAutoRefresh = preferences[PreferencesKeys.AUTO_REFRESH] ?: false
             val isDaybreak = preferences[PreferencesKeys.DAYBREAK] ?: false
             val isPresetRegion = preferences[PreferencesKeys.PRESET_REGION] ?: false
+            val widgetTime = preferences[PreferencesKeys.WIDGET_TIME] ?: 0
 
             UserPreferences(
                 consumedSnackBar,
@@ -57,6 +59,7 @@ class UserPreferencesRepository(private val context: Context) {
                 isAutoRefresh,
                 isDaybreak,
                 isPresetRegion,
+                widgetTime,
             )
         }
 
@@ -117,6 +120,13 @@ class UserPreferencesRepository(private val context: Context) {
             preferences[PreferencesKeys.PRESET_REGION] = enabled
         }
     }
+
+    suspend fun updateWidgetTime(hour: Int) {
+        context.dataStore.edit { preferences ->
+            if (DEBUG_FLAG) Log.d(TAG, "Widget time(hour) stored: $hour")
+            preferences[PreferencesKeys.WIDGET_TIME] = hour
+        }
+    }
 }
 
 data class UserPreferences(
@@ -130,6 +140,7 @@ data class UserPreferences(
     val isAutoRefresh: Boolean,
     val isDaybreak: Boolean,
     val isPresetRegion: Boolean,
+    val widgetTime: Int,
 )
 
 enum class Language(val code: Int, val iso: String) {

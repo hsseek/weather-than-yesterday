@@ -61,7 +61,7 @@ fun Calendar.hour(): Int {
     return if (hour == 0) 24 else hour
 }
 
-fun Calendar.hourInMillis(): Long = this.timeInMillis / 3_600_000
+fun Calendar.hourSince1970(): Long = this.timeInMillis / 3_600_000
 
 private fun Calendar.minute(): Int = this.get(Calendar.MINUTE)
 

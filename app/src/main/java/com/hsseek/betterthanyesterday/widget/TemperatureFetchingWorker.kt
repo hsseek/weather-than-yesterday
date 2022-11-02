@@ -9,9 +9,7 @@ import com.google.gson.JsonSyntaxException
 import com.google.gson.stream.MalformedJsonException
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
-import com.hsseek.betterthanyesterday.network.NETWORK_PAUSE
-import com.hsseek.betterthanyesterday.network.BACKGROUND_MAX_RETRY
-import com.hsseek.betterthanyesterday.network.BACKGROUND_TIMEOUT
+import com.hsseek.betterthanyesterday.network.*
 import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
 import com.hsseek.betterthanyesterday.util.VILLAGE_HOUR_INTERVAL
 import com.hsseek.betterthanyesterday.util.getCurrentKoreanTime
@@ -35,11 +33,15 @@ class TemperatureFetchingWorker(private val context: Context, workerParams: Work
             val prefs = prefsRepo.preferencesFlow.first()
             xy = CoordinatesXy(prefs.forecastRegionNx, prefs.forecastRegionNy)
         }
-        coroutineScope.requestComparingTempData(
-            xy = xy,
-            retry = BACKGROUND_MAX_RETRY,
-            timeout = BACKGROUND_TIMEOUT
-        ) { todayTemp, yesterdayTemp -> onFinishJob(todayTemp, yesterdayTemp) }
+        coroutineScope.launch {
+            requestComparingTempData(
+                xy = xy,
+                retry = BACKGROUND_MAX_RETRY,
+                timeoutMin = BACKGROUND_TIMEOUT_MIN,
+                additionalTimeout = BACKGROUND_ADDITIONAL_TIMEOUT,
+                timeoutMax = BACKGROUND_TIMEOUT_MAX,
+            ) { todayTemp, yesterdayTemp -> onFinishJob(todayTemp, yesterdayTemp) }
+        }
         return Result.success()  // Forget it. Widget will take care of the result.
     }
 
@@ -61,10 +63,12 @@ class TemperatureFetchingWorker(private val context: Context, workerParams: Work
     }
 }
 
-fun CoroutineScope.requestComparingTempData(
+suspend fun requestComparingTempData(
     xy: CoordinatesXy,
     retry: Int,
-    timeout: Long,
+    timeoutMin: Long,
+    additionalTimeout: Long,
+    timeoutMax: Long,
     onFinished: (Int?, Int?) -> Unit,
 ) {
     if (DEBUG_FLAG) Log.d(TAG, "requestData(Context) called.")
@@ -75,66 +79,62 @@ fun CoroutineScope.requestComparingTempData(
     val cal = getCurrentKoreanTime()
     var isCalModified = false
 
-    this.launch {
-        try {
-            withContext(Dispatchers.IO) {
-                while (trialCount < retry) {
-                    try {
-                        withTimeout(timeout) {
-                            val todayResponse = getHourlyTempAsync(xy, cal, 0,
-                                TAG, false)
-                            val yesterdayResponse = getHourlyTempAsync(xy, cal, -1,
-                                TAG, false)
-                            todayTemp = todayResponse.await()
-                                .body()?.response?.body?.items?.item?.first {
-                                    it.category == VILLAGE_TEMPERATURE_TAG
-                                }?.fcstValue?.toInt()
-                            yesterdayTemp = yesterdayResponse.await()
-                                .body()?.response?.body?.items?.item?.first {
-                                    it.category == VILLAGE_TEMPERATURE_TAG
-                                }?.fcstValue?.toInt()
-                            if (DEBUG_FLAG) Log.d(TAG, "Temperature: $yesterdayTemp -> $todayTemp")
-                        }
-                        break
-                    } catch (e: Exception) {
-                        if (e is TimeoutCancellationException) {  // Worth retrying.
-                            if (++trialCount < retry) {
-                                if (DEBUG_FLAG) Log.w(TAG, "(Retrying) $e")
-                                runBlocking { delay(NETWORK_PAUSE) }
-                            } else {  // Maximum count of trials has been reached.
-                                Log.e(TAG, "Stopped retrying after $retry times.\n$e")
-                                break
-                            }
-                        } else if (
-                            e is MalformedJsonException ||
-                            e is JsonSyntaxException
-                        ) {  // Worth retrying, with different baseTime
-                            if (++trialCount < retry) {
-                                if (DEBUG_FLAG) Log.w(TAG, "(Retrying) $e")
-                                val additionalRetry = 2
-                                if (trialCount < retry - additionalRetry) { // Retry twice more.
-                                    trialCount = retry - additionalRetry
-                                }
-
-                                runBlocking { delay(NETWORK_PAUSE) }
-                                if (!isCalModified) cal.add(Calendar.HOUR_OF_DAY, -VILLAGE_HOUR_INTERVAL)
-                                isCalModified = true
-                            } else {  // Maximum count of trials has been reached.
-                                Log.e(TAG, "Stopped retrying", e)
-                                break
-                            }
-                        } else {  // Not worth retrying, just stop.
-                            when (e) {
-                                is CancellationException -> if (DEBUG_FLAG) Log.d(TAG, "kmaJob cancelled.")
-                                else -> Log.e(TAG, "Cannot retrieve weather data.", e)
-                            }
+    try {
+        withContext(Dispatchers.IO) {
+            while (trialCount < retry) {
+                try {
+                    withTimeout(minOf(timeoutMin + trialCount * additionalTimeout, timeoutMax)) {
+                        val todayResponse = getHourlyTempAsync(xy, cal, 0, TAG, isCalModified)
+                        val yesterdayResponse = getHourlyTempAsync(xy, cal, -1, TAG, isCalModified)
+                        todayTemp = todayResponse.await()
+                            .body()?.response?.body?.items?.item?.first {
+                                it.category == VILLAGE_TEMPERATURE_TAG
+                            }?.fcstValue?.toInt()
+                        yesterdayTemp = yesterdayResponse.await()
+                            .body()?.response?.body?.items?.item?.first {
+                                it.category == VILLAGE_TEMPERATURE_TAG
+                            }?.fcstValue?.toInt()
+                        if (DEBUG_FLAG) Log.d(TAG, "Temperature: $yesterdayTemp -> $todayTemp")
+                    }
+                    break
+                } catch (e: Exception) {
+                    if (e is TimeoutCancellationException) {  // Worth retrying.
+                        if (++trialCount < retry) {
+                            if (DEBUG_FLAG) Log.w(TAG, "(Retrying) $e")
+                            runBlocking { delay(NETWORK_PAUSE) }
+                        } else {  // Maximum count of trials has been reached.
+                            Log.e(TAG, "Stopped retrying after $retry times.\n$e")
                             break
                         }
+                    } else if (
+                        e is MalformedJsonException ||
+                        e is JsonSyntaxException
+                    ) {  // Worth retrying, with different baseTime
+                        if (++trialCount < retry) {
+                            if (DEBUG_FLAG) Log.w(TAG, "(Retrying) $e")
+                            val additionalRetry = 2
+                            if (trialCount < retry - additionalRetry) { // Retry twice more.
+                                trialCount = retry - additionalRetry
+                            }
+
+                            runBlocking { delay(NETWORK_PAUSE) }
+                            if (!isCalModified) cal.add(Calendar.HOUR_OF_DAY, -VILLAGE_HOUR_INTERVAL)
+                            isCalModified = true
+                        } else {  // Maximum count of trials has been reached.
+                            Log.e(TAG, "Stopped retrying", e)
+                            break
+                        }
+                    } else {  // Not worth retrying, just stop.
+                        when (e) {
+                            is CancellationException -> if (DEBUG_FLAG) Log.d(TAG, "kmaJob cancelled.")
+                            else -> Log.e(TAG, "Cannot retrieve weather data.", e)
+                        }
+                        break
                     }
                 }
             }
-        } finally {
-            onFinished(todayTemp, yesterdayTemp)
         }
+    } finally {
+        onFinished(todayTemp, yesterdayTemp)
     }
 }

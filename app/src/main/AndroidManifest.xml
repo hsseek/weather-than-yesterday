@@ -17,12 +17,6 @@
         android:theme="@style/Theme.BetterThanYesterday"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
-        <!--<service
-            android:name=".service.HourlyTempFetchingService"
-            android:enabled="true"
-            android:exported="false"
-            />-->
-
         <activity
             android:name=".SettingsActivity"
             android:exported="true"
@@ -52,7 +46,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <receiver
             android:name=".widget.TemperatureWidgetReceiver"
             android:enabled="@bool/glance_appwidget_available"

@@ -49,7 +49,7 @@ class TemperatureWidget : GlanceAppWidget() {
         val titleAlignment = if (widgetSize.width.value < titleAlignCriterion) TextAlign.Start else TextAlign.Center
 
         val state = TemperatureWidgetUiState(
-            valid = prefs[TemperatureWidgetReceiver.VALID_DATA_KEY] ?: false,
+            valid = prefs[TemperatureWidgetReceiver.VALID_DATA_KEY] ?: true,
             refreshing = prefs[TemperatureWidgetReceiver.REFRESHING_KEY] ?: false,
             tempDiff = prefs[TemperatureWidgetReceiver.TEMPERATURE_DIFF_PREFS_KEY],
             hourlyTemperature = prefs[TemperatureWidgetReceiver.HOURLY_TEMPERATURE_PREFS_KEY],
@@ -152,7 +152,7 @@ fun TemperatureWidgetBody(
     largeFontSize: TextUnit = 40.sp,
     normalFontSize: TextUnit = 14.sp,
     fontWeight: FontWeight = FontWeight.Bold,
-    ) {
+) {
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -168,23 +168,35 @@ fun TemperatureWidgetBody(
                     textAlign = TextAlign.Center,
                 )
             )
-        } else if (valid && tempDiff != null) {
-            val color = androidx.glance.appwidget.unit.ColorProvider(
-                day = getLightTemperatureColor(tempDiff),
-                night = getDarkTemperatureColor(tempDiff)
-            )
-            val diffString = getTempDiffString(hourlyTempDiff = tempDiff)
+        } else if (valid) {
+            if (tempDiff != null) {
+                val color = androidx.glance.appwidget.unit.ColorProvider(
+                    day = getLightTemperatureColor(tempDiff),
+                    night = getDarkTemperatureColor(tempDiff)
+                )
+                val diffString = getTempDiffString(hourlyTempDiff = tempDiff)
 
-            Text(
-                text = diffString,
-                style = TextStyle(
-                    color = color,
-                    fontSize = largeFontSize,
-                    fontWeight = fontWeight,
-                    textAlign = TextAlign.Center,
-                ),
-            )
-        } else {
+                Text(
+                    text = diffString,
+                    style = TextStyle(
+                        color = color,
+                        fontSize = largeFontSize,
+                        fontWeight = fontWeight,
+                        textAlign = TextAlign.Center,
+                    ),
+                )
+            } else {  // Valid but null temp value (e.g. The initial state)
+                Text(
+                    text = NULL_STRING,
+                    style = TextStyle(
+                        color = ColorProvider(R.color.on_background),
+                        fontSize = largeFontSize,
+                        fontWeight = fontWeight,
+                        textAlign = TextAlign.Center,
+                    ),
+                )
+            }
+        } else {  // Not valid
             Text(
                 text = context.getString(R.string.widget_error),
                 style = TextStyle(

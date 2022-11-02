@@ -1602,7 +1602,7 @@ private fun checkBaseTime(tst: WeatherViewModel.WeatherDataTimeStamp, cal: Calen
             if (DEBUG_FLAG) Log.d(DATA_TAG, "($tag)\tNew data are available.(${lastBaseTime.hour} -> ${currentBaseTime.hour})")
             true
         } else {
-            if (cal.hourInMillis() != lastCheckedCal.hourInMillis()) {  // Hour changed.
+            if (cal.hourSince1970() != lastCheckedCal.hourSince1970()) {  // Hour changed.
                 if (DEBUG_FLAG) Log.d(DATA_TAG, "($tag)\tNew data are required.")
                 true
             } else {

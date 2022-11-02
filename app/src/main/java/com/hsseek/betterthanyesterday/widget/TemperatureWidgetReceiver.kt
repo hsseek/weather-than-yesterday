@@ -17,25 +17,28 @@ import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.work.*
+import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_DATA_VALID
 import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_HOURLY_TEMP
 import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_TEMP_DIFF
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 import java.util.*
 import java.util.concurrent.TimeUnit
 
 
 private const val TAG = "TemperatureWidgetReceiver"
-private const val TEMP_WORK_ID_IMMEDIATE = "TEMP_WORK_ID_IMMEDIATE"
-private const val TEMP_WORK_ID_PERIODIC = "TEMP_WORK_ID_PERIODIC"
-private const val DUMMY_PENDING_WORK = "TEMP_DUMMY_WORK"
+private const val TEMP_WORK_ID_IMMEDIATE = "hsseek.betterthanyesterday.widget.TEMP_WORK_ID_IMMEDIATE"
+private const val TEMP_WORK_ID_NEXT = "hsseek.betterthanyesterday.widget.TEMP_WORK_ID_NEXT"
+private const val DUMMY_PENDING_WORK = "hsseek.betterthanyesterday.widget.TEMP_DUMMY_WORK"
 
 class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = TemperatureWidget()
     private val coroutineScope = MainScope()
     private val defaultDispatcher = Dispatchers.Default
 
+    // Called when a Widget is added, or on the automatic update.
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -43,7 +46,7 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
     ) {
         super.onUpdate(context, appWidgetManager, appWidgetIds)
         if (DEBUG_FLAG) Log.d(TAG, "onUpdate() called.")
-        requestData(context)
+        requestData(context, true)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -91,48 +94,33 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
                 }
                 glanceAppWidget.update(context, glanceId)
             }
+
+            // Update the hour to UserPreferences so that it won't request for the same hour.
+            val currentHour = Calendar.getInstance().hourSince1970()
+            val userPrefsRepo = UserPreferencesRepository(context)
+            userPrefsRepo.updateWidgetTime(currentHour.toInt())
         }
 
+        // Schedule Work for the next hour.
         val cal = Calendar.getInstance()
-        val remainingSeconds = 3600L - (cal.get(Calendar.MINUTE) * 60 + cal.get(Calendar.SECOND))
-        val flexSeconds = 300L
-        if (DEBUG_FLAG) Log.d(TAG, "Periodic fetching starts in ${remainingSeconds / 60} min.")
+        val remainingMinutes = 60L - cal.get(Calendar.MINUTE)  // Seconds rounded up, working as a buffer.
+        notifyDebuggingLog(context, "Next job scheduled in $remainingMinutes min.")
 
-        val periodicWork = PeriodicWorkRequest.Builder(
-            TemperatureFetchingWorker::class.java,
-            1, TimeUnit.HOURS,
-            flexSeconds, TimeUnit.SECONDS,
-        ).setInitialDelay(remainingSeconds + flexSeconds, TimeUnit.SECONDS).build()
+        val nextHourWork = OneTimeWorkRequest.Builder(TemperatureFetchingWorker::class.java)
+            .setInitialDelay(remainingMinutes, TimeUnit.MINUTES)
+            .build()
         WorkManager.getInstance(context).also {
-            it.enqueueUniquePeriodicWork(TEMP_WORK_ID_PERIODIC, ExistingPeriodicWorkPolicy.REPLACE, periodicWork)
-        }
-
-        // A Notification for logging
-        if (DEBUG_FLAG) {
-            val channelId = "TEMP_CHANNEL_ID"
-            val channelName = "TEMP_CHANNEL_NAME"
-            val groupKey = "TEMP_GROUP_KEY"
-            val notificationChannel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
-
-            val notification = NotificationCompat.Builder(context, channelId)
-                .setContentText("Widget: $hourlyTemp($tempDiff)")
-                .setSmallIcon(android.R.drawable.ic_menu_day)
-                .setGroup(groupKey)
-                .build()
-
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(notificationChannel)
-            notificationManager.notify(Calendar.getInstance().timeInMillis.toInt(), notification)
+            it.enqueueUniqueWork(TEMP_WORK_ID_NEXT, ExistingWorkPolicy.REPLACE, nextHourWork)
         }
     }
 
-    private fun requestData(context: Context) {
+    private fun requestData(context: Context, forced: Boolean = false) {
         if (DEBUG_FLAG) Log.d(TAG, "requestData(Context) called.")
-
+        // Let the user know a job is ongoing.
         coroutineScope.launch {
             val glanceIdList = GlanceAppWidgetManager(context).getGlanceIds(TemperatureWidget::class.java)
             for (glanceId in glanceIdList) {  // For each Widget
-                launch(defaultDispatcher) {  // Let the user know a job is ongoing.
+                launch(defaultDispatcher) {
                     updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
                         pref.toMutablePreferences().apply {
                             this[REFRESHING_KEY] = true
@@ -143,17 +131,65 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
             }
         }
 
-        val immediateWork = OneTimeWorkRequest.Builder(TemperatureFetchingWorker::class.java).build()
-        WorkManager.getInstance(context).also {
-            it.enqueueUniqueWork(TEMP_WORK_ID_IMMEDIATE, ExistingWorkPolicy.KEEP, immediateWork)
+        // Check whether new data should be presented.
+        val currentHour = Calendar.getInstance().hourSince1970()
+        val representedHour: Int
+        runBlocking {
+            val prefsRepo = UserPreferencesRepository(context)
+            val prefs = prefsRepo.preferencesFlow.first()
+            representedHour = prefs.widgetTime
+        }
+
+        if (currentHour > representedHour || forced) {
+            notifyDebuggingLog(context, "Refreshing")
+            if (DEBUG_FLAG) Log.d(TAG, "Hour changed, new data required.")
+            val immediateWork = OneTimeWorkRequest.Builder(TemperatureFetchingWorker::class.java).build()
+            WorkManager.getInstance(context).also {
+                it.enqueueUniqueWork(TEMP_WORK_ID_IMMEDIATE, ExistingWorkPolicy.KEEP, immediateWork)
+            }
+        } else {
+            notifyDebuggingLog(context, "Skipping")
+            if (DEBUG_FLAG) Log.d(TAG, "Hour not changed, new data not required.")
+            coroutineScope.launch(defaultDispatcher) {
+                delay((220..360).random().toLong())  // Show fake loading for ux.
+                val glanceIdList = GlanceAppWidgetManager(context).getGlanceIds(TemperatureWidget::class.java)
+                for (glanceId in glanceIdList) {  // Dismiss Loading
+                    updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
+                        pref.toMutablePreferences().apply {
+                            this[REFRESHING_KEY] = false
+                        }
+                    }
+                    glanceAppWidget.update(context, glanceId)
+                }
+            }
         }
     }
 
     private fun stopTempWorks(context: Context) {
         WorkManager.getInstance(context).also {
             it.cancelUniqueWork(TEMP_WORK_ID_IMMEDIATE)
-            it.cancelUniqueWork(TEMP_WORK_ID_PERIODIC)
+            it.cancelUniqueWork(TEMP_WORK_ID_NEXT)
             it.cancelUniqueWork(DUMMY_PENDING_WORK)
+        }
+    }
+
+    private fun notifyDebuggingLog(context: Context, msg: String? = null) {
+        // A Notification for logging
+        if (DEBUG_FLAG) {
+            val channelId = "TEMP_CHANNEL_ID"
+            val channelName = "TEMP_CHANNEL_NAME"
+            val groupKey = "TEMP_GROUP_KEY"
+            val notificationChannel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
+
+            val notification = NotificationCompat.Builder(context, channelId)
+                .setContentText("Widget: $msg")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setGroup(groupKey)
+                .build()
+
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(notificationChannel)
+            notificationManager.notify(Calendar.getInstance().timeInMillis.toInt(), notification)
         }
     }
 
@@ -178,8 +214,8 @@ class RefreshCallback : ActionCallback {
     }
 
     companion object {
-        const val ACTION_REFRESH = "ACTION_REFRESH"
-        const val ACTION_DATA_FETCHED = "ACTION_DATA_FETCHED"
+        const val ACTION_REFRESH = "hsseek.betterthanyesterday.widget.ACTION_REFRESH"
+        const val ACTION_DATA_FETCHED = "hsseek.betterthanyesterday.widget.ACTION_DATA_FETCHED"
         const val EXTRA_HOURLY_TEMP = "extra_hourly_temp"
         const val EXTRA_TEMP_DIFF = "extra_temp_diff"
         const val EXTRA_DATA_VALID = "extra_data_valid"
