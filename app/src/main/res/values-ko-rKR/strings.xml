@@ -110,4 +110,6 @@
     <string name="widget_error">죄송합니다. 에러가 발생했습니다.</string>
     <string name="loading">새로고침 중</string>
     <string name="widget_example_temp_time">오후 2시, 18\\u2103</string>
+    <string name="service_notification_channel_title">위젯 새로고침</string>
+    <string name="service_notification_content">위젯 새로고침 중</string>
 </resources>

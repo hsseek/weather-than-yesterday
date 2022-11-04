@@ -115,4 +115,6 @@
     <string name="loading">Loading…</string>
     <string name="widget_example_temp_time">2 PM, 18\u2103</string>
     <string name="widget_example_temp_diff" translatable="false">▴ 1</string>
+    <string name="service_notification_channel_title">Refreshing widget</string>
+    <string name="service_notification_content">refreshing widget</string>
 </resources>

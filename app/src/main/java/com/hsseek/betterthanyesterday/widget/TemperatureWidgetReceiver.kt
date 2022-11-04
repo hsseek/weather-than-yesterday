@@ -1,13 +1,13 @@
 package com.hsseek.betterthanyesterday.widget
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.PowerManager
 import android.util.Log
-import androidx.core.app.NotificationCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.glance.GlanceId
@@ -18,8 +18,12 @@ import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.work.*
-import com.hsseek.betterthanyesterday.util.*
-import kotlinx.coroutines.*
+import com.hsseek.betterthanyesterday.service.HourlyTempFetchingService
+import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
+import com.hsseek.betterthanyesterday.util.notifyDebuggingLog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -39,7 +43,6 @@ const val EXTRA_DATA_VALID = "extra_data_valid"
 class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = TemperatureWidget()
     private val coroutineScope = MainScope()
-    private val defaultDispatcher = Dispatchers.Default
 
     // Called when a Widget is added, or on the automatic update.
     override fun onUpdate(
@@ -102,16 +105,28 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
         // Schedule Work for the next hour.
         val cal = Calendar.getInstance()
         val remainingSeconds = 3600L - (cal.get(Calendar.MINUTE) * 60 + cal.get(Calendar.SECOND))
-        notifyDebuggingLog(context, "Next job scheduled in ${(remainingSeconds / 60)} min.")
+        notifyDebuggingLog(context, TAG, "Next job scheduled in ${(remainingSeconds / 60)} min.")
         val bufferSeconds = 40
 
-        val nextHourWork = OneTimeWorkRequest.Builder(TemperatureFetchingWorker::class.java)
-            .setConstraints(getFetchingWorkConstraints())
-            .setInitialDelay(remainingSeconds + bufferSeconds, TimeUnit.SECONDS)
-            .build()
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (powerManager.isPowerSaveMode) {  // Use a Foreground Service with AlarmManger.
+            if (DEBUG_FLAG) Log.d(TAG, "Power save mode, reserving the Service.")
+            val pendingIntent = PendingIntent.getService(
+                context, 0,
+                Intent(context, HourlyTempFetchingService::class.java),
+                PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarmManager.set(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + remainingSeconds * 1000, pendingIntent)
+        } else {  // Utilize WorkManager.
+            val nextHourWork = OneTimeWorkRequest.Builder(TemperatureFetchingWorker::class.java)
+                .setConstraints(getFetchingWorkConstraints())
+                .setInitialDelay(remainingSeconds + bufferSeconds, TimeUnit.SECONDS)
+                .build()
 
-        WorkManager.getInstance(context).also {
-            it.enqueueUniqueWork(TEMP_WORK_ID_NEXT, ExistingWorkPolicy.REPLACE, nextHourWork)
+            WorkManager.getInstance(context).also {
+                it.enqueueUniqueWork(TEMP_WORK_ID_NEXT, ExistingWorkPolicy.REPLACE, nextHourWork)
+            }
         }
     }
 
@@ -126,33 +141,26 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
     private fun requestData(context: Context) {
         if (DEBUG_FLAG) Log.d(TAG, "requestData(Context) called.")
         // Let the user know a job is ongoing.
-        coroutineScope.launch {
-            val glanceIdList = GlanceAppWidgetManager(context).getGlanceIds(TemperatureWidget::class.java)
-            for (glanceId in glanceIdList) {  // For each Widget
-                launch(defaultDispatcher) {
-                    updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
-                        pref.toMutablePreferences().apply {
-                            this[REFRESHING_KEY] = true
-                        }
-                    }
-                    glanceAppWidget.update(context, glanceId)
-                }
+
+        notifyDebuggingLog(context, TAG, "Refreshing")
+
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (powerManager.isPowerSaveMode) {  // Use a Foreground Service.
+            if (DEBUG_FLAG) Log.d(TAG, "Power save mode, starting the Service.")
+            context.startForegroundService(Intent(context, HourlyTempFetchingService::class.java))
+        } else {  // Utilize WorkManager.
+            // Define the Work to fetch temperatures.
+            val immediateWork = OneTimeWorkRequest.Builder(TemperatureFetchingWorker::class.java)
+                .setConstraints(getFetchingWorkConstraints())
+            if (Build.VERSION.SDK_INT >= 31) {
+                immediateWork.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             }
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                TEMP_WORK_ID_IMMEDIATE,
+                ExistingWorkPolicy.KEEP,
+                immediateWork.build()
+            )
         }
-
-        notifyDebuggingLog(context, "Refreshing")
-
-        // Define the Work to fetch temperatures.
-        val immediateWork = OneTimeWorkRequest.Builder(TemperatureFetchingWorker::class.java)
-            .setConstraints(getFetchingWorkConstraints())
-        if (Build.VERSION.SDK_INT >= 31) {
-            immediateWork.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-        }
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            TEMP_WORK_ID_IMMEDIATE,
-            ExistingWorkPolicy.KEEP,
-            immediateWork.build()
-        )
     }
 
     private fun stopTempWorks(context: Context) {
@@ -160,28 +168,6 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
             it.cancelUniqueWork(TEMP_WORK_ID_IMMEDIATE)
             it.cancelUniqueWork(TEMP_WORK_ID_NEXT)
             it.cancelUniqueWork(DUMMY_PENDING_WORK)
-        }
-    }
-
-    private fun notifyDebuggingLog(context: Context, msg: String? = null) {
-        // A Notification for logging
-        if (DEBUG_FLAG) {
-            Log.d(TAG, msg?: "")
-
-            val channelId = "TEMP_CHANNEL_ID"
-            val channelName = "TEMP_CHANNEL_NAME"
-            val groupKey = "TEMP_GROUP_KEY"
-            val notificationChannel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
-
-            val notification = NotificationCompat.Builder(context, channelId)
-                .setContentText("Widget: $msg")
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setGroup(groupKey)
-                .build()
-
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(notificationChannel)
-            notificationManager.notify(Calendar.getInstance().timeInMillis.toInt(), notification)
         }
     }
 
@@ -201,6 +187,16 @@ class RefreshCallback : ActionCallback {
     ) {
         val intent = Intent(context, TemperatureWidgetReceiver::class.java).apply {
             action = ACTION_REFRESH
+        }
+        MainScope().launch {
+            launch(Dispatchers.IO) {
+                updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
+                    pref.toMutablePreferences().apply {
+                        this[TemperatureWidgetReceiver.REFRESHING_KEY] = true
+                    }
+                }
+                TemperatureWidget().update(context, glanceId)
+            }
         }
         context.sendBroadcast(intent)
     }

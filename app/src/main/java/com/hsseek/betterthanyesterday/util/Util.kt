@@ -1,9 +1,15 @@
 package com.hsseek.betterthanyesterday.util
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.res.Configuration
 import android.util.Log
+import androidx.compose.ui.graphics.Color
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.hsseek.betterthanyesterday.BuildConfig
+import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.Language
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
@@ -163,6 +169,50 @@ fun isServerReachable(
         true
     } catch (e: Exception) {
         false
+    }
+}
+
+fun notifyDebuggingLog(context: Context, tag: String, msg: String? = null) {
+    // A Notification for logging
+    if (DEBUG_FLAG) {
+        Log.d(tag, msg?: "")
+
+        val channelId = "TEMP_CHANNEL_ID"
+        val channelName = "TEMP_CHANNEL_NAME"
+        val groupKey = "TEMP_GROUP_KEY"
+        val notificationChannel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
+
+        val notification = NotificationCompat.Builder(context, channelId)
+            .setContentText("Widget: $msg")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setGroup(groupKey)
+            .build()
+
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.createNotificationChannel(notificationChannel)
+        notificationManager.notify(Calendar.getInstance().timeInMillis.toInt(), notification)
+    }
+}
+
+fun getTempDiffColor(context: Context, hourlyTempDiff: Int): Color {
+    return when {
+        hourlyTempDiff > 8 -> Color(ContextCompat.getColor(context, R.color.red_800))
+        hourlyTempDiff == 7 -> Color(ContextCompat.getColor(context, R.color.red_700))
+        hourlyTempDiff == 6 -> Color(ContextCompat.getColor(context, R.color.red_600))
+        hourlyTempDiff == 5 -> Color(ContextCompat.getColor(context, R.color.red_500))
+        hourlyTempDiff == 4 -> Color(ContextCompat.getColor(context, R.color.red_400))
+        hourlyTempDiff == 3 -> Color(ContextCompat.getColor(context, R.color.red_300))
+        hourlyTempDiff == 2 -> Color(ContextCompat.getColor(context, R.color.red_200))
+        hourlyTempDiff == 1 -> Color(ContextCompat.getColor(context, R.color.red_100))
+        hourlyTempDiff == 0 -> Color(ContextCompat.getColor(context, R.color.on_background))
+        hourlyTempDiff == -1 -> Color(ContextCompat.getColor(context, R.color.cool_100))
+        hourlyTempDiff == -2 -> Color(ContextCompat.getColor(context, R.color.cool_200))
+        hourlyTempDiff == -3 -> Color(ContextCompat.getColor(context, R.color.cool_300))
+        hourlyTempDiff == -4 -> Color(ContextCompat.getColor(context, R.color.cool_400))
+        hourlyTempDiff == -5 -> Color(ContextCompat.getColor(context, R.color.cool_500))
+        hourlyTempDiff == -6 -> Color(ContextCompat.getColor(context, R.color.cool_600))
+        hourlyTempDiff == -7 -> Color(ContextCompat.getColor(context, R.color.cool_700))
+        else -> Color(ContextCompat.getColor(context, R.color.cool_800))
     }
 }
 

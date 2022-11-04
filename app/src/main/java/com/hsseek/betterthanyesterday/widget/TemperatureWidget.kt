@@ -24,6 +24,7 @@ import androidx.glance.unit.ColorProvider
 import com.hsseek.betterthanyesterday.*
 import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.util.getCurrentKoreanTime
+import com.hsseek.betterthanyesterday.util.getTempDiffColor
 import java.util.*
 
 
@@ -170,16 +171,13 @@ fun TemperatureWidgetBody(
             )
         } else if (valid) {
             if (tempDiff != null) {
-                val color = androidx.glance.appwidget.unit.ColorProvider(
-                    day = getLightTemperatureColor(tempDiff),
-                    night = getDarkTemperatureColor(tempDiff)
-                )
+                val color = getTempDiffColor(context, tempDiff)
                 val diffString = getTempDiffString(hourlyTempDiff = tempDiff)
 
                 Text(
                     text = diffString,
                     style = TextStyle(
-                        color = color,
+                        color = ColorProvider(color),
                         fontSize = largeFontSize,
                         fontWeight = fontWeight,
                         textAlign = TextAlign.Center,
