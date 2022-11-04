@@ -47,8 +47,8 @@ class InstrumentedTest {
     fun geocoderAddress() {
         val tag = "Geocoder"
         val geo = KoreanGeocoder(appContext)
-        val lat = 37.566535
-        val lon = 126.9779691
+        val lat = 37.514748555
+        val lon = 126.908006124
         val maxResult = 20
 
         val time = measureTimeMillis {

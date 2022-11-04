@@ -32,11 +32,7 @@ import com.hsseek.betterthanyesterday.network.*
 import com.hsseek.betterthanyesterday.util.*
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.Hour
 import com.hsseek.betterthanyesterday.util.KmaHourRoundOff.Village
-import com.hsseek.betterthanyesterday.widget.RefreshCallback
-import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_DATA_VALID
-import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_HOURLY_TEMP
-import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_TEMP_DIFF
-import com.hsseek.betterthanyesterday.widget.TemperatureWidgetReceiver
+import com.hsseek.betterthanyesterday.widget.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,7 +53,7 @@ private const val RAIN_TAG = "PTY"
 private const val LOW_TEMP_BASE_TIME = "0200"  // From 3:00
 private const val HIGH_TEMP_BASE_TIME = "1100"  // From 12:00
 
-private const val CODED_SNACK_BAR_ID = 0
+private const val HARDCODED_SNACK_BAR_ID = 0
 private const val HIGHLIGHTED_SETTING_ROW = 1  // If out of index, none will be highlighted.
 
 class WeatherViewModel(
@@ -1068,7 +1064,7 @@ class WeatherViewModel(
 
                 // Sync numbers shown in Widgets.
                 val intent = Intent(context, TemperatureWidgetReceiver::class.java).apply {
-                    action = RefreshCallback.ACTION_DATA_FETCHED
+                    action = ACTION_DATA_FETCHED
                     putExtra(EXTRA_TEMP_DIFF, tt - yt)
                     putExtra(EXTRA_HOURLY_TEMP, tt)
                     putExtra(EXTRA_DATA_VALID, true)
@@ -1416,9 +1412,9 @@ class WeatherViewModel(
     }
 
     fun initiateConsumedSnackBar(activity: Activity, lastConsumedSnackBar: Int) {
-        if (lastConsumedSnackBar < CODED_SNACK_BAR_ID) {
+        if (lastConsumedSnackBar < HARDCODED_SNACK_BAR_ID) {
             // Update Preferences not to show the SnackBar on the next launch.
-            viewModelScope.launch { userPrefsRepo.updateConsumedSnackBar(CODED_SNACK_BAR_ID) }
+            viewModelScope.launch { userPrefsRepo.updateConsumedSnackBar(HARDCODED_SNACK_BAR_ID) }
 
             _noticeSnackBarEvent.value = SnackBarEvent(SnackBarContent(
                 R.string.snack_bar_new_setting,

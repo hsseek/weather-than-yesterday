@@ -162,9 +162,14 @@ fun removeTailingNumbers(address: String): String {
  * */
 fun getDong(address: String, toTrim: Boolean): String? {
     val regexDong = Regex("(\\S.+\\s)(\\S+?[동리])(?:\\s|$)")
-    val regexStreet = Regex("(\\S{2,}거리)(?:\\s|\$)")
+    val regexStreet = Regex("\\S{2,}거리(?:\\s|\$)")
+    val regexBon = Regex("\\S+\\s본동(?:\\s|\$)")
 
-    val dong = if (regexDong.containsMatchIn(address) && !regexStreet.containsMatchIn(address)) {
+    val dong = if (
+        regexDong.containsMatchIn(address) &&
+        !regexStreet.containsMatchIn(address) &&
+        !regexBon.containsMatchIn(address)
+    ) {
         val regexWithNumber = Regex("(\\S.+\\s)(\\S+?)\\d{1,2}([동리])(?:\\s|\$)")
         if (!regexWithNumber.containsMatchIn(address)) {  // No numbers, no need to modify.
             val matches = regexDong.find(address)

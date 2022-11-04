@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -17,13 +18,8 @@ import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.work.*
-import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.util.*
-import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_DATA_VALID
-import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_HOURLY_TEMP
-import com.hsseek.betterthanyesterday.widget.RefreshCallback.Companion.EXTRA_TEMP_DIFF
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.first
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -32,6 +28,13 @@ private const val TAG = "TemperatureWidgetReceiver"
 private const val TEMP_WORK_ID_IMMEDIATE = "hsseek.betterthanyesterday.widget.TEMP_WORK_ID_IMMEDIATE"
 private const val TEMP_WORK_ID_NEXT = "hsseek.betterthanyesterday.widget.TEMP_WORK_ID_NEXT"
 private const val DUMMY_PENDING_WORK = "hsseek.betterthanyesterday.widget.TEMP_DUMMY_WORK"
+
+const val ACTION_REFRESH = "hsseek.betterthanyesterday.widget.ACTION_REFRESH"
+const val ACTION_DATA_FETCHED = "hsseek.betterthanyesterday.widget.ACTION_DATA_FETCHED"
+const val EXTRA_HOURLY_TEMP = "extra_hourly_temp"
+const val EXTRA_TEMP_DIFF = "extra_temp_diff"
+const val EXTRA_DATA_VALID = "extra_data_valid"
+
 
 class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = TemperatureWidget()
@@ -46,15 +49,15 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
     ) {
         super.onUpdate(context, appWidgetManager, appWidgetIds)
         if (DEBUG_FLAG) Log.d(TAG, "onUpdate() called.")
-        requestData(context, true)
+        requestData(context)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (DEBUG_FLAG) Log.d(TAG, "onReceive(...) called.(action: ${intent.action})")
         when (intent.action) {
-            RefreshCallback.ACTION_DATA_FETCHED -> insertData(intent, context)
-            RefreshCallback.ACTION_REFRESH-> requestData(context)
+            ACTION_DATA_FETCHED -> insertData(intent, context)
+            ACTION_REFRESH-> requestData(context)
             AppWidgetManager.ACTION_APPWIDGET_ENABLED -> requestData(context)
             AppWidgetManager.ACTION_APPWIDGET_DISABLED -> stopTempWorks(context)
             AppWidgetManager.ACTION_APPWIDGET_DELETED -> stopTempWorks(context)
@@ -94,27 +97,33 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
                 }
                 glanceAppWidget.update(context, glanceId)
             }
-
-            // Update the hour to UserPreferences so that it won't request for the same hour.
-            val currentHour = Calendar.getInstance().hourSince1970()
-            val userPrefsRepo = UserPreferencesRepository(context)
-            userPrefsRepo.updateWidgetTime(currentHour.toInt())
         }
 
         // Schedule Work for the next hour.
         val cal = Calendar.getInstance()
-        val remainingMinutes = 60L - cal.get(Calendar.MINUTE)  // Seconds rounded up, working as a buffer.
-        notifyDebuggingLog(context, "Next job scheduled in $remainingMinutes min.")
+        val remainingSeconds = 3600L - (cal.get(Calendar.MINUTE) * 60 + cal.get(Calendar.SECOND))
+        notifyDebuggingLog(context, "Next job scheduled in ${(remainingSeconds / 60)} min.")
+        val bufferSeconds = 40
 
         val nextHourWork = OneTimeWorkRequest.Builder(TemperatureFetchingWorker::class.java)
-            .setInitialDelay(remainingMinutes, TimeUnit.MINUTES)
+            .setConstraints(getFetchingWorkConstraints())
+            .setInitialDelay(remainingSeconds + bufferSeconds, TimeUnit.SECONDS)
             .build()
+
         WorkManager.getInstance(context).also {
             it.enqueueUniqueWork(TEMP_WORK_ID_NEXT, ExistingWorkPolicy.REPLACE, nextHourWork)
         }
     }
 
-    private fun requestData(context: Context, forced: Boolean = false) {
+    private fun getFetchingWorkConstraints(): Constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .setRequiresCharging(false)
+            .setRequiresBatteryNotLow(false)
+            .setRequiresDeviceIdle(false)
+            .setRequiresStorageNotLow(false)
+            .build()
+
+    private fun requestData(context: Context) {
         if (DEBUG_FLAG) Log.d(TAG, "requestData(Context) called.")
         // Let the user know a job is ongoing.
         coroutineScope.launch {
@@ -131,38 +140,19 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
             }
         }
 
-        // Check whether new data should be presented.
-        val currentHour = Calendar.getInstance().hourSince1970()
-        val representedHour: Int
-        runBlocking {
-            val prefsRepo = UserPreferencesRepository(context)
-            val prefs = prefsRepo.preferencesFlow.first()
-            representedHour = prefs.widgetTime
-        }
+        notifyDebuggingLog(context, "Refreshing")
 
-        if (currentHour > representedHour || forced) {
-            notifyDebuggingLog(context, "Refreshing")
-            if (DEBUG_FLAG) Log.d(TAG, "Hour changed, new data required.")
-            val immediateWork = OneTimeWorkRequest.Builder(TemperatureFetchingWorker::class.java).build()
-            WorkManager.getInstance(context).also {
-                it.enqueueUniqueWork(TEMP_WORK_ID_IMMEDIATE, ExistingWorkPolicy.KEEP, immediateWork)
-            }
-        } else {
-            notifyDebuggingLog(context, "Skipping")
-            if (DEBUG_FLAG) Log.d(TAG, "Hour not changed, new data not required.")
-            coroutineScope.launch(defaultDispatcher) {
-                delay((220..360).random().toLong())  // Show fake loading for ux.
-                val glanceIdList = GlanceAppWidgetManager(context).getGlanceIds(TemperatureWidget::class.java)
-                for (glanceId in glanceIdList) {  // Dismiss Loading
-                    updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
-                        pref.toMutablePreferences().apply {
-                            this[REFRESHING_KEY] = false
-                        }
-                    }
-                    glanceAppWidget.update(context, glanceId)
-                }
-            }
+        // Define the Work to fetch temperatures.
+        val immediateWork = OneTimeWorkRequest.Builder(TemperatureFetchingWorker::class.java)
+            .setConstraints(getFetchingWorkConstraints())
+        if (Build.VERSION.SDK_INT >= 31) {
+            immediateWork.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
         }
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            TEMP_WORK_ID_IMMEDIATE,
+            ExistingWorkPolicy.KEEP,
+            immediateWork.build()
+        )
     }
 
     private fun stopTempWorks(context: Context) {
@@ -176,6 +166,8 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
     private fun notifyDebuggingLog(context: Context, msg: String? = null) {
         // A Notification for logging
         if (DEBUG_FLAG) {
+            Log.d(TAG, msg?: "")
+
             val channelId = "TEMP_CHANNEL_ID"
             val channelName = "TEMP_CHANNEL_NAME"
             val groupKey = "TEMP_GROUP_KEY"
@@ -211,13 +203,5 @@ class RefreshCallback : ActionCallback {
             action = ACTION_REFRESH
         }
         context.sendBroadcast(intent)
-    }
-
-    companion object {
-        const val ACTION_REFRESH = "hsseek.betterthanyesterday.widget.ACTION_REFRESH"
-        const val ACTION_DATA_FETCHED = "hsseek.betterthanyesterday.widget.ACTION_DATA_FETCHED"
-        const val EXTRA_HOURLY_TEMP = "extra_hourly_temp"
-        const val EXTRA_TEMP_DIFF = "extra_temp_diff"
-        const val EXTRA_DATA_VALID = "extra_data_valid"
     }
 }

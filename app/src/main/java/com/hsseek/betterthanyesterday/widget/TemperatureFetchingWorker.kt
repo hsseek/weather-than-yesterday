@@ -49,12 +49,12 @@ class TemperatureFetchingWorker(private val context: Context, workerParams: Work
         val isValid = todayTemp != null && yesterdayTemp != null
 
         val intent = Intent(context, TemperatureWidgetReceiver::class.java).apply {
-            action = RefreshCallback.ACTION_DATA_FETCHED
-            putExtra(RefreshCallback.EXTRA_DATA_VALID, isValid)
+            action = ACTION_DATA_FETCHED
+            putExtra(EXTRA_DATA_VALID, isValid)
         }
         if (isValid) {
-            intent.putExtra(RefreshCallback.EXTRA_TEMP_DIFF, todayTemp!! - yesterdayTemp!!)
-            intent.putExtra(RefreshCallback.EXTRA_HOURLY_TEMP, todayTemp)
+            intent.putExtra(EXTRA_TEMP_DIFF, todayTemp!! - yesterdayTemp!!)
+            intent.putExtra(EXTRA_HOURLY_TEMP, todayTemp)
         }
 
         // Send broadcast to update Widget.
