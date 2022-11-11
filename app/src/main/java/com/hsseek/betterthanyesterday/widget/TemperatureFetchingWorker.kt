@@ -58,7 +58,7 @@ class TemperatureFetchingWorker(private val context: Context, workerParams: Work
         }
 
         // Send broadcast to update Widget.
-        if (DEBUG_FLAG) Log.d(TAG, "Send broadcast with: yt of $yesterdayTemp, tt of $todayTemp(isValid: $isValid)")
+        if (DEBUG_FLAG) Log.d(TAG, "Send broadcast: $yesterdayTemp -> $todayTemp(isValid: $isValid)")
         context.sendBroadcast(intent)
     }
 }
@@ -71,7 +71,7 @@ suspend fun requestComparingTempData(
     timeoutMax: Long,
     onFinished: (Int?, Int?) -> Unit,
 ) {
-    if (DEBUG_FLAG) Log.d(TAG, "requestData(Context) called.")
+    if (DEBUG_FLAG) Log.d(TAG, "requestComparingTempData(Context) called.")
 
     var trialCount = 0
     var todayTemp: Int? = null
@@ -94,7 +94,7 @@ suspend fun requestComparingTempData(
                             .body()?.response?.body?.items?.item?.first {
                                 it.category == VILLAGE_TEMPERATURE_TAG
                             }?.fcstValue?.toInt()
-                        if (DEBUG_FLAG) Log.d(TAG, "Temperature: $yesterdayTemp -> $todayTemp")
+                        if (DEBUG_FLAG) Log.d(TAG, "Temperature data: $yesterdayTemp -> $todayTemp")
                     }
                     break
                 } catch (e: Exception) {
@@ -126,7 +126,7 @@ suspend fun requestComparingTempData(
                         }
                     } else {  // Not worth retrying, just stop.
                         when (e) {
-                            is CancellationException -> if (DEBUG_FLAG) Log.d(TAG, "kmaJob cancelled.")
+                            is CancellationException -> if (DEBUG_FLAG) Log.d(TAG, "Widget Job cancelled.")
                             else -> Log.e(TAG, "Cannot retrieve weather data.", e)
                         }
                         break

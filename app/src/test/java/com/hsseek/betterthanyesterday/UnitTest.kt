@@ -60,8 +60,7 @@ class UnitTest {
 
     @Test
     fun connection() {
-        assertEquals(true, isServerReachable())
-        assertEquals(false, isServerReachable("bad_url"))
+        assertEquals(true, isNetworkConnected())
     }
 
     @Test

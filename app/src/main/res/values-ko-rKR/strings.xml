@@ -14,8 +14,8 @@
     <string name="hour_noon">정오</string>
     <string name="hour_am">오전 %1$d시</string>
     <string name="hour_pm">오후 %1$d시</string>
-    <string name="hour_present">(현재)</string>
-    <string name="hour_stops_soon">(곧 그침)</string>
+    <string name="hour_present">현재</string>
+    <string name="hour_stops_soon">곧 그침</string>
     <string name="today_sunny">비 소식이 없습니다.</string>
     <string name="today_rainy">오늘 비 예보가 있습니다.</string>
     <string name="today_snowy">오늘 눈 예보가 있습니다.</string>
@@ -100,14 +100,13 @@
     <string name="desc_banner_ad">배너 광고</string>
     <string name="ad_sci">신림동 저수지의 개들</string>
     <string name="snack_bar_new_setting">심플모드가 추가됐습니다.</string>
-    <string name="snack_bar_go_setting_action">설정</string>
+    <string name="snack_bar_go_setting_action">설정으로 이동</string>
     <string name="top_bar_report_error">오류 신고</string>
     <string name="top_bar_report_error_explanation">아래는 서버로부터 가장 마지막으로 수신된 데이터입니다. 아래 데이터를 같이 보내주시면 문제 상황을 파악하는 데 큰 도움이 됩니다.</string>
     <string name="toast_refreshing_ongoing">새로고침 중입니다.</string>
     <string name="toast_refresh_not_reachable">데이터 서버에 접속할 수 없습니다.</string>
     <string name="add_widget">위젯 추가</string>
     <string name="app_widget_description">어제 대비 오늘의 기온 차이를 보여줍니다.</string>
-    <string name="widget_error">죄송합니다. 에러가 발생했습니다.</string>
     <string name="loading">새로고침 중</string>
     <string name="widget_example_temp_time">오후 2시, 18\\u2103</string>
     <string name="service_notification_channel_title">위젯 새로고침</string>

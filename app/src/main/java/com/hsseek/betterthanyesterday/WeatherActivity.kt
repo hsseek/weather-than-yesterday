@@ -6,6 +6,7 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.content.res.Resources
 import android.net.Uri
 import android.os.Bundle
@@ -33,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -557,12 +557,12 @@ class WeatherActivity : ComponentActivity() {
 
     @Composable
     private fun LandingScreen(
-        letter: Painter = painterResource(id = R.drawable.landing_letter_01),
         timeout: Long,
         onTimeout: () -> Unit,
     ) {
         val space: Dp
-        val letterFraction: Float
+        val letterSize: TextUnit
+        val letter = "어제보다"
         val iconFraction: Float
 
         LaunchedEffect(true) {
@@ -570,57 +570,59 @@ class WeatherActivity : ComponentActivity() {
             onTimeout()
         }
 
-        if (isWidthLong()) {
-            space = 75.dp
-            letterFraction = .4f
-            iconFraction = .12f
+        val configuration = LocalConfiguration.current
+        when (configuration.orientation) {
+            Configuration.ORIENTATION_LANDSCAPE -> {
+                space = 75.dp
+                letterSize = 120.sp
+                iconFraction = .12f
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_thermostat),
-                    contentDescription = null,
-                    contentScale = ContentScale.FillWidth,
-                    modifier = Modifier
-                        .fillMaxWidth(iconFraction),
-                )
-                Spacer(modifier = Modifier.width(space))
-                Image(
-                    painter = letter,
-                    contentDescription = null,
-                    contentScale = ContentScale.FillWidth,
-                    modifier = Modifier
-                        .fillMaxWidth(letterFraction),
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_thermostat),
+                        contentDescription = null,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier
+                            .fillMaxWidth(iconFraction),
+                    )
+                    Spacer(modifier = Modifier.width(space))
+                    Text(
+                        text = letter,
+                        fontSize = letterSize,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = gmarket,
+                    )
+                }
             }
-        } else {
-            space = 30.dp
-            letterFraction = .4f
-            iconFraction = .18f
+            else -> {
+                space = 30.dp
+                letterSize = 36.sp
+                iconFraction = .18f
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_thermostat),
-                    contentDescription = null,
-                    contentScale = ContentScale.FillWidth,
-                    modifier = Modifier
-                        .fillMaxWidth(iconFraction),
-                )
-                Spacer(modifier = Modifier.height(space))
-                Image(
-                    painter = letter,
-                    contentDescription = null,
-                    contentScale = ContentScale.FillWidth,
-                    modifier = Modifier
-                        .fillMaxWidth(letterFraction),
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_thermostat),
+                        contentDescription = null,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier
+                            .fillMaxWidth(iconFraction),
+                    )
+                    Spacer(modifier = Modifier.height(space))
+                    Text(
+                        text = letter,
+                        fontSize = letterSize,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = gmarket,
+                    )
+                }
             }
         }
     }
@@ -1116,18 +1118,16 @@ class WeatherActivity : ComponentActivity() {
                             qualitative = stringResource(R.string.today_sunny)
                             hourDescription = ""
                         } else {
-                            hourDescription =
-                                getRainfallHourDescription(
-                                    this@WeatherActivity,
-                                    sky.startingHour,
-                                    sky.endingHour,
-                                    cal = viewModel.referenceCal
-                                )
                             qualitative = when (sky) {
                                 is Rainy -> stringResource(R.string.today_rainy)
                                 is Snowy -> stringResource(R.string.today_snowy)
                                 else -> stringResource(R.string.today_mixed)
                             }
+                            hourDescription = getRainfallHourDescription(
+                                    this@WeatherActivity,
+                                    sky.startingHour,
+                                    sky.endingHour,
+                                    cal = viewModel.referenceCal)
                         }
                     }
                     else -> {
@@ -1145,7 +1145,7 @@ class WeatherActivity : ComponentActivity() {
                     Column {
                         Text(text = qualitative)
                         if (sky is Bad) {
-                            Text(text = hourDescription)
+                            Text(text = "($hourDescription)")
                         }
                     }
                 } else {
@@ -1341,6 +1341,7 @@ internal fun getRainfallHourDescription(
     val currentHour = cal.get(Calendar.HOUR_OF_DAY) * 100
     val lastHour = 2300
     val through = " ~ "
+    val comma = ", "
 
     // (Start, Current, End)
     if (endingHour == lastHour) {  // (?, ?, 23)
@@ -1374,7 +1375,7 @@ internal fun getRainfallHourDescription(
                 openingString = ""
             } else {
                 // (18, 7, 18)
-                openingString = getReadableHour(context, startingHour)
+                openingString = getReadableHour(context, startingHour) + comma
             }
         } else {  // (15, ?, 18)
             if (endingHour <= currentHour) {  // if ending < current, this won't be called from the first place.

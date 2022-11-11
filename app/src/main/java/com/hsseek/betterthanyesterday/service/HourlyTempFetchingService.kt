@@ -94,8 +94,7 @@ class HourlyTempFetchingService : Service() {
             putExtra(EXTRA_HOURLY_TEMP, todayTemp)
             putExtra(EXTRA_DATA_VALID, todayTemp != null && yesterdayTemp != null)
         }
-        if (DEBUG_FLAG) Log.d(TAG,
-            "Send broadcast with: $todayTemp($diff), ${todayTemp != null && yesterdayTemp != null}")
+        if (DEBUG_FLAG) Log.d(TAG, "Send broadcast: $todayTemp($diff), ${todayTemp != null && yesterdayTemp != null}")
         sendBroadcast(intent)
 
         // Job done.
@@ -119,6 +118,7 @@ class HourlyTempFetchingService : Service() {
 
     inner class LocalBinder : Binder() {
         // Return this instance of LocalService so clients can call public methods
+        @Suppress("unused")
         fun getService(): HourlyTempFetchingService = this@HourlyTempFetchingService
     }
 }

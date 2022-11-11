@@ -20,8 +20,6 @@ import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.work.*
 import com.hsseek.betterthanyesterday.service.HourlyTempFetchingService
 import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
-import com.hsseek.betterthanyesterday.util.notifyDebuggingLog
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import java.util.*
@@ -85,12 +83,12 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
         val tempDiff = intent.extras?.getInt(EXTRA_TEMP_DIFF)
         val hourlyTemp = intent.extras?.getInt(EXTRA_HOURLY_TEMP)
         val isValid = intent.extras?.getBoolean(EXTRA_DATA_VALID) ?: false
+        if (DEBUG_FLAG) Log.d(TAG, "Temperature difference: $tempDiff")
 
         coroutineScope.launch {
             val glanceIdList = GlanceAppWidgetManager(context).getGlanceIds(TemperatureWidget::class.java)
             for (glanceId in glanceIdList) {
                 updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
-                    if (DEBUG_FLAG) Log.d(TAG, "Temperature difference: $tempDiff")
                     pref.toMutablePreferences().apply {
                         this[REFRESHING_KEY] = false
                         this[VALID_DATA_KEY] = isValid
@@ -105,7 +103,6 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
         // Schedule Work for the next hour.
         val cal = Calendar.getInstance()
         val remainingSeconds = 3600L - (cal.get(Calendar.MINUTE) * 60 + cal.get(Calendar.SECOND))
-        notifyDebuggingLog(context, TAG, "Next job scheduled in ${(remainingSeconds / 60)} min.")
         val bufferSeconds = 40
 
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -131,7 +128,6 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
     }
 
     private fun getFetchingWorkConstraints(): Constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
             .setRequiresCharging(false)
             .setRequiresBatteryNotLow(false)
             .setRequiresDeviceIdle(false)
@@ -141,8 +137,6 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
     private fun requestData(context: Context) {
         if (DEBUG_FLAG) Log.d(TAG, "requestData(Context) called.")
         // Let the user know a job is ongoing.
-
-        notifyDebuggingLog(context, TAG, "Refreshing")
 
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         if (powerManager.isPowerSaveMode) {  // Use a Foreground Service.
@@ -189,14 +183,12 @@ class RefreshCallback : ActionCallback {
             action = ACTION_REFRESH
         }
         MainScope().launch {
-            launch(Dispatchers.IO) {
-                updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
-                    pref.toMutablePreferences().apply {
-                        this[TemperatureWidgetReceiver.REFRESHING_KEY] = true
-                    }
+             updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
+                pref.toMutablePreferences().apply {
+                    this[TemperatureWidgetReceiver.REFRESHING_KEY] = true
                 }
-                TemperatureWidget().update(context, glanceId)
             }
+            TemperatureWidget().update(context, glanceId)
         }
         context.sendBroadcast(intent)
     }

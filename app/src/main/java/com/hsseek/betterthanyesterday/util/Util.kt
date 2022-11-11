@@ -16,8 +16,7 @@ import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
 import com.hsseek.betterthanyesterday.location.CoordinatesXy
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
-import java.net.URL
-import java.net.URLConnection
+import java.net.*
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -158,14 +157,14 @@ fun getLocaleFromCode(code: Int): Locale {
     return Locale(isoCode)
 }
 
-fun isServerReachable(
-    url: String = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst",
-    timeout: Int = 2000
+fun isNetworkConnected(
+    timeout: Int = 1600
 ): Boolean {
     return try {
-        val connection: URLConnection = URL(url).openConnection()
-        connection.connectTimeout = timeout
-        connection.connect()
+        val sock = Socket()
+        val sockAddress = InetSocketAddress("8.8.8.8", 53)  // Google DNS
+        sock.connect(sockAddress, timeout)
+        sock.close()
         true
     } catch (e: Exception) {
         false
@@ -175,10 +174,10 @@ fun isServerReachable(
 fun notifyDebuggingLog(context: Context, tag: String, msg: String? = null) {
     // A Notification for logging
     if (DEBUG_FLAG) {
-        Log.d(tag, msg?: "")
+        Log.d(tag, "Notification: " + (msg?: ""))
 
         val channelId = "TEMP_CHANNEL_ID"
-        val channelName = "TEMP_CHANNEL_NAME"
+        val channelName = "Debugging logs"
         val groupKey = "TEMP_GROUP_KEY"
         val notificationChannel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
 

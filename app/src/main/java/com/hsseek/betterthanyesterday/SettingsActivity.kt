@@ -182,33 +182,33 @@ private fun MainScreen(
                 PreferenceToggleRow(
                     title = stringResource(R.string.pref_title_simple_mode),
                     description = if (DEBUG_FLAG) stringResource(R.string.pref_desc_simple_mode) else stringResource(id = R.string.pref_desc_next_release),
-                    enabled = DEBUG_FLAG,
                     checked = viewModel.isSimplified,
-                    isSpecial = highlightedIndex == 1,
+                    isHighlighted = highlightedIndex == 1,
                     onClickHelp = { viewModel.onClickSimpleViewHelp() },
                     onCheckedChange = { isChecked -> viewModel.updateSimpleViewEnabled(isChecked) }
                 )
 
-                // Disabled
                 // To be released
-                if (DEBUG_FLAG) {
-                    // Auto Refresh
-                    PreferenceToggleRow(
-                        title = stringResource(R.string.pref_title_auto_refresh),
-                        description = stringResource(R.string.pref_desc_auto_refresh),
-                        enabled = DEBUG_FLAG,
-                        checked = viewModel.isAutoRefresh,
-                        isSpecial = highlightedIndex == 2,
-                        onClickHelp = { viewModel.onClickAutoRefreshHelp() },
-                        onCheckedChange = { isChecked -> viewModel.updateAutoRefreshEnabled(isChecked) },
-                    )
+                // Auto Refresh
+                PreferenceToggleRow(
+                    title = stringResource(R.string.pref_title_auto_refresh),
+                    description = stringResource(R.string.pref_desc_auto_refresh),
+                    enabled = DEBUG_FLAG,
+                    checked = viewModel.isAutoRefresh,
+                    isHighlighted = highlightedIndex == 2,
+                    onClickHelp = { viewModel.onClickAutoRefreshHelp() },
+                    onCheckedChange = { isChecked -> viewModel.updateAutoRefreshEnabled(isChecked) },
+                )
 
+                // Disabled
+                if (DEBUG_FLAG) {
                     // Daybreak mode
                     PreferenceToggleRow(
                         title = stringResource(R.string.pref_title_daybreak_mode),
                         description = stringResource(R.string.pref_desc_daybreak_mode),
+                        enabled = DEBUG_FLAG,
                         checked = viewModel.isDaybreak,
-                        isSpecial = highlightedIndex == 3,
+                        isHighlighted = highlightedIndex == 3,
                         onClickHelp = { viewModel.onClickDaybreakHelp() },
                         onCheckedChange = { isChecked -> viewModel.updateDaybreakEnabled(isChecked) },
                     )
@@ -217,8 +217,9 @@ private fun MainScreen(
                     PreferenceToggleRow(
                         title = stringResource(R.string.pref_title_preset_regions),
                         description = stringResource(R.string.pref_desc_preset_regions),
+                        enabled = DEBUG_FLAG,
                         checked = viewModel.isPresetRegion,
-                        isSpecial = highlightedIndex == 4,
+                        isHighlighted = highlightedIndex == 4,
                         onClickHelp = { viewModel.onClickPresetRegionHelp() },
                         onCheckedChange = { isChecked -> viewModel.updatePresetRegionEnabled(isChecked) },
                     )
@@ -366,12 +367,12 @@ fun PreferenceToggleRow(
     enabled: Boolean = true,
     title: String,
     description: String,
-    isSpecial: Boolean = false,
+    isHighlighted: Boolean = false,
     checked: Boolean,
     onClickHelp: (() -> Unit)?,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    val isHighlighted = rememberSaveable{ mutableStateOf(isSpecial) }
+    val isNew = rememberSaveable{ mutableStateOf(isHighlighted) }
 
     Column {
         Row(
@@ -382,12 +383,12 @@ fun PreferenceToggleRow(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(modifier = Modifier.weight(1f)) {
-                PreferenceRowHeader(enabled, title, description, isHighlighted.value, onClickHelp = onClickHelp)
+                PreferenceRowHeader(enabled, title, description, isNew.value, onClickHelp = onClickHelp)
             }
             Switch(enabled = enabled, checked = checked,
                 onCheckedChange = {
                     onCheckedChange(it)
-                    isHighlighted.value = false
+                    isNew.value = false
                 }
             )
         }
@@ -611,7 +612,7 @@ fun SettingsRowPreview() {
                     title = "Simple View Mode",
                     description = "Hide",
                     checked = true,
-                    isSpecial = true,
+                    isHighlighted = true,
                     onClickHelp = { },
                     onCheckedChange = { }
                 )

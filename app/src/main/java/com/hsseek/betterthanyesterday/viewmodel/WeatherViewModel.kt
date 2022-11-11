@@ -53,7 +53,7 @@ private const val RAIN_TAG = "PTY"
 private const val LOW_TEMP_BASE_TIME = "0200"  // From 3:00
 private const val HIGH_TEMP_BASE_TIME = "1100"  // From 12:00
 
-private const val HARDCODED_SNACK_BAR_ID = 0
+private const val HARDCODED_SNACK_BAR_ID = 1
 private const val HIGHLIGHTED_SETTING_ROW = 1  // If out of index, none will be highlighted.
 
 class WeatherViewModel(
@@ -1126,7 +1126,7 @@ class WeatherViewModel(
         } else {
             if (!isSecondary) {
                 viewModelScope.launch(defaultDispatcher) {
-                    if (isServerReachable()) {
+                    if (isNetworkConnected()) {
                         _isRefreshing.value = true
                         _toastMessage.value = ToastEvent(R.string.toast_refresh_up_to_date)
                         _isRefreshing.value = false

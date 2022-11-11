@@ -15,8 +15,8 @@
     <string name="hour_am">%1$d AM</string>
     <string name="hour_pm">%1$d PM</string>
     <string name="hour_23">11 PM</string>
-    <string name="hour_present">(Ongoing)</string>
-    <string name="hour_stops_soon">(Stops soon)</string>
+    <string name="hour_present">Ongoing</string>
+    <string name="hour_stops_soon">Stops soon</string>
     <string name="today_sunny">No rain forecast</string>
     <string name="today_rainy">It rains today.</string>
     <string name="today_snowy">It snows today.</string>
@@ -104,14 +104,13 @@
     <string name="desc_banner_ad">Banner advertisement</string>
     <string name="ad_sci">Reservoir Dogs at Sillim</string>
     <string name="snack_bar_new_setting">Simple Mode is added.</string>
-    <string name="snack_bar_go_setting_action">Settings</string>
+    <string name="snack_bar_go_setting_action">Go to Settings</string>
     <string name="top_bar_report_error">Report error</string>
     <string name="top_bar_report_error_explanation">The following is the last data received from the server. If you attach it, it greatly helps to identify the problem.</string>
     <string name="toast_refreshing_ongoing">Refreshing ongoing.</string>
     <string name="toast_refresh_not_reachable">Cannot access the data server.</string>
     <string name="add_widget">Add widget</string>
     <string name="app_widget_description">Shows the temperature difference compared to the yesterday\'s.</string>
-    <string name="widget_error">Sorry, an error occurred.</string>
     <string name="loading">Loading…</string>
     <string name="widget_example_temp_time">2 PM, 18\u2103</string>
     <string name="widget_example_temp_diff" translatable="false">▴ 1</string>

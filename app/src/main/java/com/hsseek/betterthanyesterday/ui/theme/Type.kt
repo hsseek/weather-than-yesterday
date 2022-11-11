@@ -48,6 +48,6 @@ val Typography = Typography(
     */
 )
 
-val euljiro = FontFamily(
-    Font(R.font.euljiro, FontWeight.Normal)
+val gmarket = FontFamily(
+    Font(R.font.gmarket_sans, FontWeight.Normal)
 )

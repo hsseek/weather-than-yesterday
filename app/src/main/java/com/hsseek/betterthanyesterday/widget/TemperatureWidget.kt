@@ -196,10 +196,10 @@ fun TemperatureWidgetBody(
             }
         } else {  // Not valid
             Text(
-                text = context.getString(R.string.widget_error),
+                text = NULL_STRING,
                 style = TextStyle(
                     color = ColorProvider(R.color.grey),
-                    fontSize = normalFontSize,
+                    fontSize = largeFontSize,
                     textAlign = TextAlign.Center,
                 )
             )

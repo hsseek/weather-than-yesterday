@@ -61,14 +61,14 @@ class InstrumentedTest {
     fun rainfallTest() {
         val tag = "Rainfall"
         val cal = Calendar.getInstance()
-        if (DEBUG_FLAG) Log.d(tag, "23 ~ 23")
+        if (DEBUG_FLAG) Log.d(tag, "Rainfall:23 ~ 23")
         cal.set(2022, 10, 12, 21, 8)
         if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2300, 2300, cal))
 
         cal.set(2022, 10, 12, 23, 8)
         if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2300, 2300, cal))
 
-        if (DEBUG_FLAG) Log.d(tag, "21 ~ 23")
+        if (DEBUG_FLAG) Log.d(tag, "Rainfall:21 ~ 23")
         cal.set(2022, 10, 12, 18, 8)
         if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2100, 2300, cal))
 
@@ -81,7 +81,7 @@ class InstrumentedTest {
         cal.set(2022, 10, 12, 23, 8)
         if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2100, 2300, cal))
 
-        if (DEBUG_FLAG) Log.d(tag, "22 ~ 22")
+        if (DEBUG_FLAG) Log.d(tag, "Rainfall:22 ~ 22")
         cal.set(2022, 10, 12, 18, 8)
         if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2200, 2200, cal))
 
@@ -91,7 +91,7 @@ class InstrumentedTest {
         cal.set(2022, 10, 12, 23, 8)
         if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2200, 2200, cal))
 
-        if (DEBUG_FLAG) Log.d(tag, "20 ~ 23")
+        if (DEBUG_FLAG) Log.d(tag, "Rainfall:20 ~ 23")
         cal.set(2022, 10, 12, 18, 8)
         if (DEBUG_FLAG) Log.d(tag, getRainfallHourDescription(appContext, 2000, 2200, cal))
 
