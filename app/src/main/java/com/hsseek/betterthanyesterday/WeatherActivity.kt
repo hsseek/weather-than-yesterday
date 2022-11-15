@@ -575,8 +575,8 @@ class WeatherActivity : ComponentActivity() {
         val configuration = LocalConfiguration.current
         when (configuration.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
-                space = 75.dp
-                letterSize = 120.sp
+                space = 50.dp
+                letterSize = (LocalConfiguration.current.screenWidthDp * 0.08).sp
                 iconFraction = .12f
 
                 Row(
@@ -602,7 +602,7 @@ class WeatherActivity : ComponentActivity() {
             }
             else -> {
                 space = 30.dp
-                letterSize = 36.sp
+                letterSize = (LocalConfiguration.current.screenWidthDp * 0.12).sp
                 iconFraction = .18f
 
                 Column(
@@ -1178,7 +1178,7 @@ class WeatherActivity : ComponentActivity() {
     }
 
 //    @Preview(showBackground = true, heightDp = 640)
-//    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, heightDp = 640)
+    @Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, heightDp = 640)
     @Preview("Landscape", device = Devices.AUTOMOTIVE_1024p, widthDp = 1920, heightDp = 960)
     @Composable
     fun LandingScreenPreview() {

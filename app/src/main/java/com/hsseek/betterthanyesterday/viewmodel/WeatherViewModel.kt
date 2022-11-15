@@ -67,7 +67,6 @@ class WeatherViewModel(
         private set
     private fun refreshReferenceCal(): Calendar {  // THE TIME MACHINE
         val now = getCurrentKoreanTime()
-//        now.set(2022, 10, 15, 14, 31)  // testtest
         if (DEBUG_FLAG) Log.d(TAG, "Reference time: ${now.time}")
         return now
     }
@@ -839,6 +838,7 @@ class WeatherViewModel(
                 status == RainfallType.Shower.code
             ) {
                 rainingHours.add(i.fcstTime)
+                if (DEBUG_FLAG) Log.d(TAG, "Raining at ${i.fcstTime}")
             } else if (
                 status == RainfallType.Snowing.code
             ) {
