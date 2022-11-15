@@ -97,6 +97,9 @@
     <string name="pref_desc_preset_regions">Choose one of the preset locations instead of searching.</string>
     <string name="pref_help_preset_regions">With this mode enabled, you can choose a forecast region from a preset instead of searching a region.\n\nOn change forecast region, it can spare your typing the name of a region, while forecast for preset regions represents a more general information.</string>
     <string name="snack_bar_weather_error_general">Cannot retrieve weather data.</string>
+    <string name="snack_bar_weather_error_http">Public Data page is not responding. Nothing we can do from the app &#128546;</string>
+    <string name="snack_bar_weather_error_expired_service">Public Data are not available anymore. Please let the developer know.</string>
+    <string name="snack_bar_weather_error_traffic">Requests to Public Data reached the limit. Please let the developer know.</string>
     <string name="snack_bar_error_kma_na">KMA data are not available.</string>
     <string name="snack_bar_error_send_action">Report</string>
     <string name="snack_bar_error_send_title">Error Report</string>

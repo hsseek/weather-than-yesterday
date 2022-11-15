@@ -400,6 +400,7 @@ class WeatherActivity : ComponentActivity() {
                     contentAlignment = Alignment.Center,
                 ) {
                     val enlargedFontSize = 178.sp
+
                     if (isWidthLong()) {
                         Column(
                             modifier = Modifier
@@ -430,11 +431,12 @@ class WeatherActivity : ComponentActivity() {
                                         .weight(weight),
                                     contentAlignment = Alignment.Center,
                                 ) {
+                                    val diff = viewModel.hourlyTempDiff
                                     HourlyTemperature(
                                         isSimplified = viewModel.isSimplified,
                                         hourlyTempDiff = viewModel.hourlyTempDiff,
                                         hourlyTemp = viewModel.hourlyTempToday,
-                                        hugeFontSize = enlargedFontSize,
+                                        hugeFontSize = if (diff != null && abs(diff) < 10) enlargedFontSize else 130.sp,
                                     )
                                 }
                                 Column(

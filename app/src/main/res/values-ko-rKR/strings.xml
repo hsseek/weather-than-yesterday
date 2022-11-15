@@ -111,4 +111,7 @@
     <string name="widget_example_temp_time">오후 2시, 18\\u2103</string>
     <string name="service_notification_channel_title">위젯 새로고침</string>
     <string name="service_notification_content">위젯 새로고침 중</string>
+    <string name="snack_bar_weather_error_http">공공 데이터 페이지 응답이 없습니다. 앱에서 할 수 있는 것이 없네요 &#128546;</string>
+    <string name="snack_bar_weather_error_expired_service">공공 데이터가 더 이상 제공되지 않습니다. 개발자에게 이 사실을 알려주세요.</string>
+    <string name="snack_bar_weather_error_traffic">앱의 공공 데이터 사용량이 한계에 달했습니다. 개발자에게 이 사실을 알려주세요.</string>
 </resources>
