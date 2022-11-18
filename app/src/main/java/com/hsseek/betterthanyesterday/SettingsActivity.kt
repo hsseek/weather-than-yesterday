@@ -181,7 +181,7 @@ private fun MainScreen(
                 // Simple View
                 PreferenceToggleRow(
                     title = stringResource(R.string.pref_title_simple_mode),
-                    description = if (DEBUG_FLAG) stringResource(R.string.pref_desc_simple_mode) else stringResource(id = R.string.pref_desc_next_release),
+                    description = stringResource(R.string.pref_desc_simple_mode),
                     checked = viewModel.isSimplified,
                     isHighlighted = highlightedIndex == 1,
                     onClickHelp = { viewModel.onClickSimpleViewHelp() },
@@ -192,7 +192,8 @@ private fun MainScreen(
                 // Auto Refresh
                 PreferenceToggleRow(
                     title = stringResource(R.string.pref_title_auto_refresh),
-                    description = stringResource(R.string.pref_desc_auto_refresh),
+                    description = stringResource(id = R.string.pref_desc_next_release),
+                    // description = stringResource(R.string.pref_desc_auto_refresh),
                     enabled = DEBUG_FLAG,
                     checked = viewModel.isAutoRefresh,
                     isHighlighted = highlightedIndex == 2,

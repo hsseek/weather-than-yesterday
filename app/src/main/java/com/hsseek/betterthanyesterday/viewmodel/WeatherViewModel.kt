@@ -61,7 +61,7 @@ class WeatherViewModel(
     private val userPrefsRepo: UserPreferencesRepository,
 ) : AndroidViewModel(application) {
     val autoRegionCoordinate: CoordinatesXy = PresetRegion.Auto.xy
-    private var lastSuccessfulTimeArray: Array<WeatherDataTimeStamp?> = arrayOfNulls(11)
+    private var lastSuccessfulTimeArray: Array<WeatherDataTimeStamp?> = arrayOfNulls(9)
     var referenceCal: Calendar = refreshReferenceCal()
         get() = field.clone() as Calendar
         private set
@@ -291,6 +291,9 @@ class WeatherViewModel(
                 todayShortTermData,
                 todayHighTempData, todayLowTempData,
             )
+            if (weatherDataArray.size != lastSuccessfulTimeArray.size) {
+                if (DEBUG_FLAG) Log.w(TAG, "Response holders don't match.(Responses: ${weatherDataArray.size}, tst: ${lastSuccessfulTimeArray.size})")
+           }
 
             val separator = "\n────────────────\n"
             val reportHeader = separator +
@@ -1514,6 +1517,9 @@ private fun isNewDataReleasedAfter(tst: WeatherViewModel.WeatherDataTimeStamp, c
     }
 }
 
+/**
+ * Returns true if new data are available for [cal] after [tst].
+ * */
 private fun checkBaseTime(tst: WeatherViewModel.WeatherDataTimeStamp, cal: Calendar): Boolean {
     val lastCheckedCal = tst.lastSuccessfulTime
     val tag = tst.tag
