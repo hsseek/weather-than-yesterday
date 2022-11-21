@@ -1,20 +1,20 @@
 package com.hsseek.betterthanyesterday.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.darkColors
 import androidx.compose.material.lightColors
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
 private val DarkColorPalette = darkColors(
     primary = Amber400,
     primaryVariant = Amber800,
     secondary = Pink700,
     secondaryVariant = Pink700,
-    background = Gray500,
-    onBackground = White,
-    surface = Gray500,
-    onSurface = White,
+    background = DarkBackground,
+    onBackground = Color.White,
+    surface = DarkBackground,
+    onSurface = Color.White,
 )
 
 private val LightColorPalette = lightColors(
@@ -22,10 +22,10 @@ private val LightColorPalette = lightColors(
     primaryVariant = Amber400,
     secondary = Pink400,
     secondaryVariant = Pink400,
-    background = White,
-    onBackground = Black,
-    surface = White,
-    onSurface = Black,
+    background = Color.White,
+    onBackground = Color.Black,
+    surface = Color.White,
+    onSurface = Color.Black,
 
     /* Other default colors to override
     onPrimary = Color.White,
@@ -35,7 +35,7 @@ private val LightColorPalette = lightColors(
 
 @Composable
 fun BetterThanYesterdayTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean,
     content: @Composable () -> Unit
 ) {
     val colors = if (darkTheme) DarkColorPalette else LightColorPalette

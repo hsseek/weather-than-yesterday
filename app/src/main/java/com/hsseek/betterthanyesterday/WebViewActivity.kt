@@ -9,6 +9,7 @@ import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
@@ -16,10 +17,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.hsseek.betterthanyesterday.ui.theme.BetterThanYesterdayTheme
-import com.hsseek.betterthanyesterday.ui.theme.White
 
 const val EXTRA_URL_KEY = "bty_intent_extra_url"
 const val FAQ_URL = "https://blog.naver.com/seoulworkshop/222898712063"
@@ -31,12 +32,10 @@ class WebViewActivity : ComponentActivity() {
         val url: String = intent.extras?.getString(EXTRA_URL_KEY) ?: FAQ_URL
 
         setContent {
-            BetterThanYesterdayTheme {
-                // Make the status bar transparent.
+            BetterThanYesterdayTheme(isSystemInDarkTheme()) {
+                // Make the status bar look transparent.
                 val systemUiController = rememberSystemUiController()
-                systemUiController.setSystemBarsColor(
-                    color = White
-                )
+                systemUiController.setSystemBarsColor(color = Color.White)
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),

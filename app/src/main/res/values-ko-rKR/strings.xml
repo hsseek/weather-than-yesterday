@@ -99,7 +99,7 @@
     <string name="snack_bar_error_send_opening">아래는 오류 발생 직전에 앱에서 실행 중이던 코드입니다. 코드를 같이 공유해주시면 버그를 수정하는 데 큰 도움이 됩니다.\n\n사용자가 직접 공유 내용을 확인하고 결정할 수 있도록 이메일을 통해 오류를 공유할 수 있도록 설계하였습니다. 통상적인 이메일이기 때문에 아래 적혀있는 내용만이 공유되며, 원한다면 내용을 추가하거나 수정할 수 있습니다.</string>
     <string name="desc_banner_ad">배너 광고</string>
     <string name="ad_sci">신림동 저수지의 개들</string>
-    <string name="snack_bar_notice">투명 위젯이 추가됐습니다.</string>
+    <string name="snack_bar_notice">다크 모드 설정이 추가되었습니다.</string>
     <string name="snack_bar_go_setting_action">설정으로 이동</string>
     <string name="top_bar_report_error">오류 신고</string>
     <string name="top_bar_report_error_explanation">아래는 서버로부터 가장 마지막으로 수신된 데이터입니다. 아래 데이터를 같이 보내주시면 문제 상황을 파악하는 데 큰 도움이 됩니다.</string>
@@ -108,7 +108,7 @@
     <string name="add_widget">위젯 추가</string>
     <string name="gray_temperature_widget_description">기온 차이</string>
     <string name="loading">새로고침 중</string>
-    <string name="widget_example_temp_time">오후 2시, 18\\u2103</string>
+    <string name="widget_example_temp_time">오후 2시, 18\u2103</string>
     <string name="service_notification_channel_title">위젯 새로고침</string>
     <string name="service_notification_content">위젯 새로고침 중</string>
     <string name="snack_bar_weather_error_http">공공 데이터 페이지 응답이 없습니다. 앱에서 할 수 있는 것이 없네요 &#128546;</string>
@@ -116,4 +116,10 @@
     <string name="snack_bar_weather_error_traffic">앱의 공공 데이터 사용량이 한계에 달했습니다. 개발자에게 이 사실을 알려주세요.</string>
     <string name="night_temperature_widget_description">투명배경, 흰글씨</string>
     <string name="day_temperature_widget_description">투명배경, 검은글씨</string>
+    <string name="pref_title_dark_mode">다크 모드</string>
+    <string name="radio_dark_mode_system">시스템 설정과 동기화</string>
+    <string name="radio_dark_mode_force_dark">항상 다크 모드</string>
+    <string name="radio_dark_mode_force_light">항상 라이트 모드</string>
+    <string name="dialog_title_dark_mode">앱 테마 선택</string>
+    <string name="pref_desc_dark_mode">앱 표시 색상 설정</string>
 </resources>

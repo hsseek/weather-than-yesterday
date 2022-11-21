@@ -2,10 +2,8 @@ package com.hsseek.betterthanyesterday.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val White = Color(0xFFFFFFFF)
-val Black = Color(0xFF000000)
-val Gray500 = Color(0xFF232323)
-val Gray400 = Color(0xFF282828)
+val DarkBackground = Color(0xFF232323)
+val DarkDialogBackground = Color(0xFF282828)
 val Gray000 = Color(0xFF808080)
 
 val Amber200 = Color(0xFFFFE082)

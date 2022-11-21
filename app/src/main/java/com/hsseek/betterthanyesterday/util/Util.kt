@@ -193,7 +193,7 @@ fun notifyDebuggingLog(context: Context, tag: String, msg: String? = null) {
     }
 }
 
-fun getTempDiffColor(context: Context, hourlyTempDiff: Int): Color {
+fun getAdaptiveTempDiffColor(context: Context, hourlyTempDiff: Int): Color {
     return when {
         hourlyTempDiff > 8 -> Color(ContextCompat.getColor(context, R.color.red_800))
         hourlyTempDiff == 7 -> Color(ContextCompat.getColor(context, R.color.red_700))
@@ -211,6 +211,50 @@ fun getTempDiffColor(context: Context, hourlyTempDiff: Int): Color {
         hourlyTempDiff == -5 -> Color(ContextCompat.getColor(context, R.color.cool_500))
         hourlyTempDiff == -6 -> Color(ContextCompat.getColor(context, R.color.cool_600))
         hourlyTempDiff == -7 -> Color(ContextCompat.getColor(context, R.color.cool_700))
+        else -> Color(ContextCompat.getColor(context, R.color.cool_800))
+    }
+}
+
+fun getLightTempDiffColor(context: Context, hourlyTempDiff: Int): Color {
+    return when {
+        hourlyTempDiff > 8 -> Color(ContextCompat.getColor(context, R.color.red_800))
+        hourlyTempDiff == 7 -> Color(ContextCompat.getColor(context, R.color.day_red_700))
+        hourlyTempDiff == 6 -> Color(ContextCompat.getColor(context, R.color.day_red_600))
+        hourlyTempDiff == 5 -> Color(ContextCompat.getColor(context, R.color.day_red_500))
+        hourlyTempDiff == 4 -> Color(ContextCompat.getColor(context, R.color.day_red_400))
+        hourlyTempDiff == 3 -> Color(ContextCompat.getColor(context, R.color.day_red_300))
+        hourlyTempDiff == 2 -> Color(ContextCompat.getColor(context, R.color.day_red_200))
+        hourlyTempDiff == 1 -> Color(ContextCompat.getColor(context, R.color.day_red_100))
+        hourlyTempDiff == 0 -> Color(ContextCompat.getColor(context, R.color.day_on_background))
+        hourlyTempDiff == -1 -> Color(ContextCompat.getColor(context, R.color.day_cool_100))
+        hourlyTempDiff == -2 -> Color(ContextCompat.getColor(context, R.color.day_cool_200))
+        hourlyTempDiff == -3 -> Color(ContextCompat.getColor(context, R.color.day_cool_300))
+        hourlyTempDiff == -4 -> Color(ContextCompat.getColor(context, R.color.day_cool_400))
+        hourlyTempDiff == -5 -> Color(ContextCompat.getColor(context, R.color.day_cool_500))
+        hourlyTempDiff == -6 -> Color(ContextCompat.getColor(context, R.color.day_cool_600))
+        hourlyTempDiff == -7 -> Color(ContextCompat.getColor(context, R.color.day_cool_700))
+        else -> Color(ContextCompat.getColor(context, R.color.cool_800))
+    }
+}
+
+fun getDarkTempDiffColor(context: Context, hourlyTempDiff: Int): Color {
+    return when {
+        hourlyTempDiff > 8 -> Color(ContextCompat.getColor(context, R.color.red_800))
+        hourlyTempDiff == 7 -> Color(ContextCompat.getColor(context, R.color.night_red_700))
+        hourlyTempDiff == 6 -> Color(ContextCompat.getColor(context, R.color.night_red_600))
+        hourlyTempDiff == 5 -> Color(ContextCompat.getColor(context, R.color.night_red_500))
+        hourlyTempDiff == 4 -> Color(ContextCompat.getColor(context, R.color.night_red_400))
+        hourlyTempDiff == 3 -> Color(ContextCompat.getColor(context, R.color.night_red_300))
+        hourlyTempDiff == 2 -> Color(ContextCompat.getColor(context, R.color.night_red_200))
+        hourlyTempDiff == 1 -> Color(ContextCompat.getColor(context, R.color.night_red_100))
+        hourlyTempDiff == 0 -> Color(ContextCompat.getColor(context, R.color.night_on_background))
+        hourlyTempDiff == -1 -> Color(ContextCompat.getColor(context, R.color.night_cool_100))
+        hourlyTempDiff == -2 -> Color(ContextCompat.getColor(context, R.color.night_cool_200))
+        hourlyTempDiff == -3 -> Color(ContextCompat.getColor(context, R.color.night_cool_300))
+        hourlyTempDiff == -4 -> Color(ContextCompat.getColor(context, R.color.night_cool_400))
+        hourlyTempDiff == -5 -> Color(ContextCompat.getColor(context, R.color.night_cool_500))
+        hourlyTempDiff == -6 -> Color(ContextCompat.getColor(context, R.color.night_cool_600))
+        hourlyTempDiff == -7 -> Color(ContextCompat.getColor(context, R.color.night_cool_700))
         else -> Color(ContextCompat.getColor(context, R.color.cool_800))
     }
 }

@@ -1,5 +1,7 @@
 package com.hsseek.betterthanyesterday.viewmodel
 
+import android.content.res.Configuration
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -16,6 +18,17 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
     private val _showLanguageDialog = mutableStateOf(false)
     val showLanguageDialog: Boolean
         get() = _showLanguageDialog.value
+
+    // Dark mode
+    var darkModeCode = 0
+        private set
+    private val _isDarkTheme = mutableStateOf(false)
+    val isDarkTheme: Boolean
+        get() = _isDarkTheme.value
+
+    private val _showDarkModeDialog = mutableStateOf(false)
+    val showDarkModeDialog: Boolean
+        get() = _showDarkModeDialog.value
 
     // Simple View mode
     private val _isSimplified = mutableStateOf(false)
@@ -61,6 +74,14 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
         _showLanguageDialog.value = false
     }
 
+    fun onClickDarkMode() {
+        _showDarkModeDialog.value = true
+    }
+
+    fun onDismissDarkMode() {
+        _showDarkModeDialog.value = false
+    }
+
     fun updateLanguageCode(selectedCode: Int, isExplicit: Boolean = true) {
         languageCode = selectedCode
         if (isExplicit) {
@@ -68,6 +89,25 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
                 // The stored value is drawn during recreate().
                 // Therefore, wait to be stored.
                 userPreferencesRepository.updateLanguage(selectedCode)
+            }
+        }
+    }
+
+    fun updateDarkModeCode(selectedCode: Int, systemConfig: Int, isExplicit: Boolean = true) {
+        darkModeCode = selectedCode
+        _isDarkTheme.value = when (selectedCode) {
+            1 -> false
+            2 -> true
+            else -> systemConfig and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        }
+        Log.d("testtest-Settings", "systemConfig: $systemConfig")
+        Log.d("testtest-Settings", "dark mode code: $selectedCode, isDark: $isDarkTheme")
+
+        if (isExplicit) {
+            runBlocking {
+                // The stored value is drawn during recreate().
+                // Therefore, wait to be stored.
+                userPreferencesRepository.updateDarkMode(selectedCode)
             }
         }
     }

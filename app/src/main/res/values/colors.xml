@@ -29,21 +29,23 @@
     <color name="cool_800">#FF189ad3</color>
 
     <!--To force day colors-->
-    <color name="day_red_700">#FFA10000</color>
-    <color name="day_red_600">#FF8F0000</color>
-    <color name="day_red_500">#FF7D0000</color>
-    <color name="day_red_400">#FF7D0000</color>
-    <color name="day_red_300">#FF7D0000</color>
-    <color name="day_red_200">#FF7D0000</color>
+    <color name="day_red_700">#FFB30000</color>
+    <color name="day_red_600">#FFB30000</color>
+    <color name="day_red_500">#FFA10000</color>
+    <color name="day_red_400">#FFA10000</color>
+    <color name="day_red_300">#FF8F0000</color>
+    <color name="day_red_200">#FF8F0000</color>
     <color name="day_red_100">#FF7D0000</color>
 
-    <color name="day_cool_700">#FF158abd</color>
-    <color name="day_cool_600">#FF137ba8</color>
-    <color name="day_cool_500">#FF106b93</color>
-    <color name="day_cool_400">#FF0e5c73</color>
-    <color name="day_cool_300">#FF0e5c73</color>
-    <color name="day_cool_200">#FF0e5c73</color>
-    <color name="day_cool_100">#FF0e5c73</color>
+    <color name="day_cool_700">#FF189ad3</color>
+    <color name="day_cool_600">#FF189ad3</color>
+    <color name="day_cool_500">#FF158abd</color>
+    <color name="day_cool_400">#FF158abd</color>
+    <color name="day_cool_300">#FF137ba8</color>
+    <color name="day_cool_200">#FF137ba8</color>
+    <color name="day_cool_100">#FF106b93</color>
+
+    <color name="day_on_background">#FF000000</color>
 
     <!--To force night colors-->
     <color name="night_red_700">#FFBA1919</color>
@@ -61,4 +63,6 @@
     <color name="night_cool_300">#FF8bcce9</color>
     <color name="night_cool_200">#FFa2d6ed</color>
     <color name="night_cool_100">#FFb9e0f1</color>
+
+    <color name="night_on_background">#FFFFFFFF</color>
 </resources>

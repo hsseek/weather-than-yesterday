@@ -40,8 +40,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.Dp
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import com.hsseek.betterthanyesterday.data.DarkMode
 import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
 
 private const val ROW_PADDING = 14
@@ -63,9 +66,11 @@ class SettingsActivity : ComponentActivity() {
         )[SettingsViewModel::class.java]
 
         viewModel.viewModelScope.launch(Dispatchers.Default) {
+            // Just retrieve the first value and update UI.
             // No need to observe the Preferences as the ViewModel processes the user input directly.
             val prefs = userPrefsRepo.preferencesFlow.first()
             viewModel.updateLanguageCode(prefs.languageCode, false)
+            viewModel.updateDarkModeCode(prefs.darkModeCode, resources.configuration.uiMode, false)
             viewModel.updateSimpleViewEnabled(prefs.isSimplified, false)
             viewModel.updateAutoRefreshEnabled(prefs.isAutoRefresh, false)
             viewModel.updateDaybreakEnabled(prefs.isDaybreak, false)
@@ -73,7 +78,7 @@ class SettingsActivity : ComponentActivity() {
         }
 
         setContent {
-            BetterThanYesterdayTheme {
+            BetterThanYesterdayTheme(viewModel.isDarkTheme) {
                 // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -95,6 +100,8 @@ class SettingsActivity : ComponentActivity() {
                         }
                         RadioSelectDialog(
                             title = getString(R.string.dialog_title_language),
+                            items = items,
+                            isDarkMode = viewModel.isDarkTheme,
                             selectedItemIndex = viewModel.languageCode,
                             onClickNegative = { viewModel.onDismissLanguage() },
                             onClickPositive = { selectedCode ->
@@ -104,7 +111,32 @@ class SettingsActivity : ComponentActivity() {
                                     this@SettingsActivity.recreate()
                                 }
                             },
-                            items = items
+                        )
+                    }
+
+                    // Dark mode
+                    if (viewModel.showDarkModeDialog) {
+                        val items = mutableListOf<RadioItem>()
+                        enumValues<DarkMode>().forEach {
+                            val title = when (it) {
+                                DarkMode.System -> getString(R.string.radio_dark_mode_system)
+                                DarkMode.Light -> getString(R.string.radio_dark_mode_force_light)
+                                DarkMode.Dark -> getString(R.string.radio_dark_mode_force_dark)
+                            }
+                            items.add(it.code, RadioItem(it.code, title))
+                        }
+                        RadioSelectDialog(
+                            title = getString(R.string.dialog_title_dark_mode),
+                            items = items,
+                            isDarkMode = viewModel.isDarkTheme,
+                            selectedItemIndex = viewModel.darkModeCode,
+                            onClickNegative = { viewModel.onDismissDarkMode() },
+                            onClickPositive = { selectedCode ->
+                                viewModel.onDismissDarkMode()
+                                if (selectedCode != viewModel.darkModeCode) {
+                                    viewModel.updateDarkModeCode(selectedCode, resources.configuration.uiMode)
+                                }
+                            },
                         )
                     }
 
@@ -112,6 +144,7 @@ class SettingsActivity : ComponentActivity() {
                     if (viewModel.showSimpleViewHelp) {
                         HelpDialog(
                             title = stringResource(id = R.string.pref_title_simple_mode),
+                            isDarkMode = viewModel.isDarkTheme,
                             desc = stringResource(id = R.string.pref_help_simple_view),
                             onDismissRequest = { viewModel.onDismissSimpleViewHelp() }
                         )
@@ -120,6 +153,7 @@ class SettingsActivity : ComponentActivity() {
                     if (viewModel.showAutoRefreshHelp) {
                         HelpDialog(
                             title = stringResource(id = R.string.pref_title_auto_refresh),
+                            isDarkMode = viewModel.isDarkTheme,
                             desc = stringResource(id = R.string.pref_help_auto_refresh),
                             onDismissRequest = { viewModel.onDismissAutoRefreshHelp() }
                         )
@@ -128,6 +162,7 @@ class SettingsActivity : ComponentActivity() {
                     if (viewModel.showDaybreakHelp) {
                         HelpDialog(
                             title = stringResource(id = R.string.pref_title_daybreak_mode),
+                            isDarkMode = viewModel.isDarkTheme,
                             desc = stringResource(id = R.string.pref_help_daybreak_mode),
                             onDismissRequest = { viewModel.onDismissDaybreakHelp() }
                         )
@@ -136,6 +171,7 @@ class SettingsActivity : ComponentActivity() {
                     if (viewModel.showPresetRegionHelp) {
                         HelpDialog(
                             title = stringResource(id = R.string.pref_title_preset_regions),
+                            isDarkMode = viewModel.isDarkTheme,
                             desc = stringResource(id = R.string.pref_help_preset_regions),
                             onDismissRequest = { viewModel.onDismissPresetRegionHelp() }
                         )
@@ -164,6 +200,9 @@ private fun MainScreen(
     viewModel: SettingsViewModel,
     highlightedIndex: Int?,
 ) {
+    val systemUiController = rememberSystemUiController()
+    systemUiController.setSystemBarsColor(color = if (viewModel.isDarkTheme) DarkBackground else Color.White)
+
     Scaffold(
         topBar = { SettingsTopAppBar(activity) },
         content = { padding ->
@@ -178,12 +217,21 @@ private fun MainScreen(
                     onClickRow = { viewModel.onClickLanguage() }
                 )
 
+                // Dark mode
+                PreferenceDialogRow(
+                    title = stringResource(R.string.pref_title_dark_mode),
+                    description = stringResource(R.string.pref_desc_dark_mode),
+                    isSpecial = highlightedIndex == 1,
+                    onClickHelp = null,
+                    onClickRow = { viewModel.onClickDarkMode() }
+                )
+
                 // Simple View
                 PreferenceToggleRow(
                     title = stringResource(R.string.pref_title_simple_mode),
                     description = stringResource(R.string.pref_desc_simple_mode),
                     checked = viewModel.isSimplified,
-                    isHighlighted = highlightedIndex == 1,
+                    isHighlighted = highlightedIndex == 2,
                     onClickHelp = { viewModel.onClickSimpleViewHelp() },
                     onCheckedChange = { isChecked -> viewModel.updateSimpleViewEnabled(isChecked) }
                 )
@@ -196,7 +244,7 @@ private fun MainScreen(
                     // description = stringResource(R.string.pref_desc_auto_refresh),
                     enabled = DEBUG_FLAG,
                     checked = viewModel.isAutoRefresh,
-                    isHighlighted = highlightedIndex == 2,
+                    isHighlighted = highlightedIndex == 3,
                     onClickHelp = { viewModel.onClickAutoRefreshHelp() },
                     onCheckedChange = { isChecked -> viewModel.updateAutoRefreshEnabled(isChecked) },
                 )
@@ -206,10 +254,11 @@ private fun MainScreen(
                     // Daybreak mode
                     PreferenceToggleRow(
                         title = stringResource(R.string.pref_title_daybreak_mode),
-                        description = stringResource(R.string.pref_desc_daybreak_mode),
+                        description = stringResource(id = R.string.pref_desc_next_release),
+                        // description = stringResource(R.string.pref_desc_daybreak_mode),
                         enabled = DEBUG_FLAG,
                         checked = viewModel.isDaybreak,
-                        isHighlighted = highlightedIndex == 3,
+                        isHighlighted = highlightedIndex == 4,
                         onClickHelp = { viewModel.onClickDaybreakHelp() },
                         onCheckedChange = { isChecked -> viewModel.updateDaybreakEnabled(isChecked) },
                     )
@@ -217,10 +266,11 @@ private fun MainScreen(
                     // Preset regions
                     PreferenceToggleRow(
                         title = stringResource(R.string.pref_title_preset_regions),
-                        description = stringResource(R.string.pref_desc_preset_regions),
+                        description = stringResource(id = R.string.pref_desc_next_release),
+                        // description = stringResource(R.string.pref_desc_preset_regions),
                         enabled = DEBUG_FLAG,
                         checked = viewModel.isPresetRegion,
-                        isHighlighted = highlightedIndex == 4,
+                        isHighlighted = highlightedIndex == 5,
                         onClickHelp = { viewModel.onClickPresetRegionHelp() },
                         onCheckedChange = { isChecked -> viewModel.updatePresetRegionEnabled(isChecked) },
                     )
@@ -254,17 +304,14 @@ private fun SettingsTopAppBar(activity: Activity? = null) {
 fun HelpDialog(
     title: String,
     desc: String,
+    isDarkMode: Boolean,
     image: Painter? = null,
     onDismissRequest: () -> Unit,
 ) {
     val titlePadding = 0.dp
     val buttonHorizontalPadding = 6.dp
 
-    val color = if (isSystemInDarkTheme()) {
-        Gray400
-    } else {
-        MaterialTheme.colors.surface
-    }
+    val color = if (isDarkMode) DarkDialogBackground else MaterialTheme.colors.surface
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -534,11 +581,12 @@ private fun RadioRow(
 fun RadioSelectDialog(
     title: String,
     items: List<RadioItem>,
+    isDarkMode: Boolean,
     selectedItemIndex: Int,
     onClickNegative: () -> Unit,
     onClickPositive: (Int) -> Unit,
 ) {
-    val backgroundColor = if (isSystemInDarkTheme()) Gray400 else MaterialTheme.colors.surface
+    val backgroundColor = if (isDarkMode) DarkDialogBackground else MaterialTheme.colors.surface
     val titleBottomPadding = 7.dp
 
     AlertDialog(
@@ -568,7 +616,7 @@ class RadioItem(val code: Int, val title: String, val desc: String? = null)
 @Preview(showBackground = true)
 @Composable
 fun RadioDialogPreview() {
-    BetterThanYesterdayTheme {
+    BetterThanYesterdayTheme(true) {
         RadioSelectDialog(
             title = "구매 도서 목록",
             selectedItemIndex = 1,
@@ -577,6 +625,7 @@ fun RadioDialogPreview() {
                 RadioItem(0, "통합 민사소송법", "이창한 저"),
                 RadioItem(0, "Hide titles and descriptions to give a neat look", "Hide titles and descriptions to give a neat look. Recommended after the numbers got familiar to you, as it might be hard to interpret information."),
             ),
+            isDarkMode = true,
             onClickNegative = {  },
             onClickPositive = {  }
         )
@@ -587,7 +636,7 @@ fun RadioDialogPreview() {
 //@Preview("Dark Theme", uiMode = Configuration.UI_MODE_NIGHT_YES, widthDp = 420, heightDp = 180, showBackground = true)
 @Composable
 fun SettingsRowPreview() {
-    BetterThanYesterdayTheme {
+    BetterThanYesterdayTheme(true) {
         Surface {
             Column {
                 PreferenceDialogRow(

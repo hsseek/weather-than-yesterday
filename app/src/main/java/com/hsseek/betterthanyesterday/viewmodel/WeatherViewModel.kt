@@ -6,6 +6,7 @@ import android.app.Application
 import android.content.Intent
 import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.location.Address
 import android.net.Uri
 import android.os.Looper
@@ -23,10 +24,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.gson.JsonSyntaxException
 import com.google.gson.stream.MalformedJsonException
 import com.hsseek.betterthanyesterday.*
-import com.hsseek.betterthanyesterday.data.ForecastRegion
-import com.hsseek.betterthanyesterday.data.Language
-import com.hsseek.betterthanyesterday.data.PresetRegion
-import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
+import com.hsseek.betterthanyesterday.data.*
 import com.hsseek.betterthanyesterday.location.*
 import com.hsseek.betterthanyesterday.network.*
 import com.hsseek.betterthanyesterday.util.*
@@ -53,8 +51,8 @@ private const val RAIN_TAG = "PTY"
 private const val LOW_TEMP_BASE_TIME = "0200"  // From 3:00
 private const val HIGH_TEMP_BASE_TIME = "1100"  // From 12:00
 
-private const val HARDCODED_SNACK_BAR_ID = 2
-private const val HIGHLIGHTED_SETTING_ROW = 99  // If out of index, none will be highlighted.
+private const val HARDCODED_SNACK_BAR_ID = 3
+private const val HIGHLIGHTED_SETTING_ROW = 1  // If out of index, none will be highlighted.
 
 class WeatherViewModel(
     application: Application,
@@ -93,6 +91,11 @@ class WeatherViewModel(
     // Preferences
     private var languageCode: Int = Language.System.code
     var isLanguageChanged = false
+
+    private var darkModeCode = DarkMode.System.code
+    private val _isDarkTheme = mutableStateOf(false)
+    val isDarkTheme: Boolean
+        get() = _isDarkTheme.value
 
     private val _isSimplified = mutableStateOf(false)
     val isSimplified: Boolean
@@ -1233,7 +1236,11 @@ class WeatherViewModel(
         _isPresetRegion.value = enabled
     }
 
-    fun updateLanguage(selectedCode: Int, isExplicit: Boolean = true) {
+    /**
+     * Update UI with regarding to language preferences.
+     * [isExplicit] is true when the user changed the preference from Settings.
+     * */
+    fun updateLanguage(selectedCode: Int, isExplicit: Boolean) {
         if (languageCode != selectedCode) {
             languageCode = selectedCode
             buildDailyTemps()  // Need to rebuild because Mon, Tue, ... is dependant on the language.
@@ -1241,13 +1248,24 @@ class WeatherViewModel(
         }
     }
 
+    fun updateDarkMode(selectedCode: Int, systemConfig: Int) {
+        darkModeCode = selectedCode
+
+        _isDarkTheme.value = when (selectedCode) {
+            1 -> false
+            2 -> true
+            else -> systemConfig and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        }
+    }
+
     /**
      * Update [isForecastRegionAuto] only, without requesting data.
-     * */
+     * [isExplicit] is true when the user changed the preference from Settings.
+     * * */
     fun updateAutoRegionEnabled(enabled: Boolean, isExplicit: Boolean = true) {
         isForecastRegionAuto = enabled
         _selectedForecastRegionIndex.value = if (enabled) 0 else 1
-        if (isExplicit) {  // No need to feed back to Preferences.
+        if (isExplicit) {  // Need to store the value in Preferences.
             viewModelScope.launch {
                 userPrefsRepo.updateAutoRegionEnabled(enabled)
             }
@@ -1398,7 +1416,7 @@ class WeatherViewModel(
             // Update Preferences not to show the SnackBar on the next launch.
             viewModelScope.launch { userPrefsRepo.updateConsumedSnackBar(HARDCODED_SNACK_BAR_ID) }
 
-            /*_noticeSnackBarEvent.value = SnackBarEvent(SnackBarContent(
+            _noticeSnackBarEvent.value = SnackBarEvent(SnackBarContent(
                     R.string.snack_bar_notice,
                     R.string.snack_bar_go_setting_action
                 ) {
@@ -1407,8 +1425,7 @@ class WeatherViewModel(
                     }
                     activity.startActivity(intent)
                 }
-            )*/
-            _noticeSnackBarEvent.value = SnackBarEvent(SnackBarContent(R.string.snack_bar_notice, null) {})
+            )
         }
     }
 

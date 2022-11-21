@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -96,10 +97,13 @@ class WeatherActivity : ComponentActivity() {
             WeatherViewModelFactory(application, prefsRepo)
         )[WeatherViewModel::class.java]
 
-        // Set the language first, to avoid recreating the Activity.
         runBlocking {
             val prefs = prefsRepo.preferencesFlow.first()
+            // Set the language first, to avoid recreating the Activity.
             viewModel.updateLanguage(prefs.languageCode, false)
+
+            // Determine the appearance.
+            viewModel.updateDarkMode(prefs.darkModeCode, resources.configuration.uiMode)
 
             // Retrieve the stored forecast region settings, without which weather data are random.
             // Hence, wait for the values to be set.
@@ -119,7 +123,8 @@ class WeatherActivity : ComponentActivity() {
         viewModel.viewModelScope.launch(defaultDispatcher) {
             logCoroutineContext("Preferences Flow observation from MainActivity")
             prefsRepo.preferencesFlow.collect { userPrefs ->
-                viewModel.updateLanguage(userPrefs.languageCode)
+                viewModel.updateLanguage(userPrefs.languageCode, true)
+                viewModel.updateDarkMode(userPrefs.darkModeCode, resources.configuration.uiMode)
                 viewModel.updateSimplifiedEnabled(userPrefs.isSimplified)
                 viewModel.updateAutoRefreshEnabled(userPrefs.isAutoRefresh)
                 viewModel.updateDaybreakEnabled(userPrefs.isDaybreak)
@@ -138,7 +143,7 @@ class WeatherActivity : ComponentActivity() {
         logElapsedTime(TAG, "Wiring before rendering", start)
 
         setContent {
-            BetterThanYesterdayTheme {
+            BetterThanYesterdayTheme(viewModel.isDarkTheme) {
                 Surface(color = MaterialTheme.colors.background) {
                     val transitionDuration = 340
                     Crossfade(
@@ -160,6 +165,7 @@ class WeatherActivity : ComponentActivity() {
                         if (!viewModel.isPresetRegion) {
                             SearchRegionDialog(
                                 items = viewModel.forecastRegionCandidates,
+                                isDarkMode = viewModel.isDarkTheme,
                                 selected = viewModel.selectedForecastRegionIndex,
                                 onSelect = { viewModel.updateSelectedForecastRegionIndex(it) },
                                 onTextChanged = { viewModel.searchRegionCandidateDebounced(it) },
@@ -228,6 +234,7 @@ class WeatherActivity : ComponentActivity() {
         RadioSelectDialog(
             title = stringResource(R.string.dialog_location_title),
             items = presetRegionRadioItems,
+            isDarkMode = viewModel.isDarkTheme,
             selectedItemIndex = selectedIndex,
             onClickNegative = { viewModel.dismissRegionDialog() },
             onClickPositive = { newlySelectedIndex ->
@@ -360,9 +367,9 @@ class WeatherActivity : ComponentActivity() {
 
     @Composable
     private fun MainScreen() {
-        // Make the status bar transparent.
+        // Make the status bar look transparent.
         val systemUiController = rememberSystemUiController()
-        systemUiController.setSystemBarsColor(color = MaterialTheme.colors.background)
+        systemUiController.setSystemBarsColor(color = if (viewModel.isDarkTheme) DarkBackground else Color.White)
         val screenHeight = LocalConfiguration.current.screenHeightDp
 
         val scaffoldState = rememberScaffoldState()
@@ -445,9 +452,9 @@ class WeatherActivity : ComponentActivity() {
                                 ) {
                                     LocationInformation(viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.isForecastRegionAuto)
                                     Spacer(modifier = Modifier.height(spacer12))
-                                    RainfallStatus(viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
+                                    RainfallStatus(viewModel.isSimplified, viewModel.isDarkTheme, viewModel.rainfallStatus.collectAsState().value)
                                     Spacer(modifier = Modifier.height(spacer23))
-                                    DailyTemperatures(viewModel.isSimplified, viewModel.dailyTemps)
+                                    DailyTemperatures(viewModel.isSimplified, viewModel.isDarkTheme, viewModel.dailyTemps)
                                 }
                             }
                             CustomScreen()
@@ -473,8 +480,8 @@ class WeatherActivity : ComponentActivity() {
                                 } else {
                                     HourlyTemperature(viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
                                 }
-                                DailyTemperatures(viewModel.isSimplified, viewModel.dailyTemps)
-                                RainfallStatus(viewModel.isSimplified, viewModel.rainfallStatus.collectAsState().value)
+                                DailyTemperatures(viewModel.isSimplified, viewModel.isDarkTheme, viewModel.dailyTemps)
+                                RainfallStatus(viewModel.isSimplified, viewModel.isDarkTheme, viewModel.rainfallStatus.collectAsState().value)
                             }
                             CustomScreen()
                         }
@@ -552,7 +559,7 @@ class WeatherActivity : ComponentActivity() {
                     text = "Ad",
                     style = Typography.h6
                 )
-                ad.content()
+                ad.content(viewModel.isDarkTheme)
             }
         }
     }
@@ -931,7 +938,11 @@ class WeatherActivity : ComponentActivity() {
         ) {
             if (hourlyTempDiff != null) {
                 // The temperature difference
-                val color: Color = getTempDiffColor(this@WeatherActivity, hourlyTempDiff)
+                val color = if (viewModel.isDarkTheme) {
+                    getDarkTempDiffColor(this@WeatherActivity, hourlyTempDiff)
+                } else {
+                    getLightTempDiffColor(this@WeatherActivity, hourlyTempDiff)
+                }
                 val diffString: String = getTempDiffString(hourlyTempDiff)
 
                 Text(
@@ -965,8 +976,9 @@ class WeatherActivity : ComponentActivity() {
 
     @Composable
     fun DailyTemperatureColumn(
-        dailyTemp: DailyTemperature?,
         isSimplified: Boolean,
+        isDarkMode: Boolean,
+        dailyTemp: DailyTemperature?,
     ) {
         val columnWidth = 54.dp
         val columnPadding = 6.dp
@@ -978,12 +990,12 @@ class WeatherActivity : ComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Font colors for highest temperatures
-            val warmColor: Color = if (isSystemInDarkTheme()) RedTint100 else RedShade600
-            val hotColor: Color = if (isSystemInDarkTheme()) RedTint400 else Red800
+            val warmColor: Color = if (isDarkMode) RedTint100 else RedShade600
+            val hotColor: Color = if (isDarkMode) RedTint400 else Red800
 
             // Font colors for lowest temperatures
-            val coolColor: Color = if (isSystemInDarkTheme()) CoolTint100 else CoolShade600
-            val coldColor: Color = if (isSystemInDarkTheme()) CoolTint400 else Cool800
+            val coolColor: Color = if (isDarkMode) CoolTint100 else CoolShade600
+            val coldColor: Color = if (isDarkMode) CoolTint400 else Cool800
 
             // Values for today
             val todayMark: String
@@ -1053,6 +1065,7 @@ class WeatherActivity : ComponentActivity() {
     @Composable
     fun DailyTemperatures(
         isSimplified: Boolean,
+        isDarkMode: Boolean,
         dailyTemps: List<DailyTemperature>,
     ) {
         val verticalOffset = (-24).dp
@@ -1067,10 +1080,18 @@ class WeatherActivity : ComponentActivity() {
             horizontalArrangement = arrangement,
         ) {
             // The header column
-            if (!isSimplified) DailyTemperatureColumn(dailyTemp = null, isSimplified = false)
+            if (!isSimplified) DailyTemperatureColumn(
+                isSimplified = false,
+                isDarkMode = isDarkMode,
+                dailyTemp = null,
+            )
 
             for (dailyTemp in dailyTemps) {
-                DailyTemperatureColumn(dailyTemp = dailyTemp, isSimplified = isSimplified)
+                DailyTemperatureColumn(
+                    isSimplified = isSimplified,
+                    isDarkMode = isDarkMode,
+                    dailyTemp = dailyTemp,
+                )
             }
         }
     }
@@ -1078,6 +1099,7 @@ class WeatherActivity : ComponentActivity() {
     @Composable
     fun RainfallStatus(
         isSimplified: Boolean,
+        isDarkMode: Boolean,
         sky: Sky,
     ) {
         val titleBottomPadding = 2.dp
@@ -1139,6 +1161,7 @@ class WeatherActivity : ComponentActivity() {
                 }
                 Image(
                     painter = painterResource(id = imageId),
+                    colorFilter = ColorFilter.tint(if (isDarkMode) Color.White else Color.Black),
                     contentDescription = stringResource(R.string.desc_rainfall_status),
                 )
 
@@ -1160,10 +1183,14 @@ class WeatherActivity : ComponentActivity() {
         }
     }
 
-    private enum class Ad(val url: String, val content: @Composable () -> Unit) {
-        Eng(BLOG_URL, content = {
+    private enum class Ad(
+        val url: String,
+        val content: @Composable (darkMode: Boolean) -> Unit
+    ) {
+        Eng(BLOG_URL, content = { darkMode ->
             Image(
                 painter = painterResource(id = R.drawable.blog_logo),
+                colorFilter = ColorFilter.tint(if (darkMode) Color.White else Color.Black),
                 contentDescription = stringResource(R.string.desc_banner_ad),
                 contentScale = ContentScale.Fit,
             )
@@ -1182,7 +1209,7 @@ class WeatherActivity : ComponentActivity() {
     @Preview("Landscape", device = Devices.AUTOMOTIVE_1024p, widthDp = 1920, heightDp = 960)
     @Composable
     fun LandingScreenPreview() {
-        BetterThanYesterdayTheme {
+        BetterThanYesterdayTheme(true) {
             Surface(color = MaterialTheme.colors.background) {
                 LandingScreen(timeout = 0) {}
             }
@@ -1194,7 +1221,7 @@ class WeatherActivity : ComponentActivity() {
 fun SearchRegionDialog(
     title: String = stringResource(R.string.dialog_title_search_region),
     items: List<ForecastRegion>,
-    backgroundColor: Color = if (isSystemInDarkTheme()) Gray400 else MaterialTheme.colors.surface,
+    isDarkMode: Boolean,
     titleBottomPadding: Dp = 7.dp,
     selected: (Int),
     onSelect: (Int) -> Unit,
@@ -1211,7 +1238,7 @@ fun SearchRegionDialog(
             modifier = Modifier.padding(bottom = titleBottomPadding)
         ) },
         onDismissRequest = onClickNegative,
-        backgroundColor = backgroundColor,
+        backgroundColor = if (isDarkMode) DarkDialogBackground else MaterialTheme.colors.surface,
         buttons = {
             val query = rememberSaveable{ mutableStateOf("") }
             Column {

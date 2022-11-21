@@ -12,7 +12,7 @@ import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import com.hsseek.betterthanyesterday.R
 import com.hsseek.betterthanyesterday.util.getCurrentKoreanTime
-import com.hsseek.betterthanyesterday.util.getTempDiffColor
+import com.hsseek.betterthanyesterday.util.getAdaptiveTempDiffColor
 import com.hsseek.betterthanyesterday.widget.GrayTemperatureWidgetReceiver.Companion.GRAY_HOURLY_TEMPERATURE_PREFS_KEY
 import com.hsseek.betterthanyesterday.widget.GrayTemperatureWidgetReceiver.Companion.GRAY_REFRESHING_KEY
 import com.hsseek.betterthanyesterday.widget.GrayTemperatureWidgetReceiver.Companion.GRAY_TEMPERATURE_DIFF_PREFS_KEY
@@ -38,7 +38,7 @@ class GrayTemperatureWidget : TemperatureWidget() {
     }
 
     override fun getWidgetTempDiffColor(context: Context, tempDiff: Int): Color {
-        return getTempDiffColor(context, tempDiff)
+        return getAdaptiveTempDiffColor(context, tempDiff)
     }
 }
 

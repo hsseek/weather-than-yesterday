@@ -25,6 +25,7 @@ class UserPreferencesRepository(private val context: Context) {
         val FORECAST_REGION_NX = intPreferencesKey("forecast_region_nx")
         val FORECAST_REGION_NY = intPreferencesKey("region_ny")
         val LANGUAGE_CODE = intPreferencesKey("language_code")
+        val DARK_MODE_CODE = intPreferencesKey("dark_mode_code")
         val SIMPLE_VIEW = booleanPreferencesKey("simple_view")
         val AUTO_REFRESH = booleanPreferencesKey("auto_refresh")
         val DAYBREAK = booleanPreferencesKey("daybreak")
@@ -41,6 +42,7 @@ class UserPreferencesRepository(private val context: Context) {
             val forecastRegionNx = preferences[PreferencesKeys.FORECAST_REGION_NX] ?: SEOUL.nx
             val forecastRegionNy = preferences[PreferencesKeys.FORECAST_REGION_NY] ?: SEOUL.ny
             val languageCode = preferences[PreferencesKeys.LANGUAGE_CODE] ?: Language.System.code
+            val darkModeCode = preferences[PreferencesKeys.DARK_MODE_CODE] ?: DarkMode.System.code
             val isSimplified = preferences[PreferencesKeys.SIMPLE_VIEW] ?: false
             val isAutoRefresh = preferences[PreferencesKeys.AUTO_REFRESH] ?: false
             val isDaybreak = preferences[PreferencesKeys.DAYBREAK] ?: false
@@ -53,6 +55,7 @@ class UserPreferencesRepository(private val context: Context) {
                 forecastRegionNx,
                 forecastRegionNy,
                 languageCode,
+                darkModeCode,
                 isSimplified,
                 isAutoRefresh,
                 isDaybreak,
@@ -87,6 +90,13 @@ class UserPreferencesRepository(private val context: Context) {
         context.dataStore.edit { preferences ->
             if (DEBUG_FLAG) Log.d(TAG, "Language code stored: $selectedCode")
             preferences[PreferencesKeys.LANGUAGE_CODE] = selectedCode
+        }
+    }
+
+    suspend fun updateDarkMode(selectedCode: Int) {
+        context.dataStore.edit { preferences ->
+            if (DEBUG_FLAG) Log.d(TAG, "Dark mode code stored: $selectedCode")
+            preferences[PreferencesKeys.DARK_MODE_CODE] = selectedCode
         }
     }
 
@@ -126,6 +136,7 @@ data class UserPreferences(
     val forecastRegionNx: Int,
     val forecastRegionNy: Int,
     val languageCode: Int,
+    val darkModeCode: Int,
     val isSimplified: Boolean,
     val isAutoRefresh: Boolean,
     val isDaybreak: Boolean,
@@ -136,8 +147,12 @@ enum class Language(val code: Int, val iso: String) {
     System(0, "en"), English(1, "en"), Korean(2, "ko")
 }
 
+enum class DarkMode(val code: Int) {
+    System(0), Light(1), Dark(2)
+}
+
 enum class PresetRegion(val regionId: Int, val examplesId: Int, val xy: CoordinatesXy) {
-     Auto(R.string.region_auto, R.string.examples_auto, CoordinatesXy(0, 0)),  // An impossible values
+    Auto(R.string.region_auto, R.string.examples_auto, CoordinatesXy(0, 0)),  // An impossible values
     Capital(R.string.region_capital, R.string.examples_capital, CoordinatesXy(SEOUL.nx, SEOUL.ny)),
     Gangwon(R.string.region_gangwon, R.string.examples_gangwon, CoordinatesXy(73, 134)),
     SouthGs(R.string.region_south_gs, R.string.examples_south_gs, CoordinatesXy(98, 76)),
