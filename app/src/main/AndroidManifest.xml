@@ -53,8 +53,9 @@
         </activity>
 
         <receiver
-            android:name=".widget.TemperatureWidgetReceiver"
+            android:name=".widget.GrayTemperatureWidgetReceiver"
             android:enabled="@bool/glance_appwidget_available"
+            android:label="@string/gray_temperature_widget_description"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -62,7 +63,35 @@
 
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/temperature_widget_info" />
+                android:resource="@xml/gray_temperature_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.DayTemperatureWidgetReceiver"
+            android:enabled="@bool/glance_appwidget_available"
+            android:label="@string/day_temperature_widget_description"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/day_temperature_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.NightTemperatureWidgetReceiver"
+            android:enabled="@bool/glance_appwidget_available"
+            android:label="@string/night_temperature_widget_description"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/night_temperature_widget_info" />
         </receiver>
     </application>
 

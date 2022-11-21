@@ -6,19 +6,19 @@
     <color name="background_alpha">#E3232323</color>
     <color name="on_background">#FFFFFFFF</color>
 
-    <color name="red_700">#FFBA1919</color>
-    <color name="red_600">#FFC23232</color>
-    <color name="red_500">#FFC94C4C</color>
-    <color name="red_400">#FFD16666</color>
-    <color name="red_300">#FFD97F7F</color>
-    <color name="red_200">#FFE09999</color>
-    <color name="red_100">#FFE8B2B2</color>
+    <color name="red_700">@color/night_red_700</color>
+    <color name="red_600">@color/night_red_600</color>
+    <color name="red_500">@color/night_red_500</color>
+    <color name="red_400">@color/night_red_400</color>
+    <color name="red_300">@color/night_red_300</color>
+    <color name="red_200">@color/night_red_200</color>
+    <color name="red_100">@color/night_red_100</color>
 
-    <color name="cool_700">#FF2fa4d7</color>
-    <color name="cool_600">#FF46aedb</color>
-    <color name="cool_500">#FF5db8e0</color>
-    <color name="cool_400">#FF74c2e4</color>
-    <color name="cool_300">#FF8bcce9</color>
-    <color name="cool_200">#FFa2d6ed</color>
-    <color name="cool_100">#FFb9e0f1</color>
+    <color name="cool_700">@color/night_cool_700</color>
+    <color name="cool_600">@color/night_cool_600</color>
+    <color name="cool_500">@color/night_cool_500</color>
+    <color name="cool_400">@color/night_cool_400</color>
+    <color name="cool_300">@color/night_cool_300</color>
+    <color name="cool_200">@color/night_cool_200</color>
+    <color name="cool_100">@color/night_cool_100</color>
 </resources>

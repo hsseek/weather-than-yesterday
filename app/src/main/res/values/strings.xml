@@ -106,14 +106,16 @@
     <string name="snack_bar_error_send_opening">The following is the code executed just before the error. If you share this context, it greatly helps to identify the problem.\n\nI decided to utilize emails as the sharing method, to make it sure that nothing sneaky is included. All I can see is what you choose to compose here. You can review it, add descriptions, edit or delete if you\'d like.</string>
     <string name="desc_banner_ad">Banner advertisement</string>
     <string name="ad_sci">Reservoir Dogs at Sillim</string>
-    <string name="snack_bar_new_setting">Simple Mode is added.</string>
+    <string name="snack_bar_notice">Transparent widgets are available.</string>
     <string name="snack_bar_go_setting_action">Go to Settings</string>
     <string name="top_bar_report_error">Report error</string>
     <string name="top_bar_report_error_explanation">The following is the last data received from the server. If you attach it, it greatly helps to identify the problem.</string>
     <string name="toast_refreshing_ongoing">Refreshing ongoing.</string>
     <string name="toast_refresh_not_reachable">Cannot access the data server.</string>
     <string name="add_widget">Add widget</string>
-    <string name="app_widget_description">Shows the temperature difference compared to the yesterday\'s.</string>
+    <string name="gray_temperature_widget_description">Temperature difference</string>
+    <string name="night_temperature_widget_description">Transparent, white letters</string>
+    <string name="day_temperature_widget_description">Transparent, black letters</string>
     <string name="loading">Loading…</string>
     <string name="widget_example_temp_time">2 PM, 18\u2103</string>
     <string name="widget_example_temp_diff" translatable="false">▴ 1</string>

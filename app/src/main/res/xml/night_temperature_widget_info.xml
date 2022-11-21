@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/night_temperature_widget_description"
+    android:initialKeyguardLayout="@layout/night_temperature_widget_preview"
+    android:initialLayout="@layout/night_temperature_widget_preview"
+    android:minWidth="40dp"
+    android:minHeight="40dp"
+    android:previewImage="@drawable/night_appwidget_preview"
+    android:previewLayout="@layout/night_temperature_widget_preview"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:widgetCategory="home_screen"
+    android:updatePeriodMillis="3600000"
+    />

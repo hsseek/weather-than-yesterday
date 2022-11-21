@@ -48,18 +48,28 @@ class TemperatureFetchingWorker(private val context: Context, workerParams: Work
     private fun onFinishJob(todayTemp: Int?, yesterdayTemp: Int?) {
         val isValid = todayTemp != null && yesterdayTemp != null
 
-        val intent = Intent(context, TemperatureWidgetReceiver::class.java).apply {
-            action = ACTION_DATA_FETCHED
-            putExtra(EXTRA_DATA_VALID, isValid)
-        }
-        if (isValid) {
-            intent.putExtra(EXTRA_TEMP_DIFF, todayTemp!! - yesterdayTemp!!)
-            intent.putExtra(EXTRA_HOURLY_TEMP, todayTemp)
+        // Define widgets to receive the result.
+        val intents = listOf(
+            Intent(context, GrayTemperatureWidgetReceiver::class.java),
+            Intent(context, DayTemperatureWidgetReceiver::class.java),
+            Intent(context, NightTemperatureWidgetReceiver::class.java),
+        )
+
+        for (intent in intents) {
+            intent.also {
+                it.action = ACTION_DATA_FETCHED
+                it.putExtra(EXTRA_DATA_VALID, isValid)
+
+                if (isValid) {
+                    it.putExtra(EXTRA_TEMP_DIFF, todayTemp!! - yesterdayTemp!!)
+                    it.putExtra(EXTRA_HOURLY_TEMP, todayTemp)
+                }
+            }
+            // Send broadcast to update a Widget.
+            context.sendBroadcast(intent)
         }
 
-        // Send broadcast to update Widget.
         if (DEBUG_FLAG) Log.d(TAG, "Send broadcast: $yesterdayTemp -> $todayTemp(isValid: $isValid)")
-        context.sendBroadcast(intent)
     }
 }
 

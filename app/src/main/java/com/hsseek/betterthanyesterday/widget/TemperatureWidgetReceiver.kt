@@ -8,15 +8,8 @@ import android.content.Intent
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.glance.GlanceId
-import androidx.glance.action.ActionParameters
-import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
-import androidx.glance.appwidget.action.ActionCallback
-import androidx.glance.appwidget.state.updateAppWidgetState
-import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.work.*
 import com.hsseek.betterthanyesterday.service.HourlyTempFetchingService
 import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
@@ -26,7 +19,6 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 
 
-private const val TAG = "TemperatureWidgetReceiver"
 private const val TEMP_WORK_ID_IMMEDIATE = "hsseek.betterthanyesterday.widget.TEMP_WORK_ID_IMMEDIATE"
 private const val TEMP_WORK_ID_NEXT = "hsseek.betterthanyesterday.widget.TEMP_WORK_ID_NEXT"
 private const val DUMMY_PENDING_WORK = "hsseek.betterthanyesterday.widget.TEMP_DUMMY_WORK"
@@ -38,8 +30,16 @@ const val EXTRA_TEMP_DIFF = "extra_temp_diff"
 const val EXTRA_DATA_VALID = "extra_data_valid"
 
 
-class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget = TemperatureWidget()
+abstract class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
+    abstract override val glanceAppWidget: GlanceAppWidget
+    abstract val tag: String
+    abstract suspend fun updateWidgets(
+        context: Context,
+        isValid: Boolean,
+        hourlyTemp: Int?,
+        tempDiff: Int?,
+    )
+
     private val coroutineScope = MainScope()
 
     // Called when a Widget is added, or on the automatic update.
@@ -49,20 +49,20 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
         appWidgetIds: IntArray
     ) {
         super.onUpdate(context, appWidgetManager, appWidgetIds)
-        if (DEBUG_FLAG) Log.d(TAG, "onUpdate() called.")
+        if (DEBUG_FLAG) Log.d(tag, "onUpdate() called.")
         requestData(context)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (DEBUG_FLAG) Log.d(TAG, "onReceive(...) called.(action: ${intent.action})")
+        if (DEBUG_FLAG) Log.d(tag, "onReceive(...) called.(action: ${intent.action})")
         when (intent.action) {
             ACTION_DATA_FETCHED -> insertData(intent, context)
-            ACTION_REFRESH-> requestData(context)
+            ACTION_REFRESH -> requestData(context)
             AppWidgetManager.ACTION_APPWIDGET_ENABLED -> requestData(context)
             AppWidgetManager.ACTION_APPWIDGET_DISABLED -> stopTempWorks(context)
             AppWidgetManager.ACTION_APPWIDGET_DELETED -> stopTempWorks(context)
-            else -> if (DEBUG_FLAG) Log.d(TAG, "Nothing to do with the action.")
+            else -> if (DEBUG_FLAG) Log.d(tag, "Nothing to do with the action.")
         }
     }
 
@@ -80,24 +80,13 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
     }
 
     private fun insertData(intent: Intent, context: Context) {
-        val tempDiff = intent.extras?.getInt(EXTRA_TEMP_DIFF)
         val hourlyTemp = intent.extras?.getInt(EXTRA_HOURLY_TEMP)
+        val tempDiff = intent.extras?.getInt(EXTRA_TEMP_DIFF)
         val isValid = intent.extras?.getBoolean(EXTRA_DATA_VALID) ?: false
-        if (DEBUG_FLAG) Log.d(TAG, "Temperature difference: $tempDiff")
+        if (DEBUG_FLAG) Log.d(tag, "Temperature difference: $tempDiff")
 
         coroutineScope.launch {
-            val glanceIdList = GlanceAppWidgetManager(context).getGlanceIds(TemperatureWidget::class.java)
-            for (glanceId in glanceIdList) {
-                updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
-                    pref.toMutablePreferences().apply {
-                        this[REFRESHING_KEY] = false
-                        this[VALID_DATA_KEY] = isValid
-                        if (hourlyTemp != null) this[HOURLY_TEMPERATURE_PREFS_KEY] = hourlyTemp
-                        if (tempDiff != null) this[TEMPERATURE_DIFF_PREFS_KEY] = tempDiff
-                    }
-                }
-                glanceAppWidget.update(context, glanceId)
-            }
+            updateWidgets(context, isValid, hourlyTemp, tempDiff)
         }
 
         // Schedule Work for the next hour.
@@ -107,7 +96,7 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
 
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         if (powerManager.isPowerSaveMode) {  // Use a Foreground Service with AlarmManger.
-            if (DEBUG_FLAG) Log.d(TAG, "Power save mode, reserving the Service.")
+            if (DEBUG_FLAG) Log.d(tag, "Power save mode, reserving the Service.")
             val pendingIntent = PendingIntent.getService(
                 context, 0,
                 Intent(context, HourlyTempFetchingService::class.java),
@@ -135,12 +124,12 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
             .build()
 
     private fun requestData(context: Context) {
-        if (DEBUG_FLAG) Log.d(TAG, "requestData(Context) called.")
+        if (DEBUG_FLAG) Log.d(tag, "requestData(Context) called.")
         // Let the user know a job is ongoing.
 
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         if (powerManager.isPowerSaveMode) {  // Use a Foreground Service.
-            if (DEBUG_FLAG) Log.d(TAG, "Power save mode, starting the Service.")
+            if (DEBUG_FLAG) Log.d(tag, "Power save mode, starting the Service.")
             context.startForegroundService(Intent(context, HourlyTempFetchingService::class.java))
         } else {  // Utilize WorkManager.
             // Define the Work to fetch temperatures.
@@ -163,33 +152,5 @@ class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
             it.cancelUniqueWork(TEMP_WORK_ID_NEXT)
             it.cancelUniqueWork(DUMMY_PENDING_WORK)
         }
-    }
-
-    companion object {
-        val HOURLY_TEMPERATURE_PREFS_KEY = intPreferencesKey("hourly_temp_prefs_key")
-        val TEMPERATURE_DIFF_PREFS_KEY = intPreferencesKey("temp_diff_prefs_key")
-        val VALID_DATA_KEY = booleanPreferencesKey("valid_data_key")
-        val REFRESHING_KEY = booleanPreferencesKey("refreshing_key")
-    }
-}
-
-class RefreshCallback : ActionCallback {
-    override suspend fun onAction(
-        context: Context,
-        glanceId: GlanceId,
-        parameters: ActionParameters
-    ) {
-        val intent = Intent(context, TemperatureWidgetReceiver::class.java).apply {
-            action = ACTION_REFRESH
-        }
-        MainScope().launch {
-             updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { pref ->
-                pref.toMutablePreferences().apply {
-                    this[TemperatureWidgetReceiver.REFRESHING_KEY] = true
-                }
-            }
-            TemperatureWidget().update(context, glanceId)
-        }
-        context.sendBroadcast(intent)
     }
 }

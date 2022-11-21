@@ -88,14 +88,24 @@ class HourlyTempFetchingService : Service() {
         val diff = if (todayTemp != null && yesterdayTemp != null) todayTemp - yesterdayTemp else null
 
         // Send broadcast to update Widget.
-        val intent = Intent(this, TemperatureWidgetReceiver::class.java).apply {
-            action = ACTION_DATA_FETCHED
-            putExtra(EXTRA_TEMP_DIFF, diff)
-            putExtra(EXTRA_HOURLY_TEMP, todayTemp)
-            putExtra(EXTRA_DATA_VALID, todayTemp != null && yesterdayTemp != null)
+        // Define widgets to receive the result.
+        val intents = listOf(
+            Intent(this, GrayTemperatureWidgetReceiver::class.java),
+            Intent(this, DayTemperatureWidgetReceiver::class.java),
+            Intent(this, NightTemperatureWidgetReceiver::class.java),
+        )
+
+        for (intent in intents) {
+            intent.also {
+                it.action = ACTION_DATA_FETCHED
+                it.putExtra(EXTRA_TEMP_DIFF, diff)
+                it.putExtra(EXTRA_HOURLY_TEMP, todayTemp)
+                it.putExtra(EXTRA_DATA_VALID, todayTemp != null && yesterdayTemp != null)
+            }
+            // Send broadcast to update a Widget.
+            sendBroadcast(intent)
         }
         if (DEBUG_FLAG) Log.d(TAG, "Send broadcast: $todayTemp($diff), ${todayTemp != null && yesterdayTemp != null}")
-        sendBroadcast(intent)
 
         // Job done.
         stopForeground(STOP_FOREGROUND_DETACH)

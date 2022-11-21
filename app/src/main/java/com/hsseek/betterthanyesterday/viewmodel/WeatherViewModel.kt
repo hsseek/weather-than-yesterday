@@ -53,8 +53,8 @@ private const val RAIN_TAG = "PTY"
 private const val LOW_TEMP_BASE_TIME = "0200"  // From 3:00
 private const val HIGH_TEMP_BASE_TIME = "1100"  // From 12:00
 
-private const val HARDCODED_SNACK_BAR_ID = 1
-private const val HIGHLIGHTED_SETTING_ROW = 1  // If out of index, none will be highlighted.
+private const val HARDCODED_SNACK_BAR_ID = 2
+private const val HIGHLIGHTED_SETTING_ROW = 99  // If out of index, none will be highlighted.
 
 class WeatherViewModel(
     application: Application,
@@ -1035,14 +1035,23 @@ class WeatherViewModel(
             yesterdayTemp?.let { yt ->
                 _hourlyTempDiff.value = tt - yt
 
-                // Sync numbers shown in Widgets.
-                val intent = Intent(context, TemperatureWidgetReceiver::class.java).apply {
-                    action = ACTION_DATA_FETCHED
-                    putExtra(EXTRA_TEMP_DIFF, tt - yt)
-                    putExtra(EXTRA_HOURLY_TEMP, tt)
-                    putExtra(EXTRA_DATA_VALID, true)
+                // Define widgets to receive the result.
+                val intents = listOf(
+                    Intent(context, GrayTemperatureWidgetReceiver::class.java),
+                    Intent(context, DayTemperatureWidgetReceiver::class.java),
+                    Intent(context, NightTemperatureWidgetReceiver::class.java),
+                )
+
+                for (intent in intents) {
+                    intent.also {
+                        it.action = ACTION_DATA_FETCHED
+                        it.putExtra(EXTRA_TEMP_DIFF, tt - yt)
+                        it.putExtra(EXTRA_HOURLY_TEMP, tt)
+                        it.putExtra(EXTRA_DATA_VALID, true)
+                    }
+                    // Sync numbers shown in Widgets.
+                    context.sendBroadcast(intent)
                 }
-                context.sendBroadcast(intent)
             }
         }
     }
@@ -1389,16 +1398,17 @@ class WeatherViewModel(
             // Update Preferences not to show the SnackBar on the next launch.
             viewModelScope.launch { userPrefsRepo.updateConsumedSnackBar(HARDCODED_SNACK_BAR_ID) }
 
-            _noticeSnackBarEvent.value = SnackBarEvent(SnackBarContent(
-                R.string.snack_bar_new_setting,
-                R.string.snack_bar_go_setting_action
-            ) {
-                val intent = Intent(activity, SettingsActivity::class.java).apply {
-                    putExtra(EXTRA_NEW_SETTING_KEY, HIGHLIGHTED_SETTING_ROW)
+            /*_noticeSnackBarEvent.value = SnackBarEvent(SnackBarContent(
+                    R.string.snack_bar_notice,
+                    R.string.snack_bar_go_setting_action
+                ) {
+                    val intent = Intent(activity, SettingsActivity::class.java).apply {
+                        putExtra(EXTRA_NEW_SETTING_KEY, HIGHLIGHTED_SETTING_ROW)
+                    }
+                    activity.startActivity(intent)
                 }
-                activity.startActivity(intent)
-            }
-            )
+            )*/
+            _noticeSnackBarEvent.value = SnackBarEvent(SnackBarContent(R.string.snack_bar_notice, null) {})
         }
     }
 

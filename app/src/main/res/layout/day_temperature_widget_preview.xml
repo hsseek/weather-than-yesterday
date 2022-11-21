@@ -1,0 +1,32 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/Widget.BetterThanYesterday.AppWidget.Container"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:theme="@style/Theme.BetterThanYesterday.AppWidgetContainer"
+    android:background="@drawable/app_widget_day_preview_background"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="6dp"
+    >
+
+    <TextView
+        android:id="@+id/widget_preview_tv_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/add_widget"
+        android:text="@string/widget_example_temp_time"
+        android:textSize="11sp"
+        android:textColor="@android:color/black"
+        />
+
+    <TextView
+        android:id="@+id/widget_preview_tv_temp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/add_widget"
+        android:text="@string/widget_example_temp_diff"
+        android:textColor="@color/secondary"
+        android:textSize="36sp"
+        android:textStyle="bold"
+        />
+</LinearLayout>
