@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Better Than Yesterday</string>
+    <string name="app_name">Weather Than Yesterday</string>
     <string name="dialog_title_location_permission">Location Permission Required</string>
     <string name="dialog_message_location_permission">The permission is required to get the weather conditions of the current location(Otherwise, you can deny the request and set a location manually).</string>
     <string name="temp_status_title">Temperature status</string>

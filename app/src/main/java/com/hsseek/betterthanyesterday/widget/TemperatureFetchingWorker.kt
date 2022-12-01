@@ -13,6 +13,7 @@ import com.hsseek.betterthanyesterday.network.*
 import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
 import com.hsseek.betterthanyesterday.util.VILLAGE_HOUR_INTERVAL
 import com.hsseek.betterthanyesterday.util.getCurrentKoreanTime
+import com.hsseek.betterthanyesterday.viewmodel.TEST_HOUR_OFFSET
 import com.hsseek.betterthanyesterday.viewmodel.VILLAGE_TEMPERATURE_TAG
 import com.hsseek.betterthanyesterday.viewmodel.getHourlyTempAsync
 import kotlinx.coroutines.*
@@ -28,14 +29,18 @@ class TemperatureFetchingWorker(private val context: Context, workerParams: Work
 
     override fun doWork(): Result {
         val xy: CoordinatesXy
+        val hourOffset: Int
+
         runBlocking {
             val prefsRepo = UserPreferencesRepository(context)
             val prefs = prefsRepo.preferencesFlow.first()
             xy = CoordinatesXy(prefs.forecastRegionNx, prefs.forecastRegionNy)
+            hourOffset = TEST_HOUR_OFFSET  // TODO: Retrieve from Preferences.
         }
         coroutineScope.launch {
             requestComparingTempData(
                 xy = xy,
+                hourOffset = hourOffset,
                 retry = BACKGROUND_MAX_RETRY,
                 timeoutMin = BACKGROUND_TIMEOUT_MIN,
                 additionalTimeout = BACKGROUND_ADDITIONAL_TIMEOUT,
@@ -75,6 +80,7 @@ class TemperatureFetchingWorker(private val context: Context, workerParams: Work
 
 suspend fun requestComparingTempData(
     xy: CoordinatesXy,
+    hourOffset: Int,
     retry: Int,
     timeoutMin: Long,
     additionalTimeout: Long,
@@ -94,8 +100,8 @@ suspend fun requestComparingTempData(
             while (trialCount < retry) {
                 try {
                     withTimeout(minOf(timeoutMin + trialCount * additionalTimeout, timeoutMax)) {
-                        val todayResponse = getHourlyTempAsync(xy, cal, 0, TAG, isCalModified)
-                        val yesterdayResponse = getHourlyTempAsync(xy, cal, -1, TAG, isCalModified)
+                        val todayResponse = getHourlyTempAsync(xy, cal, 0, hourOffset, TAG, isCalModified)
+                        val yesterdayResponse = getHourlyTempAsync(xy, cal, -1, hourOffset, TAG, isCalModified)
                         todayTemp = todayResponse.await()
                             .body()?.response?.body?.items?.item?.first {
                                 it.category == VILLAGE_TEMPERATURE_TAG

@@ -1,7 +1,6 @@
 package com.hsseek.betterthanyesterday.viewmodel
 
 import android.content.res.Configuration
-import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -100,8 +99,6 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
             2 -> true
             else -> systemConfig and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         }
-        Log.d("testtest-Settings", "systemConfig: $systemConfig")
-        Log.d("testtest-Settings", "dark mode code: $selectedCode, isDark: $isDarkTheme")
 
         if (isExplicit) {
             runBlocking {

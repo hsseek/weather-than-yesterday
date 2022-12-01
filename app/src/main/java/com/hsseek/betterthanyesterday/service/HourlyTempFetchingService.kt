@@ -16,6 +16,7 @@ import com.hsseek.betterthanyesterday.network.BACKGROUND_TIMEOUT_MAX
 import com.hsseek.betterthanyesterday.network.BACKGROUND_TIMEOUT_MIN
 import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
 import com.hsseek.betterthanyesterday.util.notifyDebuggingLog
+import com.hsseek.betterthanyesterday.viewmodel.TEST_HOUR_OFFSET
 import com.hsseek.betterthanyesterday.widget.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
@@ -29,15 +30,18 @@ class HourlyTempFetchingService : Service() {
     private val binder = LocalBinder()
     private val job = SupervisorJob()
     private val coroutineScope = CoroutineScope(Dispatchers.IO + job)
-    private lateinit var xy: CoordinatesXy
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (DEBUG_FLAG) Log.d(TAG, "onStartCommand(...) called.")
+        val xy: CoordinatesXy
+        val hourOffset: Int
+
         try {
             runBlocking {
                 val prefsRepo = UserPreferencesRepository(this@HourlyTempFetchingService)
                 val prefs = prefsRepo.preferencesFlow.first()
                 xy = CoordinatesXy(prefs.forecastRegionNx, prefs.forecastRegionNy)
+                hourOffset = TEST_HOUR_OFFSET  // TODO: Retrieve from Preferences.
             }
 
             createNotificationChannel()
@@ -56,6 +60,7 @@ class HourlyTempFetchingService : Service() {
             coroutineScope.launch {
                 requestComparingTempData(
                     xy = CoordinatesXy(xy.nx, xy.ny),
+                    hourOffset = hourOffset,
                     retry = BACKGROUND_MAX_RETRY,
                     timeoutMin = BACKGROUND_TIMEOUT_MIN,
                     additionalTimeout = BACKGROUND_ADDITIONAL_TIMEOUT,

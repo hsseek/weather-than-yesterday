@@ -10,8 +10,8 @@ android {
         applicationId "com.hsseek.betterthanyesterday"
         minSdk 26
         targetSdk 33
-        versionCode 19
-        versionName "1.0.19"
+        versionCode 20
+        versionName "1.0.20c"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

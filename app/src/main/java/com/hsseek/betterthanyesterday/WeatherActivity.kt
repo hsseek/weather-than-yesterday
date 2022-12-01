@@ -441,6 +441,7 @@ class WeatherActivity : ComponentActivity() {
                                     val diff = viewModel.hourlyTempDiff
                                     HourlyTemperature(
                                         isSimplified = viewModel.isSimplified,
+                                        hourOffset = viewModel.hourOffset,
                                         hourlyTempDiff = viewModel.hourlyTempDiff,
                                         hourlyTemp = viewModel.hourlyTempToday,
                                         hugeFontSize = if (diff != null && abs(diff) < 10) enlargedFontSize else 130.sp,
@@ -476,9 +477,9 @@ class WeatherActivity : ComponentActivity() {
                             ) {
                                 LocationInformation(viewModel.isSimplified, viewModel.cityName, viewModel.districtName, viewModel.isForecastRegionAuto)
                                 if (viewModel.isSimplified) {
-                                    HourlyTemperature(viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday, enlargedFontSize)
+                                    HourlyTemperature(viewModel.isSimplified, viewModel.hourOffset, viewModel.hourlyTempDiff, viewModel.hourlyTempToday, enlargedFontSize)
                                 } else {
-                                    HourlyTemperature(viewModel.isSimplified, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
+                                    HourlyTemperature(viewModel.isSimplified, viewModel.hourOffset, viewModel.hourlyTempDiff, viewModel.hourlyTempToday)
                                 }
                                 DailyTemperatures(viewModel.isSimplified, viewModel.isDarkTheme, viewModel.dailyTemps)
                                 RainfallStatus(viewModel.isSimplified, viewModel.isDarkTheme, viewModel.rainfallStatus.collectAsState().value)
@@ -885,6 +886,7 @@ class WeatherActivity : ComponentActivity() {
     @Composable
     fun HourlyTemperature(
         isSimplified: Boolean,
+        hourOffset: Int,
         hourlyTempDiff: Int?,
         hourlyTemp: Int?,
         hugeFontSize: TextUnit = Typography.h1.fontSize,
@@ -898,7 +900,7 @@ class WeatherActivity : ComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // The title
-            cal.add(Calendar.HOUR_OF_DAY, 1)
+            cal.add(Calendar.HOUR_OF_DAY, hourOffset)
             val title = getHourString(this@WeatherActivity, cal, hourlyTemp, isSimplified)
 
             Text(

@@ -24,6 +24,10 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.hsseek.betterthanyesterday.*
 import com.hsseek.betterthanyesterday.R
+import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
+import com.hsseek.betterthanyesterday.viewmodel.TEST_HOUR_OFFSET
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import java.util.*
 
 
@@ -46,6 +50,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
     override fun Content() {
         val context = LocalContext.current
 
+        // Variables for Composables
         val titleAlignCriterion = 144
         val fontWeightCriterion = 25
 
@@ -55,6 +60,16 @@ abstract class TemperatureWidget : GlanceAppWidget() {
         val tempDiffFontWeight = if (smallerDimension < fontWeightCriterion) FontWeight.Normal else FontWeight.Bold
         val smallSize: Int = maxOf(8, minOf((widgetSize.width.value * 0.09).toInt(), 15))
         val titleAlignment = if (widgetSize.width.value < titleAlignCriterion) TextAlign.Start else TextAlign.Center
+
+        // The hourOffset from Preferences
+        val hourOffset: Int
+
+        runBlocking {
+            val prefsRepo = UserPreferencesRepository(context)
+            val prefs = prefsRepo.preferencesFlow.first()
+//            xy = CoordinatesXy(prefs.forecastRegionNx, prefs.forecastRegionNy)
+            hourOffset = TEST_HOUR_OFFSET  // TODO: Retrieve from Preferences.
+        }
 
         val state = getWidgetUiState(currentState())
         Column(
@@ -67,6 +82,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
                 context,
                 valid = state.valid,
                 refreshing = state.refreshing,
+                hourOffset = hourOffset,
                 hourlyTemperature = state.hourlyTemperature,
                 cal = state.time,
                 fontSize = smallSize.sp,
@@ -97,6 +113,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
         context: Context,
         valid: Boolean,
         refreshing: Boolean,
+        hourOffset: Int,
         hourlyTemperature: Int?,
         cal: Calendar,
         fontSize: TextUnit = 12.sp,
@@ -117,7 +134,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
         ) {
             val title = if (valid && !refreshing) {
                 val calValue = cal.clone() as Calendar
-                calValue.add(Calendar.HOUR_OF_DAY, 1)
+                calValue.add(Calendar.HOUR_OF_DAY, hourOffset)
                 getHourString(
                     context = context,
                     cal = calValue,
