@@ -38,15 +38,6 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
     val showSimpleViewHelp: Boolean
         get() = _showSimpleViewHelp.value
 
-    // Auto refresh mode
-    private val _isAutoRefresh = mutableStateOf(false)
-    val isAutoRefresh: Boolean
-        get() = _isAutoRefresh.value
-
-    private val _showAutoRefreshHelp = mutableStateOf(false)
-    val showAutoRefreshHelp: Boolean
-        get() = _showAutoRefreshHelp.value
-
     // Daybreak mode
     private val _isDaybreak = mutableStateOf(false)
     val isDaybreak: Boolean
@@ -118,15 +109,6 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
         }
     }
 
-    fun updateAutoRefreshEnabled(enabled: Boolean, isExplicit: Boolean = true) {
-        _isAutoRefresh.value = enabled
-        if (isExplicit) {
-            viewModelScope.launch {
-                userPreferencesRepository.updateAutoRefreshEnabled(enabled)
-            }
-        }
-    }
-
     fun updateDaybreakEnabled(enabled: Boolean, isExplicit: Boolean = true) {
         _isDaybreak.value = enabled
         if (isExplicit) {
@@ -151,14 +133,6 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
 
     fun onDismissSimpleViewHelp() {
         _showSimpleViewHelp.value = false
-    }
-
-    fun onClickAutoRefreshHelp() {
-        _showAutoRefreshHelp.value = true
-    }
-
-    fun onDismissAutoRefreshHelp() {
-        _showAutoRefreshHelp.value = false
     }
 
     fun onClickDaybreakHelp() {

@@ -126,7 +126,6 @@ class WeatherActivity : ComponentActivity() {
                 viewModel.updateLanguage(userPrefs.languageCode, true)
                 viewModel.updateDarkMode(userPrefs.darkModeCode, resources.configuration.uiMode)
                 viewModel.updateSimplifiedEnabled(userPrefs.isSimplified)
-                viewModel.updateAutoRefreshEnabled(userPrefs.isAutoRefresh)
                 viewModel.updateDaybreakEnabled(userPrefs.isDaybreak)
                 viewModel.updatePresetRegionEnabled(userPrefs.isPresetRegion)
             }
@@ -284,7 +283,7 @@ class WeatherActivity : ComponentActivity() {
     }
 
     private fun requestRefreshImplicitly() {
-        val minInterval: Long = if (viewModel.isAutoRefresh) 60 * 1000 else 60 * 60 * 1000  // 1 min or 1 hour
+        val minInterval: Long = 60 * 1000
         val lastChecked = viewModel.lastImplicitlyCheckedTime
         val current = Calendar.getInstance().also {
             viewModel.updateLastImplicitChecked(it)

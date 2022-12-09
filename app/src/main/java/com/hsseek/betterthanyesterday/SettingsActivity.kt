@@ -72,7 +72,6 @@ class SettingsActivity : ComponentActivity() {
             viewModel.updateLanguageCode(prefs.languageCode, false)
             viewModel.updateDarkModeCode(prefs.darkModeCode, resources.configuration.uiMode, false)
             viewModel.updateSimpleViewEnabled(prefs.isSimplified, false)
-            viewModel.updateAutoRefreshEnabled(prefs.isAutoRefresh, false)
             viewModel.updateDaybreakEnabled(prefs.isDaybreak, false)
             viewModel.updatePresetRegionEnabled(prefs.isPresetRegion, false)
         }
@@ -147,15 +146,6 @@ class SettingsActivity : ComponentActivity() {
                             isDarkMode = viewModel.isDarkTheme,
                             desc = stringResource(id = R.string.pref_help_simple_view),
                             onDismissRequest = { viewModel.onDismissSimpleViewHelp() }
-                        )
-                    }
-
-                    if (viewModel.showAutoRefreshHelp) {
-                        HelpDialog(
-                            title = stringResource(id = R.string.pref_title_auto_refresh),
-                            isDarkMode = viewModel.isDarkTheme,
-                            desc = stringResource(id = R.string.pref_help_auto_refresh),
-                            onDismissRequest = { viewModel.onDismissAutoRefreshHelp() }
                         )
                     }
 
@@ -236,33 +226,18 @@ private fun MainScreen(
                     onCheckedChange = { isChecked -> viewModel.updateSimpleViewEnabled(isChecked) }
                 )
 
-                // To be released
-                // Auto Refresh
+                // Daybreak mode
                 PreferenceToggleRow(
-                    title = stringResource(R.string.pref_title_auto_refresh),
-                    description = stringResource(id = R.string.pref_desc_next_release),
-                    // description = stringResource(R.string.pref_desc_auto_refresh),
-                    enabled = DEBUG_FLAG,
-                    checked = viewModel.isAutoRefresh,
+                    title = stringResource(R.string.pref_title_daybreak_mode),
+                     description = stringResource(R.string.pref_desc_daybreak_mode),
+                    checked = viewModel.isDaybreak,
                     isHighlighted = highlightedIndex == 3,
-                    onClickHelp = { viewModel.onClickAutoRefreshHelp() },
-                    onCheckedChange = { isChecked -> viewModel.updateAutoRefreshEnabled(isChecked) },
+                    onClickHelp = { viewModel.onClickDaybreakHelp() },
+                    onCheckedChange = { isChecked -> viewModel.updateDaybreakEnabled(isChecked) },
                 )
 
                 // Disabled
                 if (DEBUG_FLAG) {
-                    // Daybreak mode
-                    PreferenceToggleRow(
-                        title = stringResource(R.string.pref_title_daybreak_mode),
-                        description = stringResource(id = R.string.pref_desc_next_release),
-                        // description = stringResource(R.string.pref_desc_daybreak_mode),
-                        enabled = DEBUG_FLAG,
-                        checked = viewModel.isDaybreak,
-                        isHighlighted = highlightedIndex == 4,
-                        onClickHelp = { viewModel.onClickDaybreakHelp() },
-                        onCheckedChange = { isChecked -> viewModel.updateDaybreakEnabled(isChecked) },
-                    )
-
                     // Preset regions
                     PreferenceToggleRow(
                         title = stringResource(R.string.pref_title_preset_regions),
@@ -270,7 +245,7 @@ private fun MainScreen(
                         // description = stringResource(R.string.pref_desc_preset_regions),
                         enabled = DEBUG_FLAG,
                         checked = viewModel.isPresetRegion,
-                        isHighlighted = highlightedIndex == 5,
+                        isHighlighted = highlightedIndex == 4,
                         onClickHelp = { viewModel.onClickPresetRegionHelp() },
                         onCheckedChange = { isChecked -> viewModel.updatePresetRegionEnabled(isChecked) },
                     )

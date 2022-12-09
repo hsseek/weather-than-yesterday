@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.location.Address
 import android.net.Uri
+import android.os.Build
 import android.os.Looper
 import android.util.Log
 import androidx.compose.runtime.MutableState
@@ -52,8 +53,8 @@ private const val LOW_TEMP_BASE_TIME = "0200"  // From 3:00
 private const val HIGH_TEMP_BASE_TIME = "1100"  // From 12:00
 const val TEST_HOUR_OFFSET = 1  // TESTTEST
 
-private const val HARDCODED_SNACK_BAR_ID = 3
-private const val HIGHLIGHTED_SETTING_ROW = 1  // If out of index, none will be highlighted.
+private const val HIGHLIGHTED_SETTING_ROW = 3  // If out of index, none will be highlighted.
+private const val HARDCODED_SNACK_BAR_ID = 4  // Don't forget to change [snack_bar_notice] as well.
 
 class WeatherViewModel(
     application: Application,
@@ -101,9 +102,6 @@ class WeatherViewModel(
     private val _isSimplified = mutableStateOf(false)
     val isSimplified: Boolean
         get() = _isSimplified.value
-
-    var isAutoRefresh: Boolean = false
-        private set
 
     private val _isDaybreakMode = mutableStateOf(false)
     val isDaybreakMode: Boolean
@@ -305,7 +303,7 @@ class WeatherViewModel(
             val separator = "\n────────────────\n"
             val reportHeader = separator +
                     "App version: ${BuildConfig.VERSION_CODE}\n" +
-                    "SDK version:${android.os.Build.VERSION.SDK_INT}" +
+                    "SDK version:${Build.VERSION.SDK_INT}" +
                     separator +
                     "Weather data to compose the main screen\n"
             val dataReport = StringBuilder()
@@ -947,15 +945,20 @@ class WeatherViewModel(
                     isPrimed = true
                 } else {
                     // fcstValues of TMX, TMN are Float, so round to Integer.
-                    compareAndUpdateFormerDailyTemp(day, CharacteristicTempType.Highest, temperature)
-                    compareAndUpdateFormerDailyTemp(day, CharacteristicTempType.Lowest, temperature)
+                    compareAndUpdateDailyTemp(day, CharacteristicTempType.Highest, temperature)
+                    if (_isDaybreakMode.value) {
+                        // Exclude the temperatures for afternoon or evening
+                        // (Rarely, evening temperature can be lower than the daybreak temperature).
+                        if (item.fcstTime < 1100) {
+                            compareAndUpdateDailyTemp(day, CharacteristicTempType.Lowest, temperature)
+                        }
+                    } else compareAndUpdateDailyTemp(day, CharacteristicTempType.Lowest, temperature)
                 }
             }
         }
     }
 
-    @Suppress("SameParameterValue")
-    private fun compareAndUpdateFormerDailyTemp(
+    private fun compareAndUpdateDailyTemp(
         day: DayOfInterest,
         type: CharacteristicTempType,
         newValue: Int,
@@ -1212,10 +1215,6 @@ class WeatherViewModel(
 
     fun updateSimplifiedEnabled(enabled: Boolean) {
         _isSimplified.value = enabled
-    }
-
-    fun updateAutoRefreshEnabled(enabled: Boolean) {
-        isAutoRefresh = enabled
     }
 
     fun updateDaybreakEnabled(enabled: Boolean) {

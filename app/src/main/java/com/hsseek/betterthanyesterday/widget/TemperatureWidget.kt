@@ -29,6 +29,7 @@ import com.hsseek.betterthanyesterday.viewmodel.TEST_HOUR_OFFSET
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.util.*
+import kotlin.math.abs
 
 
 private const val NULL_STRING = "-"
@@ -171,6 +172,8 @@ abstract class TemperatureWidget : GlanceAppWidget() {
         normalFontSize: TextUnit = 14.sp,
         fontWeight: FontWeight = FontWeight.Bold,
     ) {
+        val tempDiffFontSize = if (tempDiff != null && abs(tempDiff) >= 10) largeFontSize * 0.8 else largeFontSize
+
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
@@ -195,7 +198,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
                         text = diffString,
                         style = TextStyle(
                             color = ColorProvider(color),
-                            fontSize = largeFontSize,
+                            fontSize = tempDiffFontSize,
                             fontWeight = fontWeight,
                             textAlign = TextAlign.Center,
                         ),

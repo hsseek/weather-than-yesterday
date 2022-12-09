@@ -27,7 +27,6 @@ class UserPreferencesRepository(private val context: Context) {
         val LANGUAGE_CODE = intPreferencesKey("language_code")
         val DARK_MODE_CODE = intPreferencesKey("dark_mode_code")
         val SIMPLE_VIEW = booleanPreferencesKey("simple_view")
-        val AUTO_REFRESH = booleanPreferencesKey("auto_refresh")
         val DAYBREAK = booleanPreferencesKey("daybreak")
         val PRESET_REGION = booleanPreferencesKey("preset_region")
     }
@@ -44,7 +43,6 @@ class UserPreferencesRepository(private val context: Context) {
             val languageCode = preferences[PreferencesKeys.LANGUAGE_CODE] ?: Language.System.code
             val darkModeCode = preferences[PreferencesKeys.DARK_MODE_CODE] ?: DarkMode.System.code
             val isSimplified = preferences[PreferencesKeys.SIMPLE_VIEW] ?: false
-            val isAutoRefresh = preferences[PreferencesKeys.AUTO_REFRESH] ?: false
             val isDaybreak = preferences[PreferencesKeys.DAYBREAK] ?: false
             val isPresetRegion = preferences[PreferencesKeys.PRESET_REGION] ?: false
 
@@ -57,7 +55,6 @@ class UserPreferencesRepository(private val context: Context) {
                 languageCode,
                 darkModeCode,
                 isSimplified,
-                isAutoRefresh,
                 isDaybreak,
                 isPresetRegion,
             )
@@ -107,13 +104,6 @@ class UserPreferencesRepository(private val context: Context) {
         }
     }
 
-    suspend fun updateAutoRefreshEnabled(enabled: Boolean) {
-        context.dataStore.edit { preferences ->
-            if (DEBUG_FLAG) Log.d(TAG, "Auto refresh stored: ${enabled.toEnablementString()}")
-            preferences[PreferencesKeys.AUTO_REFRESH] = enabled
-        }
-    }
-
     suspend fun updateDaybreakEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             if (DEBUG_FLAG) Log.d(TAG, "Daybreak mode stored: ${enabled.toEnablementString()}")
@@ -138,7 +128,6 @@ data class UserPreferences(
     val languageCode: Int,
     val darkModeCode: Int,
     val isSimplified: Boolean,
-    val isAutoRefresh: Boolean,
     val isDaybreak: Boolean,
     val isPresetRegion: Boolean,
 )
