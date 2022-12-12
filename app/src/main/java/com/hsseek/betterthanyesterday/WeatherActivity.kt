@@ -998,6 +998,9 @@ class WeatherActivity : ComponentActivity() {
             val coolColor: Color = if (isDarkMode) CoolTint100 else CoolShade600
             val coldColor: Color = if (isDarkMode) CoolTint400 else Cool800
 
+            // Font color for unexpected temperatures
+            val purpleColor = if (isDarkMode) PurpleTint else PurpleShade
+
             // Values for today
             val todayMark: String
             val fontWeight: FontWeight
@@ -1006,11 +1009,21 @@ class WeatherActivity : ComponentActivity() {
             val lowTempColor: Color
 
             if (dailyTemp?.isToday == true) {
-                highTempColor = hotColor
-                lowTempColor = coldColor
+                highTempColor = if (dailyTemp.isHighestButCold) {
+                    purpleColor
+                } else hotColor
+
+                lowTempColor = if (dailyTemp.isLowestButHot) {
+                    purpleColor
+                } else coldColor
             } else {
-                highTempColor = warmColor
-                lowTempColor = coolColor
+                highTempColor = if (dailyTemp?.isHighestButCold == true) {
+                    purpleColor
+                } else warmColor
+
+                lowTempColor = if (dailyTemp?.isLowestButHot == true) {
+                    purpleColor
+                } else coolColor
             }
 
             if (dailyTemp?.isToday == true) {
@@ -1021,18 +1034,19 @@ class WeatherActivity : ComponentActivity() {
                 fontWeight = FontWeight.Normal
             }
 
-            // Today mark (empty for the header column)
+            // Row 1: Today mark (empty for the header column)
             Text(
                 text = if (dailyTemp != null) todayMark else "",
                 fontWeight = fontWeight,
                 style = Typography.caption,
             )
 
-            // Mon, Tue, ... (empty for the header column)
+            // Row 2: Mon, Tue, ... (empty for the header column)
             if (!isSimplified) {
                 Text(text = dailyTemp?.day ?: "", fontWeight = fontWeight)
             }
 
+            // Row 3 and 4
             if (!viewModel.isDaybreakMode) {
                 // Highest temperatures
                 Text(
@@ -1087,6 +1101,7 @@ class WeatherActivity : ComponentActivity() {
                 dailyTemp = null,
             )
 
+            // Yesterday through the day after tomorrow
             for (dailyTemp in dailyTemps) {
                 DailyTemperatureColumn(
                     isSimplified = isSimplified,

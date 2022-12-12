@@ -904,17 +904,26 @@ class WeatherViewModel(
 
             cal.add(Calendar.DAY_OF_YEAR, 1)  // From -2 + 1 = -1, then 0, ...
             val day = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT_FORMAT, locale)
-            val highest = if (highestTemps[i] != null) {
-                "${highestTemps[i].toString()}\u00B0"
+
+            // The highest temperature
+            val highestTemp = highestTemps[i]
+            val highest = if (highestTemp != null) {
+                "${highestTemp.toString()}\u00B0"
             } else {
                 stringForNull
             }
-            val lowest = if (lowestTemps[i] != null) {
+            val isHighestButCold = (highestTemp != null) && (highestTemp < 0)
+
+            // The lowest temperature
+            val lowestTemp = lowestTemps[i]
+            val lowest = if (lowestTemp != null) {
                 "${lowestTemps[i].toString()}\u00B0"
             } else {
                 stringForNull
             }
-            dailyTempsBuilder.add(DailyTemperature(isToday, day ?: "", highest, lowest))
+            val isLowestButHot = (lowestTemp != null) && (lowestTemp >= 25)
+
+            dailyTempsBuilder.add(DailyTemperature(isToday, day ?: "", highest, lowest, isHighestButCold, isLowestButHot))
         }
         _dailyTemps.value = dailyTempsBuilder.toList()
     }
@@ -932,10 +941,10 @@ class WeatherViewModel(
         // Using minOf(...) or maxOf(...) requires iterate each time, which is inefficient.
         candidates.forEach { item ->
             if (item.fcstDate == formatToKmaDate(calValue).toInt() &&
-                item.category == VILLAGE_TEMPERATURE_TAG ||
+                (item.category == VILLAGE_TEMPERATURE_TAG ||
                 item.category == SHORT_TERM_TEMPERATURE_TAG ||
                 item.category == HIGH_TEMPERATURE_TAG ||
-                item.category == LOW_TEMPERATURE_TAG
+                item.category == LOW_TEMPERATURE_TAG)
             ) {
                 val temperature = item.fcstValue.toFloat().roundToInt()  // TMN, TMX values are Floats.
 
@@ -987,7 +996,7 @@ class WeatherViewModel(
     private fun refreshHourlyTemp(
         cal: Calendar,
         isCalModified: Boolean,
-        hourOffset: Int = DayOfInterest.Yesterday.dayOffset,
+        @Suppress("SameParameterValue") hourOffset: Int = DayOfInterest.Yesterday.dayOffset,
         todayData: List<ForecastResponse.Item>,
         yesterdayShortTermTempData: List<ForecastResponse.Item>,
     ) {
@@ -1198,7 +1207,7 @@ class WeatherViewModel(
 
     private fun getDefaultDailyTemps(): List<DailyTemperature> {
         val dailyTempPlaceholder = DailyTemperature(
-            false, stringForNull, stringForNull, stringForNull
+            false, stringForNull, stringForNull, stringForNull, false, false
         )
 
         val builder: ArrayList<DailyTemperature> = arrayListOf()
@@ -1604,7 +1613,14 @@ sealed class Sky {
     }
 }
 
-class DailyTemperature(val isToday: Boolean, val day: String, val highest: String, val lowest: String)
+class DailyTemperature(
+    val isToday: Boolean,
+    val day: String,
+    val highest: String,
+    val lowest: String,
+    val isHighestButCold: Boolean,
+    val isLowestButHot: Boolean,
+)
 
 class WeatherViewModelFactory(
     private val application: Application,
