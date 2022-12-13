@@ -49,6 +49,8 @@ private const val LOW_TEMPERATURE_TAG = "TMN"
 private const val HIGH_TEMPERATURE_TAG = "TMX"
 private const val SHORT_TERM_TEMPERATURE_TAG = "T1H"
 private const val RAIN_TAG = "PTY"
+private const val HOURLY_PRECIPITATION_TAG = "RN1"
+private const val PRECIPITATION_TAG = "PCP"
 private const val LOW_TEMP_BASE_TIME = "0200"  // From 3:00
 private const val HIGH_TEMP_BASE_TIME = "1100"  // From 12:00
 const val TEST_HOUR_OFFSET = 1  // TESTTEST
@@ -832,29 +834,49 @@ class WeatherViewModel(
         val primaryCoveredHourMax: Int? = todayShortTermData.maxOfOrNull { it.fcstTime }
 
         // Remove duplicate data according to the priority (More recent data is preferred.)
-        val hourlyRainfallData = todayShortTermData.filter { it.category == RAIN_TAG && it.fcstDate == today.toInt() }
+        val hourlyRainfallData = todayShortTermData.filter {
+            it.fcstDate == today.toInt() && it.category == RAIN_TAG
+        }
         val futureTodayRainfallData: List<ForecastResponse.Item> = todayFutureData.filter {
-            (it.category == RAIN_TAG) and (it.fcstTime > (primaryCoveredHourMax ?: 0))
+            (it.fcstTime > (primaryCoveredHourMax ?: 0)) && it.category == RAIN_TAG
         }
         val rainfallData: List<ForecastResponse.Item> = hourlyRainfallData + futureTodayRainfallData
 
-        // Process the organized data.
+        // Repeat for precipitation data.
+        val hourlyPrecipitationData = todayShortTermData.filter {
+            it.fcstDate == today.toInt() && it.hasPrecipitationTag()
+        }
+        val futureTodayPrecipitationData: List<ForecastResponse.Item> = todayFutureData.filter {
+            (it.fcstTime > (primaryCoveredHourMax ?: 0)) && it.hasPrecipitationTag()
+        }
+        val precipitationData: List<ForecastResponse.Item> = hourlyPrecipitationData + futureTodayPrecipitationData
+
+        // Collect raining/snowing hours.
         val rainingHours = arrayListOf<Int>()
         val snowingHours = arrayListOf<Int>()
         for (i in rainfallData) {
             if (DEBUG_FLAG) Log.d(RAIN_TAG, "$i")
             val status = i.fcstValue.toInt()  // Must be integers of 0 through 7
-            if (
-                status == RainfallType.Raining.code ||
-                status == RainfallType.Mixed.code ||
-                status == RainfallType.Shower.code
-            ) {
+            if (status == RainfallType.Mixed.code || status == RainfallType.Shower.code) {
                 rainingHours.add(i.fcstTime)
-                if (DEBUG_FLAG) Log.d(TAG, "Raining at ${i.fcstTime}")
-            } else if (
-                status == RainfallType.Snowing.code
-            ) {
+                if (DEBUG_FLAG) Log.d(RAIN_TAG, "Raining at ${i.fcstTime}")
+            } else if (status == RainfallType.Snowing.code) {
                 snowingHours.add(i.fcstTime)
+                if (DEBUG_FLAG) Log.d(RAIN_TAG, "Snowing at ${i.fcstTime}")
+            }
+        }
+
+        // Then remove negligible rain/snow data.
+        for (i in precipitationData) {
+            if (DEBUG_FLAG) Log.d(RAIN_TAG, "$i")
+            if (i.isRainNegligible() && (rainingHours.contains(i.fcstTime))) {
+                rainingHours.remove(i.fcstTime)
+                if (DEBUG_FLAG) Log.d(RAIN_TAG, "Not actually raining at ${i.fcstTime}")
+            }
+
+            if (i.isSnowNegligible() && (snowingHours.contains(i.fcstTime))) {
+                snowingHours.remove(i.fcstTime)
+                if (DEBUG_FLAG) Log.d(RAIN_TAG, "Not actually snowing at ${i.fcstTime}")
             }
         }
 
@@ -877,6 +899,24 @@ class WeatherViewModel(
         }
 
         if (DEBUG_FLAG) Log.d(TAG, "PTY: ${_rainfallStatus.value::class.simpleName}\t(${hours.minOrNull()} ~ ${hours.maxOrNull()})")
+    }
+
+    private fun ForecastResponse.Item.hasPrecipitationTag(): Boolean {
+        return this.category == PRECIPITATION_TAG || this.category == HOURLY_PRECIPITATION_TAG
+    }
+
+    private fun ForecastResponse.Item.isRainNegligible(): Boolean {
+        if (this.category == PRECIPITATION_TAG || this.category == HOURLY_PRECIPITATION_TAG) {
+            if (this.fcstValue.endsWith("mm") && !this.fcstValue.startsWith("1.0")) return false
+        }
+        return true
+    }
+
+    private fun ForecastResponse.Item.isSnowNegligible(): Boolean {
+        if (this.category == PRECIPITATION_TAG || this.category == HOURLY_PRECIPITATION_TAG) {
+            if (this.fcstValue.endsWith("mm")) return false
+        }
+        return true
     }
 
     private fun buildDailyTemps() {

@@ -50,6 +50,3 @@ val CoolTint400 = Color(0xFF74c2e4)
 val CoolTint300 = Color(0xFF8bcce9)
 val CoolTint200 = Color(0xFFa2d6ed)
 val CoolTint100 = Color(0xFFb9e0f1)
-
-val PurpleTint = Color(0xFFCE93D8)
-val PurpleShade = Color(0xFF9C27B0)

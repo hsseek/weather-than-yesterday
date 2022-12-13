@@ -47,6 +47,8 @@ class SettingsViewModel(private val userPreferencesRepository: UserPreferencesRe
     val showDaybreakHelp: Boolean
         get() = _showDaybreakHelp.value
 
+    // TODO: Daily status(Very hot, very cold, rainy, snowy)
+
     // PresetRegion
     private val _isPresetRegion = mutableStateOf(false)
     val isPresetRegion: Boolean

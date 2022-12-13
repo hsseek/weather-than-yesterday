@@ -39,6 +39,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -998,9 +999,6 @@ class WeatherActivity : ComponentActivity() {
             val coolColor: Color = if (isDarkMode) CoolTint100 else CoolShade600
             val coldColor: Color = if (isDarkMode) CoolTint400 else Cool800
 
-            // Font color for unexpected temperatures
-            val purpleColor = if (isDarkMode) PurpleTint else PurpleShade
-
             // Values for today
             val todayMark: String
             val fontWeight: FontWeight
@@ -1009,21 +1007,11 @@ class WeatherActivity : ComponentActivity() {
             val lowTempColor: Color
 
             if (dailyTemp?.isToday == true) {
-                highTempColor = if (dailyTemp.isHighestButCold) {
-                    purpleColor
-                } else hotColor
-
-                lowTempColor = if (dailyTemp.isLowestButHot) {
-                    purpleColor
-                } else coldColor
+                highTempColor = hotColor
+                lowTempColor = coldColor
             } else {
-                highTempColor = if (dailyTemp?.isHighestButCold == true) {
-                    purpleColor
-                } else warmColor
-
-                lowTempColor = if (dailyTemp?.isLowestButHot == true) {
-                    purpleColor
-                } else coolColor
+                highTempColor = warmColor
+                lowTempColor = coolColor
             }
 
             if (dailyTemp?.isToday == true) {
@@ -1033,6 +1021,9 @@ class WeatherActivity : ComponentActivity() {
                 todayMark = ""
                 fontWeight = FontWeight.Normal
             }
+
+            val highestTempFontStyle = if (dailyTemp?.isHighestButCold == true) FontStyle.Italic else FontStyle.Normal
+            val lowestTempFontStyle = if (dailyTemp?.isLowestButHot == true) FontStyle.Italic else FontStyle.Normal
 
             // Row 1: Today mark (empty for the header column)
             Text(
@@ -1047,31 +1038,37 @@ class WeatherActivity : ComponentActivity() {
             }
 
             // Row 3 and 4
-            if (!viewModel.isDaybreakMode) {
-                // Highest temperatures
-                Text(
-                    text = dailyTemp?.highest ?: stringResource(id = R.string.daily_highest),
-                    fontWeight = fontWeight,
-                    color = if (dailyTemp != null) highTempColor else plainColor,
-                )
-                // Lowest temperatures
-                Text(
-                    text = dailyTemp?.lowest ?: stringResource(id = R.string.daily_lowest),
-                    fontWeight = fontWeight,
-                    color = if (dailyTemp != null) lowTempColor else plainColor,
-                )
-            } else {
+            if (viewModel.isDaybreakMode) {
                 // Lowest temperatures
                 Text(
                     text = dailyTemp?.lowest ?: stringResource(id = R.string.daily_daybreak),
                     fontWeight = fontWeight,
+                    fontStyle = lowestTempFontStyle,
                     color = if (dailyTemp != null) lowTempColor else plainColor,
                 )
+
                 // Highest temperatures
                 Text(
                     text = dailyTemp?.highest ?: stringResource(id = R.string.daily_heat),
                     fontWeight = fontWeight,
+                    fontStyle = highestTempFontStyle,
                     color = if (dailyTemp != null) highTempColor else plainColor,
+                )
+            } else {
+                // Highest temperatures
+                Text(
+                    text = dailyTemp?.highest ?: stringResource(id = R.string.daily_highest),
+                    fontWeight = fontWeight,
+                    fontStyle = highestTempFontStyle,
+                    color = if (dailyTemp != null) highTempColor else plainColor,
+                )
+
+                // Lowest temperatures
+                Text(
+                    text = dailyTemp?.lowest ?: stringResource(id = R.string.daily_lowest),
+                    fontWeight = fontWeight,
+                    fontStyle = lowestTempFontStyle,
+                    color = if (dailyTemp != null) lowTempColor else plainColor,
                 )
             }
         }
@@ -1140,8 +1137,9 @@ class WeatherActivity : ComponentActivity() {
                 val imageId: Int = when (sky) {
                     is Good -> R.drawable.ic_smile
                     is Rainy -> R.drawable.ic_rainy
+                    is Mixed -> R.drawable.ic_rainy
                     is Snowy -> R.drawable.ic_snow
-                    else -> R.drawable.ic_umbrella
+                    is Sky.Undetermined -> R.drawable.ic_umbrella
                 }
 
                 // Text description
