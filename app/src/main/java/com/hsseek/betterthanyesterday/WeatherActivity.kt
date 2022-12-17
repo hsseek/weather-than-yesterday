@@ -1415,7 +1415,7 @@ internal fun getRainfallHourDescription(
             closingString = context.getString(R.string.hour_stops_soon)
             if (startingHour <= currentHour) {
                 // (18, 18, 18)
-                openingString = ""
+                openingString = context.getString(R.string.hour_present) + comma
             } else {
                 // (18, 7, 18)
                 openingString = getReadableHour(context, startingHour) + comma
