@@ -5,6 +5,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.hsseek.betterthanyesterday.location.CoordinatesLatLon
 import com.hsseek.betterthanyesterday.location.KoreanGeocoder
+import com.hsseek.betterthanyesterday.location.getSuitableAddress
 import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
 
 import org.junit.Test
@@ -47,12 +48,19 @@ class InstrumentedTest {
     fun geocoderAddress() {
         val tag = "Geocoder"
         val geo = KoreanGeocoder(appContext)
-        val lat = 37.514748555
-        val lon = 126.908006124
+//        val lat = 37.514748555
+//        val lon = 126.908006124
+        val lat = 37.6227597
+        val lon = 127.0776255
         val maxResult = 20
 
         val time = measureTimeMillis {
-            geo.updateAddresses(CoordinatesLatLon(lat, lon), maxResult) { }
+            geo.updateAddresses(CoordinatesLatLon(lat, lon), maxResult) { addresses ->
+                if (addresses != null) {
+                    val suitableAddress = getSuitableAddress(addresses)
+                    Log.d(tag, "Address: $suitableAddress")
+                } else Log.d(tag, "List null.")
+            }
         }
         if (DEBUG_FLAG) Log.d(tag,"Done in $time ms")
     }

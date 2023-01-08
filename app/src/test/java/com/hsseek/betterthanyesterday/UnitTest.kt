@@ -64,6 +64,13 @@ class UnitTest {
     }
 
     @Test
+    fun si() {
+        val addr = "충청남도 서산시 연기군"
+        val si = getSi(addr, false)
+        assertEquals("충청남도 서산시", si)
+   }
+
+    @Test
     fun is_raining() {
         val RAIN_TAG = "PTY"
         val todayHourlyData = DUMMY_SHORT_TERM_FORECAST_SNOWY

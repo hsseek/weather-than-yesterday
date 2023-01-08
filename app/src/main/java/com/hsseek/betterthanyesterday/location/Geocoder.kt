@@ -226,16 +226,18 @@ fun getGu(address: String, toTrim: Boolean): String? {
 }
 
 /**
- * Returns null or String ending with "OO시" or "OO도".
+ * Returns null or a String ending with "OO시" or "OO도".
  * For "XX도 OO시", "OO시" is returned without "XX도" if [toTrim] is true.
  * */
 fun getSi(address: String, toTrim: Boolean): String? {
     val si = if (toTrim) {
-        Regex("(\\S+?[시])(?:\\s|$)").find(address)?.groupValues?.get(1)
-            ?: Regex("(\\S+?[도])(?:\\s|$)").find(address)?.groupValues?.get(1)
+        Regex("(^\\S+?[시])(?:\\s|$)").find(address)?.groupValues?.get(1)
+            ?: Regex("(^\\S+?[도])(?:\\s|$)").find(address)?.groupValues?.get(1)
     } else {
         // Greedy to capture "OO도 XX시"
-        Regex("(\\S.+[시도])(?:\\s|$)").find(address)?.groupValues?.get(1)
+//        Regex("(^\\S.+[시도])(?:\\s|$)").find(address)?.groupValues?.get(1)
+        Regex("(^\\S+?[시])(?:\\s|$)").find(address)?.groupValues?.get(1)
+            ?: Regex("(^\\S+?[도]\\s\\S+?[시])(?:\\s|$)").find(address)?.groupValues?.get(1)
     }
     return si
 }
@@ -252,11 +254,22 @@ fun getGeneralCityName(address: String): String {
 fun getSuitableAddress(addresses: List<Address>): String {
     for (address in addresses) {  // The first loop looking for 동, 리
         val dong = getDong(address.getAddressLine(0), false)
-        if (dong != null) return dong
+        if (dong != null) {
+            // Check if it suits the format.
+            // To exclude:
+            // 서울특별시 노원구 동일로178길 59-39
+            // 2층, 587-1 공릉동 노원구 서울특별시 대한민국
+            // ...
+            val si = getSi(address.getAddressLine(0), true)
+            if (si != null) return dong
+        }
     }
     for (address in addresses) {  // The second loop looking for 군, 구, 읍, 면
         val gu = getGu(address.getAddressLine(0), false)
-        if (gu != null) return gu
+        if (gu != null) {
+            val si = getSi(address.getAddressLine(0), true)
+            if (si != null) return gu
+        }
     }
     for (address in addresses) {  // The third loop looking for 시, 도
         val si = getSi(address.getAddressLine(0), false)
