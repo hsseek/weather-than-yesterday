@@ -857,7 +857,10 @@ class WeatherViewModel(
         for (i in rainfallData) {
             if (DEBUG_FLAG) Log.d(RAIN_TAG, "$i")
             val status = i.fcstValue.toInt()  // Must be integers of 0 through 7
-            if (status == RainfallType.Mixed.code || status == RainfallType.Shower.code) {
+            if (status == RainfallType.Mixed.code ||
+                status == RainfallType.Shower.code ||
+                status == RainfallType.Raining.code
+            ) {
                 rainingHours.add(i.fcstTime)
                 if (DEBUG_FLAG) Log.d(RAIN_TAG, "Raining at ${i.fcstTime}")
             } else if (status == RainfallType.Snowing.code) {
@@ -868,14 +871,14 @@ class WeatherViewModel(
 
         // Then remove negligible rain/snow data.
         for (i in precipitationData) {
-            if (DEBUG_FLAG) Log.d(RAIN_TAG, "$i")
+            /*if (DEBUG_FLAG) Log.d(RAIN_TAG, "$i")
             if (i.isRainNegligible() && (rainingHours.contains(i.fcstTime))) {
-                rainingHours.remove(i.fcstTime)
+                 rainingHours.remove(i.fcstTime)
                 if (DEBUG_FLAG) Log.d(RAIN_TAG, "Not actually raining at ${i.fcstTime}")
-            }
+            }*/
 
             if (i.isSnowNegligible() && (snowingHours.contains(i.fcstTime))) {
-                snowingHours.remove(i.fcstTime)
+                 snowingHours.remove(i.fcstTime)
                 if (DEBUG_FLAG) Log.d(RAIN_TAG, "Not actually snowing at ${i.fcstTime}")
             }
         }
@@ -905,12 +908,12 @@ class WeatherViewModel(
         return this.category == PRECIPITATION_TAG || this.category == HOURLY_PRECIPITATION_TAG
     }
 
-    private fun ForecastResponse.Item.isRainNegligible(): Boolean {
-        if (this.category == PRECIPITATION_TAG || this.category == HOURLY_PRECIPITATION_TAG) {
-            if (this.fcstValue.endsWith("mm") && !this.fcstValue.startsWith("1.0")) return false
-        }
-        return true
-    }
+//    private fun ForecastResponse.Item.isRainNegligible(): Boolean {
+//        if (this.category == PRECIPITATION_TAG || this.category == HOURLY_PRECIPITATION_TAG) {
+//            if (this.fcstValue.endsWith("mm") && !this.fcstValue.startsWith("1.0")) return false
+//        }
+//        return true
+//    }
 
     private fun ForecastResponse.Item.isSnowNegligible(): Boolean {
         if (this.category == PRECIPITATION_TAG || this.category == HOURLY_PRECIPITATION_TAG) {
@@ -948,7 +951,7 @@ class WeatherViewModel(
             // The highest temperature
             val highestTemp = highestTemps[i]
             val highest = if (highestTemp != null) {
-                "${highestTemp.toString()}\u00B0"
+                "${highestTemp}\u00B0"
             } else {
                 stringForNull
             }
