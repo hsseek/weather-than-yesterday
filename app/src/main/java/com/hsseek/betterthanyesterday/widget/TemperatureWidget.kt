@@ -30,6 +30,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.util.*
 import kotlin.math.abs
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 
 private const val NULL_STRING = "-"
@@ -47,6 +49,14 @@ abstract class TemperatureWidget : GlanceAppWidget() {
     abstract fun getWidgetUiState(prefs: Preferences): TemperatureWidgetUiState
     abstract fun getWidgetTempDiffColor(context: Context, tempDiff: Int): Color
 
+    @Deprecated(
+        "Override provideGlance to provide the Composable.",
+        replaceWith = ReplaceWith(
+            "override suspend fun provideGlance(context: Context, id: GlanceId) {    provideContent { /** Composable content **/ }}",
+            "androidx.glance.appwidget.provideContent"
+        ),
+        level = DeprecationLevel.WARNING
+    )
     @Composable
     override fun Content() {
         val context = LocalContext.current
@@ -57,10 +67,12 @@ abstract class TemperatureWidget : GlanceAppWidget() {
 
         val widgetSize = LocalSize.current
         val smallerDimension = minOf(widgetSize.width.value, widgetSize.height.value)
-        val tempDiffFontSize = (smallerDimension * 0.56).toInt().sp
+        val smallFontSize: Int = maxOf(8, minOf((widgetSize.width.value * 0.09).roundToInt(), 15))
+        val tempDiffFontSize = ((smallerDimension - smallFontSize) * 0.5).roundToInt()
         val tempDiffFontWeight = if (smallerDimension < fontWeightCriterion) FontWeight.Normal else FontWeight.Bold
-        val smallSize: Int = maxOf(8, minOf((widgetSize.width.value * 0.09).toInt(), 15))
         val titleAlignment = if (widgetSize.width.value < titleAlignCriterion) TextAlign.Start else TextAlign.Center
+        val widgetHorizontalPadding = 8
+        val widgetVerticalPadding = min((widgetSize.height.value * 0.06).roundToInt(), widgetHorizontalPadding)
 
         // The hourOffset from Preferences
         val hourOffset: Int
@@ -75,9 +87,12 @@ abstract class TemperatureWidget : GlanceAppWidget() {
         val state = getWidgetUiState(currentState())
         Column(
             modifier = GlanceModifier
-                .fillMaxSize()
                 .background(widgetBackground)
-                .padding(8.dp)
+                .padding(
+                    horizontal = widgetHorizontalPadding.dp,
+                    vertical = widgetVerticalPadding.dp,
+                ),
+            verticalAlignment = Alignment.Vertical.Top,
         ) {
             TemperatureWidgetHeader(
                 context,
@@ -86,8 +101,8 @@ abstract class TemperatureWidget : GlanceAppWidget() {
                 hourOffset = hourOffset,
                 hourlyTemperature = state.hourlyTemperature,
                 cal = state.time,
-                fontSize = smallSize.sp,
-                iconSize = (smallSize * 1.4f).toInt().dp,
+                fontSize = smallFontSize.sp,
+                iconSize = (smallFontSize * 1.4f).toInt().dp,
                 titleAlignment = titleAlignment
             )
             TemperatureWidgetBody(
@@ -95,7 +110,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
                 valid = state.valid,
                 refreshing = state.refreshing,
                 tempDiff = state.tempDiff,
-                largeFontSize = tempDiffFontSize,
+                largeFontSize = tempDiffFontSize.sp,
                 fontWeight = tempDiffFontWeight,
             )
         }
@@ -168,7 +183,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
         valid: Boolean,
         refreshing: Boolean,
         tempDiff: Int?,
-        largeFontSize: TextUnit = 40.sp,
+        largeFontSize: TextUnit,
         normalFontSize: TextUnit = 14.sp,
         fontWeight: FontWeight = FontWeight.Bold,
     ) {
@@ -176,9 +191,9 @@ abstract class TemperatureWidget : GlanceAppWidget() {
 
         Box(
             modifier = GlanceModifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .clickable(actionStartActivity(activity = WeatherActivity::class.java)),
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.TopCenter,
         ) {
             if (refreshing) {
                 Text(

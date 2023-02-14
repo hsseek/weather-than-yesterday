@@ -106,7 +106,6 @@
     <string name="toast_refreshing_ongoing">새로고침 중입니다.</string>
     <string name="toast_refresh_not_reachable">데이터 서버에 접속할 수 없습니다.</string>
     <string name="add_widget">위젯 추가</string>
-    <string name="gray_temperature_widget_description">기온 차이</string>
     <string name="loading">새로고침 중</string>
     <string name="widget_example_temp_time">오후 2시, 18\u2103</string>
     <string name="service_notification_channel_title">위젯 새로고침</string>
@@ -114,8 +113,9 @@
     <string name="snack_bar_weather_error_http">공공 데이터 페이지 응답이 없습니다. 앱에서 할 수 있는 것이 없네요 &#128546;</string>
     <string name="snack_bar_weather_error_expired_service">공공 데이터가 더 이상 제공되지 않습니다. 개발자에게 이 사실을 알려주세요.</string>
     <string name="snack_bar_weather_error_traffic">앱의 공공 데이터 사용량이 한계에 달했습니다. 개발자에게 이 사실을 알려주세요.</string>
-    <string name="night_temperature_widget_description">투명배경, 흰글씨</string>
-    <string name="day_temperature_widget_description">투명배경, 검은글씨</string>
+    <string name="gray_temperature_widget_description">반투명 배경</string>
+    <string name="night_temperature_widget_description">투명 배경, 흰글씨</string>
+    <string name="day_temperature_widget_description">투명 배경, 검은글씨</string>
     <string name="pref_title_dark_mode">다크 모드</string>
     <string name="radio_dark_mode_system">시스템 설정과 동기화</string>
     <string name="radio_dark_mode_force_dark">항상 다크 모드</string>

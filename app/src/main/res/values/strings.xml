@@ -113,7 +113,7 @@
     <string name="toast_refreshing_ongoing">Refreshing ongoing.</string>
     <string name="toast_refresh_not_reachable">Cannot access the data server.</string>
     <string name="add_widget">Add widget</string>
-    <string name="gray_temperature_widget_description">Temperature difference</string>
+    <string name="gray_temperature_widget_description">Translucent background</string>
     <string name="night_temperature_widget_description">Transparent, white letters</string>
     <string name="day_temperature_widget_description">Transparent, black letters</string>
     <string name="loading">Loading…</string>
