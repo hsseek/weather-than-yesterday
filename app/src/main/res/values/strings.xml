@@ -57,6 +57,7 @@
     <string name="desc_refresh">Refresh weather information</string>
     <string name="top_bar_share_app">Share this app</string>
     <string name="top_bar_help">Help</string>
+    <string name="top_bar_policy">Privacy Policy</string>
     <string name="desc_overflow_menu">More menu</string>
     <string name="daily_highest">Highest</string>
     <string name="daily_lowest">Lowest</string>

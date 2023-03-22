@@ -53,6 +53,7 @@
     <string name="desc_refresh">날씨정보 새로고침</string>
     <string name="top_bar_share_app">앱 공유하기</string>
     <string name="top_bar_help">도움말</string>
+    <string name="top_bar_policy">개인정보 방침</string>
     <string name="desc_overflow_menu">부가 메뉴</string>
     <string name="daily_highest">최고</string>
     <string name="daily_lowest">최저</string>

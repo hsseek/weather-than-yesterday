@@ -732,6 +732,16 @@ class WeatherActivity : ComponentActivity() {
             DropdownMenuItem(onClick = {
                 onDismissRequest()
                 val intent = Intent(this@WeatherActivity, WebViewActivity::class.java).apply {
+                    putExtra(EXTRA_URL_KEY, POLICY_URL)
+                }
+                startActivity(intent)
+            }) {
+                Text(text = stringResource(R.string.top_bar_policy))
+            }
+
+            DropdownMenuItem(onClick = {
+                onDismissRequest()
+                val intent = Intent(this@WeatherActivity, WebViewActivity::class.java).apply {
                     putExtra(EXTRA_URL_KEY, FAQ_URL)
                 }
                 startActivity(intent)

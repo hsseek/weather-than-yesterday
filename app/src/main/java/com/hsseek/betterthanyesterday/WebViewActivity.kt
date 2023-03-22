@@ -24,6 +24,7 @@ import com.hsseek.betterthanyesterday.ui.theme.BetterThanYesterdayTheme
 
 const val EXTRA_URL_KEY = "bty_intent_extra_url"
 const val FAQ_URL = "https://blog.naver.com/seoulworkshop/222898712063"
+const val POLICY_URL = "https://blog.naver.com/seoulworkshop/223052494801"
 const val BLOG_URL = "https://bit.ly/3DSRrjv"
 
 class WebViewActivity : ComponentActivity() {
