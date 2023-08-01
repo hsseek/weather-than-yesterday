@@ -14,6 +14,7 @@ import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.SizeMode
+import androidx.glance.appwidget.provideContent
 import androidx.glance.layout.*
 import androidx.glance.state.GlanceStateDefinition
 import androidx.glance.state.PreferencesGlanceStateDefinition
@@ -49,70 +50,68 @@ abstract class TemperatureWidget : GlanceAppWidget() {
     abstract fun getWidgetUiState(prefs: Preferences): TemperatureWidgetUiState
     abstract fun getWidgetTempDiffColor(context: Context, tempDiff: Int): Color
 
-    @Deprecated(
-        "Override provideGlance to provide the Composable.",
-        replaceWith = ReplaceWith(
-            "override suspend fun provideGlance(context: Context, id: GlanceId) {    provideContent { /** Composable content **/ }}",
-            "androidx.glance.appwidget.provideContent"
-        ),
-        level = DeprecationLevel.WARNING
-    )
-    @Composable
-    override fun Content() {
-        val context = LocalContext.current
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        // TODO: Load initial data needed to render the AppWidget here.
+        // Prefer doing heavy work before provideContent,
+        // as the provideGlance function will timeout shortly after provideContent is called.
+        // (https://developer.android.com/reference/kotlin/androidx/glance/appwidget/GlanceAppWidget)
+        // val store = context.myWidgetStore
+        // val initial = store.data.first()
 
-        // Variables for Composables
-        val titleAlignCriterion = 144
-        val fontWeightCriterion = 25
+        provideContent {
+            // Variables for Composables
+            val titleAlignCriterion = 144
+            val fontWeightCriterion = 25
 
-        val widgetSize = LocalSize.current
-        val smallerDimension = minOf(widgetSize.width.value, widgetSize.height.value)
-        val smallFontSize: Int = maxOf(8, minOf((widgetSize.width.value * 0.09).roundToInt(), 15))
-        val tempDiffFontSize = ((smallerDimension - smallFontSize) * 0.5).roundToInt()
-        val tempDiffFontWeight = if (smallerDimension < fontWeightCriterion) FontWeight.Normal else FontWeight.Bold
-        val titleAlignment = if (widgetSize.width.value < titleAlignCriterion) TextAlign.Start else TextAlign.Center
-        val widgetHorizontalPadding = 8
-        val widgetVerticalPadding = min((widgetSize.height.value * 0.06).roundToInt(), widgetHorizontalPadding)
+            val widgetSize = LocalSize.current
+            val smallerDimension = minOf(widgetSize.width.value, widgetSize.height.value)
+            val smallFontSize: Int = maxOf(8, minOf((widgetSize.width.value * 0.09).roundToInt(), 15))
+            val tempDiffFontSize = ((smallerDimension - smallFontSize) * 0.5).roundToInt()
+            val tempDiffFontWeight = if (smallerDimension < fontWeightCriterion) FontWeight.Normal else FontWeight.Bold
+            val titleAlignment = if (widgetSize.width.value < titleAlignCriterion) TextAlign.Start else TextAlign.Center
+            val widgetHorizontalPadding = 8
+            val widgetVerticalPadding = min((widgetSize.height.value * 0.06).roundToInt(), widgetHorizontalPadding)
 
-        // The hourOffset from Preferences
-        val hourOffset: Int
+            // The hourOffset from Preferences
+            val hourOffset: Int
 
-        runBlocking {
-            val prefsRepo = UserPreferencesRepository(context)
-            val prefs = prefsRepo.preferencesFlow.first()
+            runBlocking {
+                val prefsRepo = UserPreferencesRepository(context)
+                val prefs = prefsRepo.preferencesFlow.first()
 //            xy = CoordinatesXy(prefs.forecastRegionNx, prefs.forecastRegionNy)
-            hourOffset = TEST_HOUR_OFFSET  // TODO: Retrieve from Preferences.
-        }
+                hourOffset = TEST_HOUR_OFFSET  // TODO: Retrieve from Preferences.
+            }
 
-        val state = getWidgetUiState(currentState())
-        Column(
-            modifier = GlanceModifier
-                .background(widgetBackground)
-                .padding(
-                    horizontal = widgetHorizontalPadding.dp,
-                    vertical = widgetVerticalPadding.dp,
-                ),
-            verticalAlignment = Alignment.Vertical.Top,
-        ) {
-            TemperatureWidgetHeader(
-                context,
-                valid = state.valid,
-                refreshing = state.refreshing,
-                hourOffset = hourOffset,
-                hourlyTemperature = state.hourlyTemperature,
-                cal = state.time,
-                fontSize = smallFontSize.sp,
-                iconSize = (smallFontSize * 1.4f).toInt().dp,
-                titleAlignment = titleAlignment
-            )
-            TemperatureWidgetBody(
-                context,
-                valid = state.valid,
-                refreshing = state.refreshing,
-                tempDiff = state.tempDiff,
-                largeFontSize = tempDiffFontSize.sp,
-                fontWeight = tempDiffFontWeight,
-            )
+            val state = getWidgetUiState(currentState())
+            Column(
+                modifier = GlanceModifier
+                    .background(widgetBackground)
+                    .padding(
+                        horizontal = widgetHorizontalPadding.dp,
+                        vertical = widgetVerticalPadding.dp,
+                    ),
+                verticalAlignment = Alignment.Vertical.Top,
+            ) {
+                TemperatureWidgetHeader(
+                    context,
+                    valid = state.valid,
+                    refreshing = state.refreshing,
+                    hourOffset = hourOffset,
+                    hourlyTemperature = state.hourlyTemperature,
+                    cal = state.time,
+                    fontSize = smallFontSize.sp,
+                    iconSize = (smallFontSize * 1.4f).toInt().dp,
+                    titleAlignment = titleAlignment
+                )
+                TemperatureWidgetBody(
+                    context,
+                    valid = state.valid,
+                    refreshing = state.refreshing,
+                    tempDiff = state.tempDiff,
+                    largeFontSize = tempDiffFontSize.sp,
+                    fontWeight = tempDiffFontWeight,
+                )
+            }
         }
     }
 
