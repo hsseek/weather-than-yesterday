@@ -10,9 +10,9 @@ android {
     defaultConfig {
         applicationId "com.hsseek.betterthanyesterday"
         minSdk 26
-        targetSdk 34
-        versionCode 35
-        versionName "1.0.35"
+        targetSdk 33
+        versionCode 37
+        versionName "1.0.37"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -40,7 +40,7 @@ android {
         viewBinding true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion compose_compiler
+        kotlinCompilerExtensionVersion '1.5.2'
     }
     packagingOptions {
         resources {
@@ -52,7 +52,7 @@ android {
 dependencies {
     implementation 'androidx.core:core-ktx:1.10.1'
     implementation "androidx.compose.ui:ui:$compose_version"
-    implementation "androidx.compose.material:material:1.4.3"
+    implementation "androidx.compose.material:material:1.5.0"
     implementation "androidx.compose.ui:ui-tooling-preview:$compose_version"
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.1'
     implementation 'androidx.activity:activity-compose:1.7.2'

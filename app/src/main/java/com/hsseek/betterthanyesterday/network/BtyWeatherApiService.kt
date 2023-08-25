@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 
 private const val BASE_URL = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/"
 private const val DATA_TYPE_JSON = "JSON"
-private const val TAG = "WeatherApiService"
+private const val TAG = "BtyWeatherApiService"
 private const val RESPONSE_BODY_LOG_BYTE_MAX: Long = 40 * 1024
 const val NETWORK_TIMEOUT_MIN = 3_600L
 const val NETWORK_ADDITIONAL_TIMEOUT = 1_200L
@@ -43,7 +43,7 @@ private val retrofit = Retrofit.Builder()
     .build()
 
 
-interface WeatherApiService {
+interface BtyWeatherApiService {
     /**
      * Fetches extensive weather conditions of 1 hour after the [baseTime] and afterwards.
      * Available after every hour 10 at most.
@@ -123,8 +123,8 @@ interface WeatherApiService {
 * */
 object WeatherApi {
     // lazy initialization to avoid unnecessary use of resources
-    val service: WeatherApiService by lazy {
-        retrofit.create(WeatherApiService::class.java)
+    val service: BtyWeatherApiService by lazy {
+        retrofit.create(BtyWeatherApiService::class.java)
     }
     private val responseBuilder = interceptor.responseBuffer
 
