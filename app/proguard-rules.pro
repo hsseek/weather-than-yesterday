@@ -21,6 +21,10 @@
 #-renamesourcefileattribute SourceFile
 
 -keep class com.hsseek.betterthanyesterday.** { *; }
+-keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
+-keep,allowobfuscation,allowshrinking interface retrofit2.Call
+-keep,allowobfuscation,allowshrinking class retrofit2.Response
+-keep,allowobfuscation,allowshrinking class kotlin.coroutines.** { *; }
 -keepclassmembers class com.hsseek.betterthanyesterday.** { *; }
 -dontwarn org.bouncycastle.jsse.BCSSLParameters
 -dontwarn org.bouncycastle.jsse.BCSSLSocket
