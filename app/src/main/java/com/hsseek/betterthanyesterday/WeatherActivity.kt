@@ -128,7 +128,8 @@ class WeatherActivity : ComponentActivity() {
                 viewModel.updateDarkMode(userPrefs.darkModeCode, resources.configuration.uiMode)
                 viewModel.updateSimplifiedEnabled(userPrefs.isSimplified)
                 viewModel.updateDaybreakEnabled(userPrefs.isDaybreak)
-                viewModel.updatePresetRegionEnabled(userPrefs.isPresetRegion)
+                // TODO: Enable Search Region dialog
+                viewModel.updatePresetRegionEnabled(true)
             }
         }
 
@@ -148,7 +149,8 @@ class WeatherActivity : ComponentActivity() {
                     val transitionDuration = 340
                     Crossfade(
                         targetState = viewModel.showLandingScreen,
-                        animationSpec = tween(durationMillis = transitionDuration)
+                        animationSpec = tween(durationMillis = transitionDuration),
+                        label = "Landing Screen"
                     ) { showLandingScreenState ->
                         if (showLandingScreenState) {
                             LandingScreen(
@@ -666,6 +668,7 @@ class WeatherActivity : ComponentActivity() {
                     )
                 }
 
+                // TODO: Enable Search Region dialog
                 // Edit location button
                 IconButton(
                     onClick = onClickChangeLocation,

@@ -189,7 +189,8 @@ fun notifyDebuggingLog(context: Context, tag: String, msg: String? = null) {
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(notificationChannel)
-        notificationManager.notify(Calendar.getInstance().timeInMillis.toInt(), notification)
+        // TODO: Post foreground notice
+//        notificationManager.notify(Calendar.getInstance().timeInMillis.toInt(), notification)
     }
 }
 

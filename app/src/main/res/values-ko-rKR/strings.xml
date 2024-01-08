@@ -58,7 +58,6 @@
     <string name="daily_highest">최고</string>
     <string name="daily_lowest">최저</string>
     <string name="toast_refresh_up_to_date">날씨 정보가 최신 상태입니다.</string>
-    <string name="snack_bar_weather_error_general">날씨 정보를 받아올 수 없습니다.</string>
     <string name="toast_weather_failure_network">네트워크 상태를 확인해주세요.</string>
     <string name="hour_23">오후 11시</string>
     <string name="title_activity_web_view">자주 묻는 질문</string>
@@ -111,9 +110,10 @@
     <string name="widget_example_temp_time">오후 2시, 18\u2103</string>
     <string name="service_notification_channel_title">위젯 새로고침</string>
     <string name="service_notification_content">위젯 새로고침 중</string>
-    <string name="snack_bar_weather_error_http">공공 데이터 페이지 응답이 없습니다. 앱에서 할 수 있는 것이 없네요 &#128546;</string>
-    <string name="snack_bar_weather_error_expired_service">공공 데이터가 더 이상 제공되지 않습니다. 개발자에게 이 사실을 알려주세요.</string>
-    <string name="snack_bar_weather_error_traffic">앱의 공공 데이터 사용량이 한계에 달했습니다. 개발자에게 이 사실을 알려주세요.</string>
+    <string name="snack_bar_weather_error_general">공공 데이터 서버 응답이 없습니다 &#128591; 수분 뒤에도 응답이 없다면 오른쪽 위 메뉴를 통해 개발자에게 알려주세요!</string>
+    <string name="snack_bar_weather_error_http">공공 데이터 서버 응답이 없습니다 &#128591; 수분 뒤에도 응답이 없다면 오른쪽 위 메뉴를 통해 개발자에게 알려주세요!</string>
+    <string name="snack_bar_weather_error_expired_service">공공 데이터 서버 응답이 없습니다 &#128591; 수분 뒤에도 응답이 없다면 오른쪽 위 메뉴를 통해 개발자에게 알려주세요!</string>
+    <string name="snack_bar_weather_error_traffic">공공 데이터 서버 응답이 없습니다 &#128591; 수분 뒤에도 응답이 없다면 오른쪽 위 메뉴를 통해 개발자에게 알려주세요!</string>
     <string name="gray_temperature_widget_description">반투명 배경</string>
     <string name="night_temperature_widget_description">투명 배경, 흰글씨</string>
     <string name="day_temperature_widget_description">투명 배경, 검은글씨</string>

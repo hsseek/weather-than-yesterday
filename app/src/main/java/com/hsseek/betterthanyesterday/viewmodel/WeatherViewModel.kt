@@ -109,7 +109,9 @@ class WeatherViewModel(
     val isDaybreakMode: Boolean
         get() = _isDaybreakMode.value
 
-    private val _isPresetRegion = mutableStateOf(false)
+    // TODO: Enable Search Region dialog
+//    private val _isPresetRegion = mutableStateOf(false)
+    private val _isPresetRegion = mutableStateOf(true)
     val isPresetRegion: Boolean
         get() = _isPresetRegion.value
 
@@ -623,10 +625,14 @@ class WeatherViewModel(
                                 val errorMessageId = when (Regex("<returnReasonCode>(\\d{2})</").find(response)?.groupValues?.get(1)) {
                                     "04" -> R.string.snack_bar_weather_error_http
                                     "05" -> R.string.snack_bar_weather_error_http
+                                    // <string name="snack_bar_weather_error_http">공공 데이터 페이지 응답이 없습니다. 앱에서 할 수 있는 것이 없네요 &#128546;</string>
                                     "12" -> R.string.snack_bar_weather_error_expired_service
+                                    // <string name="snack_bar_weather_error_expired_service">공공 데이터가 더 이상 제공되지 않습니다. 개발자에게 이 사실을 알려주세요.</string>
                                     "22" -> R.string.snack_bar_weather_error_traffic
                                     "30" -> R.string.snack_bar_weather_error_traffic
+                                    // <string name="snack_bar_weather_error_traffic">앱의 공공 데이터 사용량이 한계에 달했습니다. 개발자에게 이 사실을 알려주세요.</string>
                                     else -> R.string.snack_bar_weather_error_general
+                                    // <string name="snack_bar_weather_error_general">날씨 정보를 받아올 수 없습니다.</string>
                                 }
 
                                 _exceptionSnackBarEvent.value = SnackBarEvent(
