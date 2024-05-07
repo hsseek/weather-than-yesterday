@@ -110,10 +110,10 @@
     <string name="widget_example_temp_time">오후 2시, 18\u2103</string>
     <string name="service_notification_channel_title">위젯 새로고침</string>
     <string name="service_notification_content">위젯 새로고침 중</string>
-    <string name="snack_bar_weather_error_general">공공 데이터 서버 응답이 없습니다 &#128591; 수분 뒤에도 응답이 없다면 오른쪽 위 메뉴를 통해 개발자에게 알려주세요!</string>
-    <string name="snack_bar_weather_error_http">공공 데이터 서버 응답이 없습니다 &#128591; 수분 뒤에도 응답이 없다면 오른쪽 위 메뉴를 통해 개발자에게 알려주세요!</string>
-    <string name="snack_bar_weather_error_expired_service">공공 데이터 서버 응답이 없습니다 &#128591; 수분 뒤에도 응답이 없다면 오른쪽 위 메뉴를 통해 개발자에게 알려주세요!</string>
-    <string name="snack_bar_weather_error_traffic">공공 데이터 서버 응답이 없습니다 &#128591; 수분 뒤에도 응답이 없다면 오른쪽 위 메뉴를 통해 개발자에게 알려주세요!</string>
+    <string name="snack_bar_weather_error_general">공공 데이터 서버 응답이 없습니다 &#129302;&#128295; 몇분 뒤에도 응답이 없다면 개발자에게 알려주세요!</string>
+    <string name="snack_bar_weather_error_http">공공 데이터 서버 응답이 없습니다 &#129302;&#128295; 몇분 뒤에도 응답이 없다면 개발자에게 알려주세요!</string>
+    <string name="snack_bar_weather_error_expired_service">공공 데이터 서버 응답이 없습니다 &#129302;&#128295; 몇분 뒤에도 응답이 없다면 개발자에게 알려주세요!</string>
+    <string name="snack_bar_weather_error_traffic">공공 데이터 서버 응답이 없습니다 &#129302;&#128295; 몇분 뒤에도 응답이 없다면 개발자에게 알려주세요!</string>
     <string name="gray_temperature_widget_description">반투명 배경</string>
     <string name="night_temperature_widget_description">투명 배경, 흰글씨</string>
     <string name="day_temperature_widget_description">투명 배경, 검은글씨</string>
