@@ -2,6 +2,7 @@ package com.hsseek.betterthanyesterday.service
 
 import android.app.*
 import android.content.Intent
+import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
@@ -55,7 +56,12 @@ class HourlyTempFetchingService : Service() {
                 .setSmallIcon(R.drawable.ic_refresh)
                 .setContentIntent(pendingIntent)
                 .build()
-            startForeground(REFRESHING_NOTIFICATION_ID, notification)
+            if (android.os.Build.VERSION.SDK_INT >= 34) {
+                startForeground(REFRESHING_NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_SHORT_SERVICE)
+            } else {
+                startForeground(REFRESHING_NOTIFICATION_ID, notification)
+            }
+
 
             coroutineScope.launch {
                 requestComparingTempData(
@@ -68,7 +74,7 @@ class HourlyTempFetchingService : Service() {
                 ) { todayTemp, yesterdayTemp -> onFinishJob(todayTemp, yesterdayTemp) }
             }
         } catch (e: Exception) {
-            if (android.os.Build.VERSION.SDK_INT >= 31 && e is ForegroundServiceStartNotAllowedException) {
+            if (e is ForegroundServiceStartNotAllowedException) {
                 notifyDebuggingLog(this, TAG, "Cannot launch foreground Service from background.")
             }
         }
