@@ -1013,8 +1013,8 @@ class WeatherActivity : ComponentActivity() {
             val coldColor: Color = if (isDarkMode) CoolTint400 else Cool800
 
             // Values for today
-            val todayMark: String
-            val fontWeight: FontWeight
+            val todayMark: String = stringResource(id = R.string.daily_today)
+            val fontWeight: FontWeight = if (dailyTemp?.isToday == true) FontWeight.ExtraBold else FontWeight.Normal
             val plainColor = MaterialTheme.colors.onBackground
             val highTempColor: Color
             val lowTempColor: Color
@@ -1027,27 +1027,24 @@ class WeatherActivity : ComponentActivity() {
                 lowTempColor = coolColor
             }
 
-            if (dailyTemp?.isToday == true) {
-                todayMark = stringResource(id = R.string.daily_today)
-                fontWeight = FontWeight.ExtraBold
-            } else {
-                todayMark = ""
-                fontWeight = FontWeight.Normal
-            }
-
             val highestTempFontStyle = if (dailyTemp?.isHighestButCold == true) FontStyle.Italic else FontStyle.Normal
             val lowestTempFontStyle = if (dailyTemp?.isLowestButHot == true) FontStyle.Italic else FontStyle.Normal
 
             // Row 1: Today mark (empty for the header column)
             Text(
-                text = if (dailyTemp != null) todayMark else "",
+                text = todayMark,
+                color = if (dailyTemp?.isToday == true) plainColor else Color.Transparent,
                 fontWeight = fontWeight,
                 style = Typography.caption,
             )
 
             // Row 2: Mon, Tue, ... (empty for the header column)
             if (!isSimplified) {
-                Text(text = dailyTemp?.day ?: "", fontWeight = fontWeight)
+                if (dailyTemp != null) {
+                    Text(text = dailyTemp.day, fontWeight = fontWeight)
+                } else {
+                    Text(text = "87", fontWeight = fontWeight, color = Color.Transparent)  // Dummy
+                }
             }
 
             // Row 3 and 4
