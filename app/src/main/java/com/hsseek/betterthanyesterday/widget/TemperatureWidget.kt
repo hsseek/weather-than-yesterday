@@ -136,7 +136,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
         titleAlignment: TextAlign,
     ) {
         val textStyle = TextStyle(
-            color = ColorProvider(descriptiveTextColorId),
+            color = ColorProvider(Color(descriptiveTextColorId)),
             fontSize = fontSize,
             textAlign = titleAlignment,
         )
@@ -198,7 +198,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
                 Text(
                     text = context.getString(R.string.loading),
                     style = TextStyle(
-                        color = ColorProvider(plainTextColorId),
+                        color = ColorProvider(Color(plainTextColorId)),
                         fontSize = normalFontSize,
                         textAlign = TextAlign.Center,
                     )
@@ -221,7 +221,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
                     Text(
                         text = NULL_STRING,
                         style = TextStyle(
-                            color = ColorProvider(plainTextColorId),
+                            color = ColorProvider(Color(plainTextColorId)),
                             fontSize = largeFontSize,
                             fontWeight = fontWeight,
                             textAlign = TextAlign.Center,
@@ -232,7 +232,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
                 Text(
                     text = NULL_STRING,
                     style = TextStyle(
-                        color = ColorProvider(descriptiveTextColorId),
+                        color = ColorProvider(Color(descriptiveTextColorId)),
                         fontSize = largeFontSize,
                         textAlign = TextAlign.Center,
                     )

@@ -1149,7 +1149,7 @@ class WeatherActivity : ComponentActivity() {
                     is Rainy -> R.drawable.ic_rainy
                     is Mixed -> R.drawable.ic_rainy
                     is Snowy -> R.drawable.ic_snow
-                    is Sky.Undetermined -> R.drawable.ic_umbrella
+                    else -> R.drawable.ic_umbrella
                 }
 
                 // Text description

@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.Looper
 import android.util.Log
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
@@ -53,7 +54,7 @@ private const val HOURLY_PRECIPITATION_TAG = "RN1"
 private const val PRECIPITATION_TAG = "PCP"
 private const val LOW_TEMP_BASE_TIME = "0200"  // From 3:00
 private const val HIGH_TEMP_BASE_TIME = "1100"  // From 12:00
-const val TEST_HOUR_OFFSET = 1  // TESTTEST
+const val TEST_HOUR_OFFSET = 0  // Change this value to regenerate queries of specific time in the past.
 
 private const val HIGHLIGHTED_SETTING_ROW = 3  // If out of index, none will be highlighted.
 private const val HARDCODED_SNACK_BAR_ID = 4  // Don't forget to change [snack_bar_notice] as well.
@@ -142,9 +143,9 @@ class WeatherViewModel(
     val forecastRegionCandidates: List<ForecastRegion>
         get() = _forecastRegionCandidates.value
     // The selected index of candidates
-    private val _selectedForecastRegionIndex = mutableStateOf(if (isForecastRegionAuto) 0 else 1)
+    private val _selectedForecastRegionIndex = mutableIntStateOf(if (isForecastRegionAuto) 0 else 1)
     val selectedForecastRegionIndex: Int
-        get() = _selectedForecastRegionIndex.value
+        get() = _selectedForecastRegionIndex.intValue
 
     // Displayed location names
     private val _cityName: MutableState<String> = mutableStateOf(stringForNull)
@@ -1256,7 +1257,9 @@ class WeatherViewModel(
 
     private fun getDefaultDailyTemps(): List<DailyTemperature> {
         val dailyTempPlaceholder = DailyTemperature(
-            false, stringForNull, stringForNull, stringForNull, false, false
+            false, stringForNull, stringForNull, stringForNull,
+            isHighestButCold = false,
+            isLowestButHot = false
         )
 
         val builder: ArrayList<DailyTemperature> = arrayListOf()
@@ -1312,7 +1315,7 @@ class WeatherViewModel(
      * * */
     fun updateAutoRegionEnabled(enabled: Boolean, isExplicit: Boolean = true) {
         isForecastRegionAuto = enabled
-        _selectedForecastRegionIndex.value = if (enabled) 0 else 1
+        _selectedForecastRegionIndex.intValue = if (enabled) 0 else 1
         if (isExplicit) {  // Need to store the value in Preferences.
             viewModelScope.launch {
                 userPrefsRepo.updateAutoRegionEnabled(enabled)
@@ -1389,7 +1392,7 @@ class WeatherViewModel(
                             } else {
                                 searchResults.sortBy { it.address }
                                 _forecastRegionCandidates.value = searchResults
-                                _selectedForecastRegionIndex.value = 0
+                                _selectedForecastRegionIndex.intValue = 0
                             }
                         } else {
                             onNoRegionCandidates(isExplicit)
@@ -1480,7 +1483,7 @@ class WeatherViewModel(
     fun invalidateSearchDialog() {
         dismissRegionDialog()
         _forecastRegionCandidates.value = defaultRegionCandidates.toList()
-        _selectedForecastRegionIndex.value = if (isForecastRegionAuto) 0 else 1
+        _selectedForecastRegionIndex.intValue = if (isForecastRegionAuto) 0 else 1
     }
 
     fun dismissRegionDialog() {
@@ -1488,7 +1491,7 @@ class WeatherViewModel(
     }
 
     fun updateSelectedForecastRegionIndex(index: Int) {
-        _selectedForecastRegionIndex.value = index
+        _selectedForecastRegionIndex.intValue = index
     }
 
     fun dismissSearchRegionLoading() {
@@ -1653,8 +1656,8 @@ enum class RainfallType(val code: Int) {
 }
 
 sealed class Sky {
-    object Undetermined: Sky()
-    object Good : Sky()
+    data object Undetermined: Sky()
+    data object Good : Sky()
     sealed class Bad(val startingHour: Int, val endingHour: Int): Sky() {
         class Mixed(startingHour: Int, endingHour: Int): Bad(startingHour, endingHour)
         class Rainy(startingHour: Int, endingHour: Int): Bad(startingHour, endingHour)

@@ -62,7 +62,6 @@ class HourlyTempFetchingService : Service() {
                 startForeground(REFRESHING_NOTIFICATION_ID, notification)
             }
 
-
             coroutineScope.launch {
                 requestComparingTempData(
                     xy = CoordinatesXy(xy.nx, xy.ny),
