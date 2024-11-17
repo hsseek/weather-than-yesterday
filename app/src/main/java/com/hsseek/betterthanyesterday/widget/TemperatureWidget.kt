@@ -43,12 +43,11 @@ abstract class TemperatureWidget : GlanceAppWidget() {
 
     protected abstract val widgetBackground: ImageProvider
     protected abstract val refreshAction: Action
-    protected abstract val descriptiveTextColorId: Int
-    protected abstract val plainTextColorId: Int
     protected abstract val refreshIconId: Int
 
     abstract fun getWidgetUiState(prefs: Preferences): TemperatureWidgetUiState
     abstract fun getWidgetTempDiffColor(context: Context, tempDiff: Int): Color
+    abstract fun getWidgetPlainTextColor(context: Context): Color
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         // TODO: Load initial data needed to render the AppWidget here.
@@ -136,7 +135,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
         titleAlignment: TextAlign,
     ) {
         val textStyle = TextStyle(
-            color = ColorProvider(Color(descriptiveTextColorId)),
+            color = ColorProvider(getWidgetPlainTextColor(context)),
             fontSize = fontSize,
             textAlign = titleAlignment,
         )
@@ -194,11 +193,13 @@ abstract class TemperatureWidget : GlanceAppWidget() {
                 .clickable(actionStartActivity(activity = WeatherActivity::class.java)),
             contentAlignment = Alignment.TopCenter,
         ) {
+            val plainTextColor = getWidgetPlainTextColor(context)
+            val descriptiveTextColor = getWidgetPlainTextColor(context)
             if (refreshing) {
                 Text(
                     text = context.getString(R.string.loading),
                     style = TextStyle(
-                        color = ColorProvider(Color(plainTextColorId)),
+                        color = ColorProvider(plainTextColor),
                         fontSize = normalFontSize,
                         textAlign = TextAlign.Center,
                     )
@@ -221,7 +222,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
                     Text(
                         text = NULL_STRING,
                         style = TextStyle(
-                            color = ColorProvider(Color(plainTextColorId)),
+                            color = ColorProvider(plainTextColor),
                             fontSize = largeFontSize,
                             fontWeight = fontWeight,
                             textAlign = TextAlign.Center,
@@ -232,7 +233,7 @@ abstract class TemperatureWidget : GlanceAppWidget() {
                 Text(
                     text = NULL_STRING,
                     style = TextStyle(
-                        color = ColorProvider(Color(descriptiveTextColorId)),
+                        color = ColorProvider(descriptiveTextColor),
                         fontSize = largeFontSize,
                         textAlign = TextAlign.Center,
                     )

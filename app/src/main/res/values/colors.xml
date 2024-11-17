@@ -3,7 +3,7 @@
     <color name="primary">#FFFFD54F</color>  <!--Amber300-->
     <color name="secondary">#FFEC407A</color>  <!--Pink400-->
     <color name="background">#FFFFFFFF</color>
-    <color name="background_alpha">#E3FFFFFF</color>
+    <color name="background_alpha">#60FFFFFF</color>
     <color name="on_background">#FF000000</color>
 
     <color name="red_700">@color/day_red_700</color>

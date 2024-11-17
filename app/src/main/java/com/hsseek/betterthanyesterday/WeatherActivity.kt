@@ -382,14 +382,6 @@ class WeatherActivity : ComponentActivity() {
                 onClickRefresh = { checkPermissionThenRefresh() },
                 onClickChangeLocation = { viewModel.onClickChangeRegion() }
             ) },
-//            snackbarHost = {
-//                           SnackbarHost(it) { data ->
-//                               Snackbar(
-//                                   actionColor = Color.Green,
-//                                   snackbarData = data
-//                               )
-//                           }
-//            },
         ) { padding ->
             SwipeRefresh(
                 modifier = Modifier.fillMaxSize(),
@@ -1108,7 +1100,7 @@ class WeatherActivity : ComponentActivity() {
                 dailyTemp = null,
             )
 
-            // Yesterday through the day after tomorrow
+            // Today, tomorrow and the day after tomorrow
             for (dailyTemp in dailyTemps) {
                 DailyTemperatureColumn(
                     isSimplified = isSimplified,

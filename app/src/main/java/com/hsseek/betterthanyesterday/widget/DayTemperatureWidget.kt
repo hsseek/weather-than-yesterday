@@ -23,8 +23,6 @@ import kotlinx.coroutines.launch
 class DayTemperatureWidget : TemperatureWidget() {
     override val widgetBackground = ImageProvider(R.drawable.app_widget_transparent_background)
     override val refreshAction = actionRunCallback<DayRefreshCallback>()
-    override val descriptiveTextColorId = android.R.color.black
-    override val plainTextColorId = android.R.color.black
     override val refreshIconId = R.drawable.ic_refresh_black
 
     override fun getWidgetUiState(prefs: Preferences): TemperatureWidgetUiState {
@@ -35,6 +33,10 @@ class DayTemperatureWidget : TemperatureWidget() {
             hourlyTemperature = prefs[DAY_HOURLY_TEMPERATURE_PREFS_KEY],
             time = getCurrentKoreanTime()
         )
+    }
+
+    override fun getWidgetPlainTextColor(context: Context): Color {
+        return Color(android.graphics.Color.BLACK)
     }
 
     override fun getWidgetTempDiffColor(context: Context, tempDiff: Int): Color {

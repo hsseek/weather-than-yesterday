@@ -3,7 +3,7 @@
     <color name="primary">#FFFFD54F</color>  <!--Not applied to the icon color-->
     <color name="secondary">#FFC2185B</color>  <!--Pink700-->
     <color name="background">#FF232323</color>  <!--Gray500-->
-    <color name="background_alpha">#E3232323</color>
+    <color name="background_alpha">#60232323</color>
     <color name="on_background">#FFFFFFFF</color>
 
     <color name="red_700">@color/night_red_700</color>

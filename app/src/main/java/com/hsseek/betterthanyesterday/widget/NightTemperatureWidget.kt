@@ -3,6 +3,7 @@ package com.hsseek.betterthanyesterday.widget
 import android.content.Context
 import android.content.Intent
 import androidx.compose.ui.graphics.Color
+import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.Preferences
 import androidx.glance.*
 import androidx.glance.action.ActionParameters
@@ -23,8 +24,6 @@ import kotlinx.coroutines.launch
 class NightTemperatureWidget : TemperatureWidget() {
     override val widgetBackground = ImageProvider(R.drawable.app_widget_transparent_background)
     override val refreshAction = actionRunCallback<NightRefreshCallback>()
-    override val descriptiveTextColorId = android.R.color.white
-    override val plainTextColorId = android.R.color.white
     override val refreshIconId = R.drawable.ic_refresh_white
 
     override fun getWidgetUiState(prefs: Preferences): TemperatureWidgetUiState {
@@ -35,6 +34,10 @@ class NightTemperatureWidget : TemperatureWidget() {
             hourlyTemperature = prefs[NIGHT_HOURLY_TEMPERATURE_PREFS_KEY],
             time = getCurrentKoreanTime()
         )
+    }
+
+    override fun getWidgetPlainTextColor(context: Context): Color {
+        return Color(android.graphics.Color.WHITE)
     }
 
     override fun getWidgetTempDiffColor(context: Context, tempDiff: Int): Color {
