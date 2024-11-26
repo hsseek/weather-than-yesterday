@@ -13,6 +13,7 @@ import com.hsseek.betterthanyesterday.network.*
 import com.hsseek.betterthanyesterday.util.DEBUG_FLAG
 import com.hsseek.betterthanyesterday.util.VILLAGE_HOUR_INTERVAL
 import com.hsseek.betterthanyesterday.util.getCurrentKoreanTime
+import com.hsseek.betterthanyesterday.viewmodel.DayOfInterest
 import com.hsseek.betterthanyesterday.viewmodel.TEST_HOUR_OFFSET
 import com.hsseek.betterthanyesterday.viewmodel.VILLAGE_TEMPERATURE_TAG
 import com.hsseek.betterthanyesterday.viewmodel.getHourlyTempAsync
@@ -93,6 +94,12 @@ suspend fun requestComparingTempData(
     var todayTemp: Int? = null
     var yesterdayTemp: Int? = null
     val cal = getCurrentKoreanTime()
+    // THE TIME MACHINE, e.g.
+//    cal.set(Calendar.DAY_OF_MONTH, 21)
+//    cal.set(Calendar.HOUR_OF_DAY, 23)
+//    cal.set(Calendar.MINUTE, 55)
+    if (DEBUG_FLAG) Log.d(TAG, "Widget reference time: ${cal.time}")
+
     var isCalModified = false
 
     try {
@@ -100,8 +107,8 @@ suspend fun requestComparingTempData(
             while (trialCount < retry) {
                 try {
                     withTimeout(minOf(timeoutMin + trialCount * additionalTimeout, timeoutMax)) {
-                        val todayResponse = getHourlyTempAsync(xy, cal, 0, hourOffset, TAG, isCalModified)
-                        val yesterdayResponse = getHourlyTempAsync(xy, cal, -1, hourOffset, TAG, isCalModified)
+                        val todayResponse = getHourlyTempAsync(xy, cal, DayOfInterest.Today.dayOffset, hourOffset, TAG)
+                        val yesterdayResponse = getHourlyTempAsync(xy, cal, DayOfInterest.Yesterday.dayOffset, hourOffset, TAG)
                         todayTemp = todayResponse.await()
                             .body()?.response?.body?.items?.item?.first {
                                 it.category == VILLAGE_TEMPERATURE_TAG
@@ -110,7 +117,7 @@ suspend fun requestComparingTempData(
                             .body()?.response?.body?.items?.item?.first {
                                 it.category == VILLAGE_TEMPERATURE_TAG
                             }?.fcstValue?.toInt()
-                        if (DEBUG_FLAG) Log.d(TAG, "Temperature data: $yesterdayTemp -> $todayTemp")
+                        if (DEBUG_FLAG) Log.d(TAG, "Temperature data of yesterday: $yesterdayTemp and today: $todayTemp")
                     }
                     break
                 } catch (e: Exception) {

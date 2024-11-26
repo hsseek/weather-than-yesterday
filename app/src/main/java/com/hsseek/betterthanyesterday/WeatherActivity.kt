@@ -905,8 +905,9 @@ class WeatherActivity : ComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // The title
-            cal.add(Calendar.HOUR_OF_DAY, hourOffset)
-            val title = getHourString(this@WeatherActivity, cal, hourlyTemp, isSimplified)
+            val calValue = cal.clone() as Calendar
+            calValue.add(Calendar.HOUR_OF_DAY, hourOffset)
+            val title = getHourString(this@WeatherActivity, calValue, hourlyTemp, isSimplified)
 
             Text(
                 text = title,
@@ -1318,14 +1319,14 @@ fun getHourString(
     hourlyTemp: Int?,
     isSimplified: Boolean,
 ): String {
-    val nextHour = cal.get(Calendar.HOUR_OF_DAY)
+    val hour = cal.get(Calendar.HOUR_OF_DAY)
     val hourString =
-        if (nextHour < 12) {
-            context.getString(R.string.hour_am, nextHour)
-        } else if (nextHour > 12) {
-            context.getString(R.string.hour_pm, nextHour - 12)
+        if (hour < 12) {
+            context.getString(R.string.hour_am, hour)
+        } else if (hour > 12) {
+            context.getString(R.string.hour_pm, hour - 12)
         } else {
-            context.getString(R.string.hour_pm, nextHour)  // i.e. 12 PM
+            context.getString(R.string.hour_pm, hour)  // i.e. 12 PM
         }
     val hourAndTemp = if (hourlyTemp == null) "" else {
         if (!isSimplified) {

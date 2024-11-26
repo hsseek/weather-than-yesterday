@@ -5,7 +5,6 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.PowerManager
 import android.util.Log
 import androidx.glance.appwidget.GlanceAppWidget
@@ -135,9 +134,6 @@ abstract class TemperatureWidgetReceiver : GlanceAppWidgetReceiver() {
             // Define the Work to fetch temperatures.
             val immediateWork = OneTimeWorkRequest.Builder(TemperatureFetchingWorker::class.java)
                 .setConstraints(getFetchingWorkConstraints())
-            if (Build.VERSION.SDK_INT >= 31) {
-                immediateWork.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-            }
             WorkManager.getInstance(context).enqueueUniqueWork(
                 TEMP_WORK_ID_IMMEDIATE,
                 ExistingWorkPolicy.KEEP,
