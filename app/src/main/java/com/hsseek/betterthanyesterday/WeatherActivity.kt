@@ -15,6 +15,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -53,11 +54,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.*
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.SwipeRefreshIndicator
-import com.google.accompanist.swiperefresh.SwipeRefreshState
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import com.hsseek.betterthanyesterday.data.ForecastRegion
 import com.hsseek.betterthanyesterday.data.PresetRegion
 import com.hsseek.betterthanyesterday.data.UserPreferencesRepository
@@ -142,6 +141,8 @@ class WeatherActivity : ComponentActivity() {
             }
         }
         logElapsedTime(TAG, "Wiring before rendering", start)
+
+        enableEdgeToEdge()
 
         setContent {
             BetterThanYesterdayTheme(viewModel.isDarkTheme) {
@@ -367,37 +368,34 @@ class WeatherActivity : ComponentActivity() {
         // Regardless of the result, the launcher dialog has been dismissed.
     }
 
+    @OptIn(ExperimentalMaterialApi::class)
     @Composable
     private fun MainScreen() {
-        // Make the status bar look transparent.
-        val systemUiController = rememberSystemUiController()
-        systemUiController.setSystemBarsColor(color = if (viewModel.isDarkTheme) DarkBackground else Color.White)
         val screenHeight = LocalConfiguration.current.screenHeightDp
 
         val scaffoldState = rememberScaffoldState()
         Scaffold(
             scaffoldState = scaffoldState,
             topBar = { WeatherTopAppBar(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().statusBarsPadding(),
                 onClickRefresh = { checkPermissionThenRefresh() },
                 onClickChangeLocation = { viewModel.onClickChangeRegion() }
             ) },
         ) { padding ->
-            SwipeRefresh(
-                modifier = Modifier.fillMaxSize(),
-                state = rememberSwipeRefreshState(isRefreshing = viewModel.isRefreshing),
-                onRefresh = { checkPermissionThenRefresh() },
-                indicator = { state, trigger ->
-                    InProgressIndicator(
-                        refreshState = state,
-                        refreshTriggerDistance = trigger,
-                    )
-                }
+            val pullRefreshState = rememberPullRefreshState(
+                refreshing = viewModel.isRefreshing,
+                onRefresh = { checkPermissionThenRefresh() }
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .pullRefresh(pullRefreshState),
+                contentAlignment = Alignment.TopCenter,
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
                     val enlargedFontSize = 178.sp
@@ -482,6 +480,13 @@ class WeatherActivity : ComponentActivity() {
                         }
                     }
                 }
+
+                PullRefreshIndicator(
+                    refreshing = viewModel.isRefreshing,
+                    state = pullRefreshState,
+                    contentColor = MaterialTheme.colors.primary,
+                    backgroundColor = MaterialTheme.colors.background.copy(alpha = 0.85f),
+                )
             }
 
             // A SnackBar for Exceptions
@@ -583,7 +588,7 @@ class WeatherActivity : ComponentActivity() {
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().systemBarsPadding(),
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Image(
@@ -609,7 +614,7 @@ class WeatherActivity : ComponentActivity() {
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().systemBarsPadding(),
                     verticalArrangement = Arrangement.Center
                 ) {
                     Image(
@@ -791,54 +796,6 @@ class WeatherActivity : ComponentActivity() {
             R.string.share_app_now_good_higher
             // R.string.current_temp_same: Don't. It's not showing the essence of the app.
         }
-
-    // https://google.github.io/accompanist/swiperefresh/
-    @Composable
-    private fun InProgressIndicator(
-        refreshState: SwipeRefreshState,
-        refreshTriggerDistance: Dp,
-        color: Color = MaterialTheme.colors.primary,
-        background: Color = MaterialTheme.colors.background.copy(alpha = 0.85f),
-    ) {
-        val elevation = 1.dp
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .drawWithCache {
-                    onDrawBehind {
-                        val distance = refreshTriggerDistance.toPx()
-                        val progress = (refreshState.indicatorOffset / distance).coerceIn(0f, 1f)
-                        drawRect(
-                            color = background,
-                            alpha = FastOutSlowInEasing.transform(progress)
-                        )
-                    }
-                },
-        ) {
-            val modifier = if (viewModel.isRefreshing) {
-                Modifier
-                    .fillMaxSize()
-                    .background(color = background)
-            } else {
-                Modifier.fillMaxWidth()
-            }
-
-            Column(
-                modifier = modifier,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                SwipeRefreshIndicator(
-                    state = refreshState,
-                    refreshTriggerDistance = refreshTriggerDistance,
-                    contentColor = color,
-                    largeIndication = true,
-                    elevation = elevation,
-                    arrowEnabled = false,
-                )
-            }
-        }
-    }
 
     @Composable
     private fun LocationInformation(
